@@ -1,0 +1,194 @@
+# Kits
+
+Browser-first utility app: compress, convert, generate, and process files without creating an account.
+
+Most tools run in the browser. Pro tools that need a server (AI background removal, upscale, and similar) require a license key activated on one installation at a time.
+
+## What’s in this repo
+
+```text
+.
+├── apps/web     TanStack Start + React frontend (port 3000)
+├── apps/api     FastAPI backend, licenses, jobs, uploads (port 8000)
+├── plan/        Product / architecture notes
+└── .env.example Shared environment template
+```
+
+- **Web:** tool explorer, workspaces, command palette (`Ctrl/Cmd K`), theme toggle, `/pricing`, `/license`
+- **API:** entitlement, admin license CLI, file uploads, background jobs
+
+## Prerequisites
+
+- Node.js 20+
+- [pnpm](https://pnpm.io/) 11 (`packageManager` is `pnpm@11.21.0`)
+- Python 3.12+
+- [uv](https://docs.astral.sh/uv/) for the API (or another installer that can sync `apps/api/pyproject.toml`)
+
+Optional for production-like jobs:
+
+- Redis (`REDIS_URL`)
+- Cloudflare R2 (or S3-compatible storage) for uploads
+
+Local development can run jobs inline (`INLINE_JOBS=true` in `.env.example`) without Redis.
+
+## Setup
+
+```bash
+git clone https://github.com/baniputrabangsawan/allyouneed.git
+cd allyouneed
+cp .env.example .env
+```
+
+Edit `.env` as needed. Do not commit `.env`.
+
+### Web
+
+```bash
+pnpm install
+```
+
+Vite reads `VITE_APP_URL` and `VITE_API_BASE_URL` from the environment (defaults in `.env.example` point at `localhost:3000` / `localhost:8000`).
+
+### API
+
+From `apps/api`:
+
+```bash
+cd apps/api
+uv sync
+```
+
+The API loads `.env` from the working directory. Either run it from the repo root (so the root `.env` is found) or copy the needed variables next to `apps/api`.
+
+On first boot the app creates the SQLite parent folder and schema. Alembic migrations live in `apps/api/alembic/` if you need an explicit upgrade:
+
+```bash
+cd apps/api
+uv run alembic upgrade head
+```
+
+## Run
+
+Use two terminals.
+
+**Frontend** (repo root):
+
+```bash
+pnpm dev
+```
+
+App: [http://localhost:3000](http://localhost:3000)
+
+**Backend** (from `apps/api`):
+
+```bash
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+API: [http://localhost:8000](http://localhost:8000)  
+OpenAPI: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+Many local tools work with the web app alone. Activate Pro and remote processing need the API running.
+
+### Docker (API)
+
+```bash
+cd apps/api
+docker build -t kits-api .
+docker run --env-file ../../.env -p 8000:8000 kits-api
+```
+
+The image installs `ffmpeg` and starts Uvicorn on port 8000.
+
+## Scripts
+
+| Command | Where | What |
+|---|---|---|
+| `pnpm dev` | root | Vite / TanStack Start dev server |
+| `pnpm build` | root | Production web build |
+| `pnpm lint` | root | ESLint |
+| `pnpm typecheck` | root | `tsc --noEmit` |
+| `pnpm test` | root | Vitest |
+| `pnpm test:e2e` | root | Playwright |
+| `uv run pytest` | `apps/api` | API tests |
+| `uv run ruff check .` | `apps/api` | API lint |
+| `uv run mypy` | `apps/api` | API types |
+
+## Pro licenses
+
+There is no payment gateway. Keys are issued by an admin after a manual purchase, then activated in the app at `/license`.
+
+Plans (same capabilities, different duration):
+
+| Plan id | Duration |
+|---|---|
+| `pro_1_month` | 1 month |
+| `pro_6_months` | 6 months |
+| `pro_12_months` | 12 months |
+
+Expiry starts on **first activation**. One license = one active browser/installation. Deactivate before moving the key.
+
+### Issue a key (CLI)
+
+From `apps/api`, after `uv sync`:
+
+```bash
+uv run utility-license create --plan pro_1_month
+uv run utility-license create --plan pro_6_months
+uv run utility-license create --plan pro_12_months
+```
+
+Other commands:
+
+```bash
+uv run utility-license list
+uv run utility-license inspect KITS-…
+uv run utility-license renew KITS-… --months 12
+uv run utility-license suspend KITS-…
+uv run utility-license resume KITS-…
+uv run utility-license revoke KITS-…
+uv run utility-license reset-activations KITS-…
+```
+
+Admin HTTP routes use the `X-Admin-Key` header (`ADMIN_API_KEY`).
+
+Users paste the key in the UI (**Activate Pro**). Do not put live keys in git.
+
+## Environment
+
+Copy `.env.example`. Important variables:
+
+| Variable | Used by | Purpose |
+|---|---|---|
+| `VITE_API_BASE_URL` | web | API origin the browser calls |
+| `VITE_APP_URL` | web | Public app URL |
+| `LICENSE_DATABASE_URL` / `DATABASE_URL` | API | License SQLite/Postgres URL |
+| `ADMIN_API_KEY` | API | Admin license endpoints |
+| `ENTITLEMENT_PRIVATE_KEY` / `PUBLIC_KEY` | API | Entitlement tokens (generate for anything beyond local play) |
+| `REDIS_URL` | API | Job queue (when not using inline jobs) |
+| `R2_*` | API | Object storage for uploads |
+| `INLINE_JOBS` | API | `true` runs jobs in-process for local dev |
+| `MAX_UPLOAD_MB` | API | Upload size cap |
+
+Leave AI/R2 keys empty for a local UI-only pass.
+
+## Product map
+
+| Path | Page |
+|---|---|
+| `/` | Tool explorer (search, categories, favorites, recent) |
+| `/tools` | Full catalog |
+| `/{tool}` | Tool workspace |
+| `/pricing` | Pro plans (manual purchase, no fake checkout) |
+| `/license` | Activate / deactivate a key |
+
+Free tools stay available after a Pro license expires.
+
+## Stack
+
+- **Web:** React 19, TanStack Start/Router/Query, Vite 7, Tailwind CSS 4
+- **API:** FastAPI, SQLAlchemy async, Alembic, Dramatiq, Redis, R2
+
+## License
+
+Private repository. Not an open-source license grant unless you add one.
