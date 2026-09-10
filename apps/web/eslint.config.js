@@ -5,7 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  { ignores: ['.output', '.tanstack', 'dist', 'src/routeTree.gen.ts'] },
+  { ignores: ['.output', '.vercel', '.tanstack', 'dist', 'src/routeTree.gen.ts'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
