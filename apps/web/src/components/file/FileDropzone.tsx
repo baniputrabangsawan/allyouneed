@@ -1,6 +1,8 @@
 import { CheckCircle2, CircleAlert, Upload } from 'lucide-react'
 import { useId, useRef, useState } from 'react'
 import { validateFiles } from '@/features/image/image-utils'
+import { gsap, useGSAP } from '@/lib/motion/gsap'
+import { prefersReducedMotion } from '@/lib/motion/prefers-reduced-motion'
 
 export type DropzoneStatus = 'idle' | 'uploading' | 'processing' | 'success' | 'error'
 
@@ -32,6 +34,7 @@ export function FileDropzone({
 }: FileDropzoneProps) {
   const id = useId()
   const inputRef = useRef<HTMLInputElement>(null)
+  const shellRef = useRef<HTMLDivElement>(null)
   const [dragging, setDragging] = useState(false)
   const [error, setError] = useState('')
   const busy = disabled || status === 'uploading' || status === 'processing'
@@ -40,6 +43,14 @@ export function FileDropzone({
   const showProgress = status !== 'idle' || Boolean(progress?.fileName)
   const statusLabel = progress?.label
     ?? (status === 'uploading' ? 'Uploading...' : status === 'processing' ? 'Processing...' : status === 'success' ? 'Completed' : status === 'error' ? 'Upload failed' : '')
+
+  useGSAP(() => {
+    if (prefersReducedMotion()) return
+    const box = shellRef.current?.querySelector('.dropzone')
+    if (!box) return
+    if (status === 'success') gsap.fromTo(box, { scale: 1.02 }, { scale: 1, duration: 0.32, ease: 'power2.out' })
+    if (status === 'error' || error) gsap.fromTo(box, { x: -6 }, { x: 0, duration: 0.35, ease: 'power2.out' })
+  }, { dependencies: [status, error], scope: shellRef })
 
   function select(fileList: FileList | readonly File[] | null) {
     if (busy) return
@@ -66,6 +77,7 @@ export function FileDropzone({
 
   return (
     <div
+      ref={shellRef}
       className="dropzone-shell"
       tabIndex={0}
       onPaste={(event) => {

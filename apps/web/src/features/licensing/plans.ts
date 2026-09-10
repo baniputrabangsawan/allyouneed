@@ -11,6 +11,7 @@ export interface PricingPlan {
   secondary?: string
   badge?: string
   featured?: boolean
+  value?: boolean
 }
 
 const MONTHLY_PRICE = 30_000
@@ -23,7 +24,7 @@ export const pricingPlans: readonly PricingPlan[] = [
     price: 30_000,
     cta: 'Get 1 Month',
     description: 'Full Pro access for one month. Perfect for trying every premium tool.',
-    secondary: 'Short-term access',
+    badge: 'Short-term access',
   },
   {
     id: 'pro_6_months',
@@ -43,6 +44,7 @@ export const pricingPlans: readonly PricingPlan[] = [
     cta: 'Get 12 Months',
     description: 'The lowest effective monthly price for users who use Kits regularly.',
     badge: 'Best value',
+    value: true,
   },
 ]
 
@@ -58,6 +60,15 @@ const CAPABILITY_FALLBACKS = [
 ] as const
 
 const EXTRA_PRO_FEATURES = ['Larger file limits', 'Batch Processing', 'Access to future Pro tools when applicable'] as const
+
+export const planCardHighlights = [
+  'Full Pro access',
+  'AI tools included',
+  'Subtitle Generator',
+  'Speech to Text',
+  'Advanced OCR',
+  '1 active installation',
+] as const
 
 export function formatRupiah(amount: number) {
   return `Rp${amount.toLocaleString('id-ID')}`

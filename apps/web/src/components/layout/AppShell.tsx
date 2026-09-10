@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { Grid2X2, Menu, Monitor, Moon, Search, Sun, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CommandPalette } from '@/components/common/CommandPalette'
 import { isPro, useEntitlement } from '@/features/licensing/entitlement'
 import {
@@ -8,6 +8,7 @@ import {
   saveThemePreference,
   type ThemePreference,
 } from '@/lib/storage/preferences'
+
 
 const themes: readonly ThemePreference[] = ['light', 'dark', 'system']
 const explorerSearch = { q: '', category: 'all', group: 'all' } as const
@@ -31,6 +32,8 @@ export function AppHeader() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [shortcutLabel, setShortcutLabel] = useState('Ctrl K')
+  const headerRef = useRef<HTMLElement>(null)
+  const innerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const preference = getThemePreference()
@@ -65,6 +68,17 @@ export function AppHeader() {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
 
+
+
+  useEffect(() => {
+    const header = headerRef.current
+    if (!header) return
+    const onScroll = () => header.classList.toggle('is-scrolled', window.scrollY > 16)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
   function cycleTheme() {
     const currentDark = themeIsDark(theme)
     let next: ThemePreference = currentDark ? 'light' : 'dark'
@@ -84,8 +98,8 @@ export function AppHeader() {
   const closeMenu = () => setMenuOpen(false)
 
   return <>
-    <header className="site-header">
-      <div className="header-inner bg-background/70 backdrop-blur-xl border border-border/50 shadow-sm rounded-2xl md:rounded-full px-4 md:px-6">
+    <header ref={headerRef} className="site-header">
+      <div ref={innerRef} className="header-inner bg-background/70 backdrop-blur-xl border border-border/50 shadow-sm rounded-2xl md:rounded-full px-6 md:px-10">
         <Link to="/" className="brand" onClick={closeMenu}><span className="brand-mark"><Grid2X2 size={18} /></span>Kits</Link>
         <nav aria-label="Primary">{primaryNav.map((item) => <Link key={item.hash} className="transition-colors duration-200" to="/" search={explorerSearch} hash={item.hash}>{item.label}</Link>)}<Link className="transition-colors duration-200" to="/pricing">Pricing</Link></nav>
         <div className="header-actions">
