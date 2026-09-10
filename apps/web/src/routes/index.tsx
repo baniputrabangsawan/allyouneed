@@ -1,8 +1,9 @@
 import { createFileRoute, useRouterState } from '@tanstack/react-router'
 import { ArrowRight, Clock3, LockKeyhole, Search, ShieldCheck, Sparkles, Star, Zap } from 'lucide-react'
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { z } from 'zod'
 import { DiscoveryToolCard } from '@/components/common/DiscoveryToolCard'
+import { partitionByAvailability } from '@/features/tools/tool-availability'
 import {
   getNewTools,
   getPopularTools,
@@ -68,7 +69,8 @@ function Home() {
   const favorites = toolsForIds(useFavoriteIds()).slice(0, 10)
   const recent = toolsForIds(useRecentIds())
   const newest = getNewTools().slice(0, 10)
-  const found = filterTools(q, category, group)
+  const found = useMemo(() => filterTools(q, category, group), [q, category, group])
+  const { available: availableMatches, comingSoon: comingSoonMatches } = useMemo(() => partitionByAvailability(found), [found])
   const suggestions = found.filter((tool) => tool.available).slice(0, 8)
   const workingCount = tools.filter((tool) => tool.available).length
 
@@ -128,7 +130,10 @@ function Home() {
 
     <section className="page-section" id="all-tools">
       <div className="section-heading"><div><p className="eyebrow">{q || category !== 'all' || group !== 'all' ? `${found.length} matches` : `${tools.length} utilities`}</p><h2>{q ? `Results for “${q}”` : category !== 'all' ? `${category} tools` : group !== 'all' ? `${group} tools` : 'All tools'}</h2></div><a href="/tools">Open catalog <ArrowRight size={16}/></a></div>
-      {found.length ? <ToolGrid items={found}/> : <div className="no-results"><Search size={28}/><h3>No tools found</h3><p>Try a format, action, or broader keyword.</p><button className="button secondary" type="button" onClick={() => void navigate({ search: { q: '', category: 'all', group: 'all' } })}>Clear filters</button></div>}
+      {found.length ? <>
+        {availableMatches.length > 0 && <div className="tool-availability-group"><p className="eyebrow">Available</p><ToolGrid items={availableMatches}/></div>}
+        {comingSoonMatches.length > 0 && <div className="tool-availability-group"><p className="eyebrow">Coming soon</p><ToolGrid items={comingSoonMatches}/></div>}
+      </> : <div className="no-results"><Search size={28}/><h3>No tools found</h3><p>Try a format, action, or broader keyword.</p><button className="button secondary" type="button" onClick={() => void navigate({ search: { q: '', category: 'all', group: 'all' } })}>Clear filters</button></div>}
     </section>
 
     <section className="page-section privacy-section"><div className="privacy-mark"><ShieldCheck size={28}/></div><div><p className="eyebrow">Privacy, made explicit</p><h2>Your work stays yours.</h2><p>Local tools process files and text in this browser. When a tool needs a server, we label it before you start, so there are no quiet uploads or account walls.</p></div><div className="privacy-points"><span><LockKeyhole size={18}/><strong>Local first</strong>Data stays on your device when supported.</span><span><ShieldCheck size={18}/><strong>Clear labels</strong>Processing location appears on every card.</span><span><Zap size={18}/><strong>No sign-in</strong>Open a working tool and use it immediately.</span></div></section>

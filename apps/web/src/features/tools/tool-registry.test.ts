@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { isToolAvailable, partitionByAvailability, sortAvailableFirst } from './tool-availability'
 import {
   getAllTools,
   getPopularTools,
@@ -69,5 +70,60 @@ describe('tool registry', () => {
     const related = getRelatedTools(current)
     expect(related.length).toBeLessThanOrEqual(4)
     expect(related.every((tool) => tool.available && tool.id !== current.id)).toBe(true)
+  })
+})
+
+describe('available-first ordering', () => {
+  it('places available tools before Coming Soon tools', () => {
+    const sorted = sortAvailableFirst(tools)
+    const firstComingSoon = sorted.findIndex((tool) => !isToolAvailable(tool))
+    expect(sorted.some((tool) => !isToolAvailable(tool))).toBe(true)
+    expect(sorted.slice(0, firstComingSoon).every(isToolAvailable)).toBe(true)
+    expect(sorted.slice(firstComingSoon).every((tool) => !isToolAvailable(tool))).toBe(true)
+  })
+
+  it('keeps Coming Soon tools visible', () => {
+    const { available, comingSoon } = partitionByAvailability(tools)
+    expect(comingSoon.length).toBeGreaterThan(0)
+    expect(available.length + comingSoon.length).toBe(tools.length)
+  })
+
+  it('preserves available-first order under category filters', () => {
+    const image = getToolsByCategory('image')
+    const sorted = sortAvailableFirst(image)
+    const firstComingSoon = sorted.findIndex((tool) => !isToolAvailable(tool))
+    expect(sorted.slice(0, firstComingSoon).every(isToolAvailable)).toBe(true)
+    expect(sorted.slice(firstComingSoon).every((tool) => !isToolAvailable(tool))).toBe(true)
+  })
+
+  it('preserves available-first order under search', () => {
+    const sorted = sortAvailableFirst(searchTools('image'))
+    const firstComingSoon = sorted.findIndex((tool) => !isToolAvailable(tool))
+    if (firstComingSoon === -1) {
+      expect(sorted.every(isToolAvailable)).toBe(true)
+      return
+    }
+    expect(sorted.slice(0, firstComingSoon).every(isToolAvailable)).toBe(true)
+    expect(sorted.slice(firstComingSoon).every((tool) => !isToolAvailable(tool))).toBe(true)
+  })
+
+  it('moves a tool up when it becomes available', () => {
+    const sample = [
+      { id: 'compress-image', available: true },
+      { id: 'avif-converter', available: false },
+      { id: 'resize-image', available: true },
+    ]
+    expect(sortAvailableFirst(sample).map((tool) => tool.id)).toEqual(['compress-image', 'resize-image', 'avif-converter'])
+    sample[1]!.available = true
+    expect(sortAvailableFirst(sample).map((tool) => tool.id)).toEqual(['compress-image', 'avif-converter', 'resize-image'])
+  })
+
+  it('does not mutate the original Tool Registry', () => {
+    const original = tools
+    const before = tools.map((tool) => tool.id)
+    const sorted = sortAvailableFirst(tools)
+    expect(tools).toBe(original)
+    expect(tools.map((tool) => tool.id)).toEqual(before)
+    expect(sorted).not.toBe(tools)
   })
 })
