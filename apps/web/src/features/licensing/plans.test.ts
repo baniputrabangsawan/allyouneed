@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   comparisonRows,
   monthlyEquivalent,
+  planCardHighlights,
   pricingPlans,
   proFeatureList,
   savingsVsMonthly,
@@ -14,6 +15,26 @@ describe('pricing plans', () => {
     expect(features).toContain('Remove Background')
     expect(features).toContain('Upscale Image')
     expect(new Set(features).size).toBe(features.length)
+  })
+
+  it('marks 6 months as most popular and 12 months as best value', () => {
+    const [oneMonth, sixMonths, twelveMonths] = pricingPlans
+    expect(oneMonth).toMatchObject({ price: 30_000, badge: 'Short-term access' })
+    expect(oneMonth?.featured).toBeFalsy()
+    expect(sixMonths).toMatchObject({ price: 70_000, badge: 'Most popular', featured: true })
+    expect(twelveMonths).toMatchObject({ price: 100_000, badge: 'Best value', value: true })
+    expect(twelveMonths?.featured).toBeFalsy()
+  })
+
+  it('keeps compact card highlights identical across durations', () => {
+    expect(planCardHighlights).toEqual([
+      'Full Pro access',
+      'AI tools included',
+      'Subtitle Generator',
+      'Speech to Text',
+      'Advanced OCR',
+      '1 active installation',
+    ])
   })
 
   it('prices longer plans below monthly access', () => {
