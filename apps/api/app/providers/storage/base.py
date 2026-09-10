@@ -1,0 +1,19 @@
+from datetime import datetime
+from pathlib import Path
+from typing import Protocol
+
+
+class StorageProvider(Protocol):
+    async def create_upload_url(
+        self, key: str, content_type: str, size: int
+    ) -> dict[str, object]: ...
+
+    async def create_download_url(self, key: str) -> tuple[str, datetime]: ...
+
+    async def exists(self, key: str) -> bool: ...
+
+    async def delete(self, key: str) -> None: ...
+
+    def path(self, key: str) -> Path: ...
+
+    def write_bytes(self, key: str, data: bytes) -> Path: ...
