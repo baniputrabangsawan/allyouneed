@@ -90,6 +90,21 @@ OpenAPI: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 Many local tools work with the web app alone. Activate Pro and remote processing need the API running.
 
+## Deploy on Vercel
+
+This app is TanStack Start (SSR). A static Vite publish folder has **no `index.html`**, which is why a default Vercel import returns `404: NOT_FOUND`.
+
+The repo now builds with Nitro’s Vercel preset (`apps/web/.vercel/output`, copied to the repo-root `.vercel/output` that Vercel reads).
+
+In the Vercel project:
+
+1. **Root Directory:** leave as the repository root (`.`)
+2. **Framework Preset:** Other (or leave unset — `vercel.json` sets `"framework": null`)
+3. Redeploy after pulling these changes
+4. Set `VITE_API_BASE_URL` to your public API origin if the backend is hosted elsewhere. Local-only tools still work without it.
+
+Do not set Output Directory to `apps/web/dist` or `apps/web/dist/client`.
+
 ### Docker (API)
 
 ```bash
