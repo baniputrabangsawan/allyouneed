@@ -5,7 +5,7 @@ const ADMIN_API_KEY = process.env.E2E_ADMIN_API_KEY ?? 'dev-admin-key'
 
 async function issueLicense(request: APIRequestContext): Promise<{ licenseId: string; licenseKey: string }> {
   const response = await request.post(`${API_BASE_URL}/api/v1/admin/licenses`, {
-    data: { plan: 'pro_1_month' },
+    data: { durationMonths: 1 },
     headers: { 'X-Admin-Key': ADMIN_API_KEY },
   })
   expect(response.ok(), await response.text()).toBeTruthy()

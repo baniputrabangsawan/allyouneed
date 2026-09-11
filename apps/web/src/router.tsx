@@ -6,8 +6,10 @@ export function getRouter() {
   const queryClient = new QueryClient()
   return createRouter({
     routeTree,
-    scrollRestoration: true,
-    getScrollRestorationKey: (location) => location.pathname === '/' ? '/' : `${location.pathname}${location.search}`,
+    scrollRestoration: ({ location }) => !location.hash && (typeof window === 'undefined' || !window.location.hash),
+    scrollRestorationBehavior: 'instant',
+    defaultHashScrollIntoView: { behavior: 'instant', block: 'start' },
+    getScrollRestorationKey: (location) => `${location.pathname}${typeof location.searchStr === 'string' ? location.searchStr : ''}`,
     defaultPreload: 'intent',
     context: { queryClient },
   })

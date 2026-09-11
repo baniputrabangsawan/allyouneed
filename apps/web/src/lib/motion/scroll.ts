@@ -2,9 +2,10 @@ import { cardEnterVars } from './cards'
 import { motion } from './config'
 import { gsap, ScrollTrigger } from './gsap'
 import { isCompactMotion, prefersReducedMotion } from './prefers-reduced-motion'
+import { isRestoringNavigation } from './restore'
 
 export function revealSectionOnce(section: Element | null, children?: string) {
-  if (!section || prefersReducedMotion()) return
+  if (!section || prefersReducedMotion() || isRestoringNavigation()) return
   const compact = isCompactMotion()
   const targets = children ? section.querySelectorAll(children) : [section]
   if (!targets.length) return

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from uuid import uuid4
 
 from dateutil.relativedelta import relativedelta
@@ -19,8 +21,16 @@ from app.core.license_crypto import (
     license_key_prefix,
     normalize_license_key,
 )
-from app.db.models import License, LicenseActivation, LicenseEvent
+from app.db.models import AdminAuditLog, License, LicenseActivation, LicenseEvent
 from app.repositories.licenses import LicenseRepository
+from app.schemas.admin import (
+    AdminAuditPage,
+    AdminAuditView,
+    AdminLicensePage,
+    AdminLicenseView,
+    AdminOverview,
+    IssuedAdminLicense,
+)
 from app.schemas.licenses import IssuedLicense, LicenseView
 from app.services.license_cache import LicenseStatusCache, get_license_status_cache
 
@@ -46,6 +56,13 @@ LICENSE_TRANSITIONS: dict[LicenseStatus, frozenset[LicenseStatus]] = {
 }
 
 
+@dataclass(frozen=True)
+class AuditActor:
+    admin_id: str
+    email: str
+    request_id: str
+
+
 class LicenseService:
     def __init__(
         self,
@@ -58,7 +75,12 @@ class LicenseService:
         self._cache = cache or get_license_status_cache()
 
     async def issue(
-        self, plan: LicensePlan, *, note: str | None = None, created_source: str = "admin"
+        self,
+        plan: LicensePlan,
+        *,
+        note: str | None = None,
+        created_source: str = "admin",
+        actor: AuditActor | None = None,
     ) -> IssuedLicense:
         now = self._clock()
         raw_key = generate_license_key()
@@ -78,6 +100,8 @@ class LicenseService:
         )
         await self._repo.add(license)
         await self._event(license, LicenseEventType.ISSUED, meta={"plan": plan.value})
+        if actor:
+            await self._audit(actor, "license_created", license.id, {"plan": plan.value})
         await self._repo.commit()
         return IssuedLicense(
             license_id=license.id,
@@ -88,6 +112,15 @@ class LicenseService:
             license_key=raw_key,
             key_prefix=license.key_prefix,
             max_activations=license.max_activations,
+        )
+
+    async def issue_admin(
+        self, plan: LicensePlan, *, note: str | None, actor: AuditActor
+    ) -> IssuedAdminLicense:
+        issued = await self.issue(plan, note=note, actor=actor)
+        license = await self._require_id(issued.license_id)
+        return IssuedAdminLicense(
+            **self._admin_view(license).model_dump(), license_key=issued.license_key
         )
 
     async def activate(self, license_key: str, installation_id: str) -> tuple[License, str]:
@@ -148,6 +181,11 @@ class LicenseService:
         self._refresh_expiry(license)
         return self._view(license)
 
+    async def get_admin(self, license_id: str) -> AdminLicenseView:
+        license = await self._require_id(license_id)
+        self._refresh_expiry(license)
+        return self._admin_view(license)
+
     async def list_licenses(self, prefix: str | None = None) -> list[LicenseView]:
         licenses = await self._repo.list_by_prefix(prefix)
         views: list[LicenseView] = []
@@ -155,6 +193,34 @@ class LicenseService:
             self._refresh_expiry(license)
             views.append(self._view(license))
         return views
+
+    async def list_admin(
+        self,
+        *,
+        page: int,
+        page_size: int,
+        status: str | None,
+        search: str | None,
+        sort: str,
+        created_from: datetime | None,
+        created_to: datetime | None,
+    ) -> AdminLicensePage:
+        licenses, total = await self._repo.list_admin(
+            page=page,
+            page_size=page_size,
+            status=status,
+            search=search,
+            sort=sort,
+            created_from=created_from,
+            created_to=created_to,
+        )
+        return AdminLicensePage(
+            items=[self._admin_view(license) for license in licenses],
+            page=page,
+            page_size=page_size,
+            total=total,
+            pages=max(1, (total + page_size - 1) // page_size),
+        )
 
     async def get_by_id(self, license_id: str) -> License:
         license = await self._require_id(license_id)
@@ -176,6 +242,7 @@ class LicenseService:
         license_id: str,
         plan: LicensePlan | None = None,
         months: int | None = None,
+        actor: AuditActor | None = None,
     ) -> LicenseView:
         license = await self._require_id(license_id)
         if license.status == LicenseStatus.REVOKED.value:
@@ -195,15 +262,17 @@ class LicenseService:
             license.activated_at = now
         license.updated_at = now
         await self._event(license, LicenseEventType.RENEWED, meta={"plan": next_plan.value})
+        if actor:
+            await self._audit(actor, "license_renewed", license.id, {"plan": next_plan.value})
         await self._commit(license)
         return self._view(license)
 
-    async def suspend(self, license_id: str) -> LicenseView:
+    async def suspend(self, license_id: str, actor: AuditActor | None = None) -> LicenseView:
         return await self._set_status(
-            license_id, LicenseStatus.SUSPENDED, LicenseEventType.SUSPENDED
+            license_id, LicenseStatus.SUSPENDED, LicenseEventType.SUSPENDED, actor
         )
 
-    async def resume(self, license_id: str) -> LicenseView:
+    async def resume(self, license_id: str, actor: AuditActor | None = None) -> LicenseView:
         license = await self._require_id(license_id)
         if license.expires_at is not None and aware(license.expires_at) <= self._clock():
             raise ApiError(
@@ -211,9 +280,11 @@ class LicenseService:
                 "LICENSE_EXPIRED",
                 "Renew this license instead of resuming it.",
             )
-        return await self._set_status(license_id, LicenseStatus.ACTIVE, LicenseEventType.RESUMED)
+        return await self._set_status(
+            license_id, LicenseStatus.ACTIVE, LicenseEventType.RESUMED, actor
+        )
 
-    async def revoke(self, license_id: str) -> LicenseView:
+    async def revoke(self, license_id: str, actor: AuditActor | None = None) -> LicenseView:
         license = await self._require_id(license_id)
         now = self._clock()
         self._transition(license, LicenseStatus.REVOKED)
@@ -222,10 +293,14 @@ class LicenseService:
             active.revoked_at = now
         license.updated_at = now
         await self._event(license, LicenseEventType.REVOKED)
+        if actor:
+            await self._audit(actor, "license_revoked", license.id)
         await self._commit(license)
         return self._view(license)
 
-    async def reset_activations(self, license_id: str) -> LicenseView:
+    async def reset_activations(
+        self, license_id: str, actor: AuditActor | None = None
+    ) -> LicenseView:
         license = await self._require_id(license_id)
         now = self._clock()
         active = self._repo.active_activation(license)
@@ -233,6 +308,8 @@ class LicenseService:
             active.revoked_at = now
         license.updated_at = now
         await self._event(license, LicenseEventType.ACTIVATION_RESET)
+        if actor:
+            await self._audit(actor, "activation_reset", license.id)
         await self._commit(license)
         return self._view(license)
 
@@ -264,13 +341,19 @@ class LicenseService:
         license.status = target.value
 
     async def _set_status(
-        self, license_id: str, target: LicenseStatus, event: LicenseEventType
+        self,
+        license_id: str,
+        target: LicenseStatus,
+        event: LicenseEventType,
+        actor: AuditActor | None = None,
     ) -> LicenseView:
         license = await self._require_id(license_id)
         self._refresh_expiry(license)
         self._transition(license, target)
         license.updated_at = self._clock()
         await self._event(license, event)
+        if actor:
+            await self._audit(actor, f"license_{event.value}", license.id)
         await self._commit(license)
         return self._view(license)
 
@@ -343,4 +426,60 @@ class LicenseService:
             key_prefix=license.key_prefix,
             max_activations=license.max_activations,
             installation_active=active is not None,
+        )
+
+    def _admin_view(self, license: License) -> AdminLicenseView:
+        return AdminLicenseView(
+            **self._view(license).model_dump(),
+            created_at=license.created_at,
+            updated_at=license.updated_at,
+            note=license.note,
+        )
+
+    async def _audit(
+        self, actor: AuditActor, action: str, license_id: str, meta: dict[str, str] | None = None
+    ) -> None:
+        await self._repo.add_audit(
+            AdminAuditLog(
+                id=str(uuid4()),
+                admin_id=actor.admin_id,
+                admin_email=actor.email,
+                action=action,
+                target_license_id=license_id,
+                request_id=actor.request_id,
+                at=self._clock(),
+                meta=meta,
+            )
+        )
+
+    async def audit_page(
+        self, *, page: int, page_size: int, action: str | None, license_id: str | None
+    ) -> AdminAuditPage:
+        events, total = await self._repo.list_audit(
+            page=page, page_size=page_size, action=action, license_id=license_id
+        )
+        return AdminAuditPage(
+            items=[
+                AdminAuditView(
+                    id=event.id,
+                    admin_email=event.admin_email,
+                    action=event.action,
+                    target_license_id=event.target_license_id,
+                    request_id=event.request_id,
+                    at=event.at,
+                    meta=event.meta,
+                )
+                for event in events
+            ],
+            page=page,
+            page_size=page_size,
+            total=total,
+            pages=max(1, (total + page_size - 1) // page_size),
+        )
+
+    async def overview(self) -> AdminOverview:
+        now = self._clock()
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        return AdminOverview(
+            **await self._repo.overview(now, month_start, now + timedelta(days=30))
         )

@@ -1,9 +1,10 @@
 import { motion } from './config'
 import { gsap } from './gsap'
 import { isCompactMotion, prefersReducedMotion } from './prefers-reduced-motion'
+import { isRestoringNavigation } from './restore'
 
 export function revealPage(root: Element | null) {
-  if (!root || prefersReducedMotion()) return
+  if (!root || prefersReducedMotion() || isRestoringNavigation()) return
   const compact = isCompactMotion()
   gsap.fromTo(
     root,

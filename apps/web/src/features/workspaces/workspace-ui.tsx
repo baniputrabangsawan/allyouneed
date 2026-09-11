@@ -1,23 +1,34 @@
 import { useState, type ReactNode } from 'react'
+import { useT } from '@/i18n'
 
 export function CopyButton({ value }: { value: string }) {
-  const [status, setStatus] = useState('Copy')
-  async function copy() {
+  const copy = useT()
+  const [status, setStatus] = useState<string>(copy.workspace.copy)
+  async function onCopy() {
     if (!value) return
-    try { await navigator.clipboard.writeText(value); setStatus('Copied'); window.setTimeout(() => setStatus('Copy'), 1500) }
-    catch { setStatus('Copy failed') }
+    try {
+      await navigator.clipboard.writeText(value)
+      setStatus(copy.workspace.copied)
+      window.setTimeout(() => setStatus(copy.workspace.copy), 1500)
+    } catch {
+      setStatus(copy.workspace.copyFailed)
+    }
   }
-  return <button className="button secondary" type="button" disabled={!value} onClick={copy}>{status}</button>
+  return <button className="button secondary" type="button" disabled={!value} onClick={onCopy}>{status}</button>
 }
 
 export function DownloadButton({ value, filename, type = 'text/plain' }: { value: string; filename: string; type?: string }) {
+  const copy = useT()
   function download() {
     const url = URL.createObjectURL(new Blob([value], { type }))
     const anchor = document.createElement('a'); anchor.href = url; anchor.download = filename; anchor.click(); URL.revokeObjectURL(url)
   }
-  return <button className="button secondary" type="button" disabled={!value} onClick={download}>Download</button>
+  return <button className="button secondary" type="button" disabled={!value} onClick={download}>{copy.workspace.download}</button>
 }
 
-export function TextPanels({ input, output, onInput, second, onSecond, inputLabel = 'Input', outputLabel = 'Output', error, children }: { input: string; output: string; onInput: (value: string) => void; second?: string; onSecond?: (value: string) => void; inputLabel?: string; outputLabel?: string; error?: string; children: ReactNode }) {
-  return <section className="workspace"><div className="editor-grid"><label><span>{inputLabel}</span><textarea aria-label={inputLabel} spellCheck={false} value={input} onChange={(event) => onInput(event.target.value)}/></label>{onSecond ? <label><span>Second text</span><textarea aria-label="Second text" spellCheck={false} value={second} onChange={(event) => onSecond(event.target.value)}/></label> : <label><span>{outputLabel}</span><textarea aria-label={outputLabel} readOnly value={output} placeholder="Your result appears here"/></label>}</div>{onSecond && <label className="counter-editor"><span>{outputLabel}</span><textarea aria-label={outputLabel} readOnly value={output}/></label>}{error && <p className="field-error" role="alert">{error}</p>}<div className="button-row">{children}</div></section>
+export function TextPanels({ input, output, onInput, second, onSecond, inputLabel, outputLabel, error, children }: { input: string; output: string; onInput: (value: string) => void; second?: string; onSecond?: (value: string) => void; inputLabel?: string; outputLabel?: string; error?: string; children: ReactNode }) {
+  const copy = useT()
+  const inLabel = inputLabel ?? copy.workspace.input
+  const outLabel = outputLabel ?? copy.workspace.output
+  return <section className="workspace"><div className="editor-grid"><label><span>{inLabel}</span><textarea aria-label={inLabel} spellCheck={false} value={input} onChange={(event) => onInput(event.target.value)}/></label>{onSecond ? <label><span>{copy.workspace.secondText}</span><textarea aria-label={copy.workspace.secondText} spellCheck={false} value={second} onChange={(event) => onSecond(event.target.value)}/></label> : <label><span>{outLabel}</span><textarea aria-label={outLabel} readOnly value={output} placeholder={copy.workspace.resultPlaceholder}/></label>}</div>{onSecond && <label className="counter-editor"><span>{outLabel}</span><textarea aria-label={outLabel} readOnly value={output}/></label>}{error && <p className="field-error" role="alert">{error}</p>}<div className="button-row">{children}</div></section>
 }

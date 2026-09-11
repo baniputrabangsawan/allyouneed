@@ -89,10 +89,7 @@ def prepare_render(inputs: list[Path], options: dict[str, Any]) -> RenderRequest
 
 
 def assemble_document(html: str, css: str) -> str:
-    css_block = (
-        "<style>html,body{margin:0;padding:0;}"
-        f"{css}</style>"
-    )
+    css_block = f"<style>html,body{{margin:0;padding:0;}}{css}</style>"
     stripped = html.lstrip()
     if re.match(r"(?is)<!doctype\s+html|<html\b", stripped):
         if re.search(r"(?is)<head[^>]*>", stripped):

@@ -50,7 +50,7 @@ async def test_premium_job_requires_activated_license(api: AsyncClient) -> None:
     issued = (
         await api.post(
             "/api/v1/admin/licenses",
-            json={"plan": "pro_1_month"},
+            json={"durationMonths": 1},
             headers={"X-Admin-Key": "test-admin-key"},
         )
     ).json()["data"]
@@ -81,7 +81,7 @@ async def test_tampered_token_is_rejected(api: AsyncClient) -> None:
     issued = (
         await api.post(
             "/api/v1/admin/licenses",
-            json={"plan": "pro_1_month"},
+            json={"durationMonths": 1},
             headers={"X-Admin-Key": "test-admin-key"},
         )
     ).json()["data"]
@@ -100,7 +100,7 @@ async def test_revoked_license_rejects_unexpired_token(api: AsyncClient) -> None
     issued = (
         await api.post(
             "/api/v1/admin/licenses",
-            json={"plan": "pro_1_month"},
+            json={"durationMonths": 1},
             headers={"X-Admin-Key": "test-admin-key"},
         )
     ).json()["data"]

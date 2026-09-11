@@ -70,6 +70,19 @@ class LicenseEvent(Base):
     license: Mapped[License] = relationship(back_populates="events")
 
 
+class AdminAuditLog(Base):
+    __tablename__ = "admin_audit_logs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    admin_id: Mapped[str] = mapped_column(String(255), index=True)
+    admin_email: Mapped[str] = mapped_column(String(320))
+    action: Mapped[str] = mapped_column(String(64), index=True)
+    target_license_id: Mapped[str] = mapped_column(String(36), index=True)
+    request_id: Mapped[str] = mapped_column(String(64), index=True)
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    meta: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+
+
 class ProcessingJob(Base):
     __tablename__ = "processing_jobs"
 

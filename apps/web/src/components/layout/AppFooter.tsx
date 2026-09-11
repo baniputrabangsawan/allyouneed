@@ -1,25 +1,28 @@
-import { Link } from '@tanstack/react-router'
 import { ArrowRight, Grid2X2 } from 'lucide-react'
 import { useRef } from 'react'
 import type { ToolCategory } from '@/features/tools/tool-registry'
+import { LanguageChoices } from '@/components/common/LanguageSwitcher'
+import { LocaleLink } from '@/i18n/link'
+import { useT } from '@/i18n'
 import { revealFooter } from '@/lib/motion/footer'
 import { useGSAP } from '@/lib/motion/gsap'
 
 const explorerSearch = { q: '', category: 'all', group: 'all' } as const
 
-const resources: ReadonlyArray<{ label: string; category: ToolCategory }> = [
-  { label: 'Image tools', category: 'image' },
-  { label: 'PDF tools', category: 'pdf' },
-  { label: 'Audio tools', category: 'audio' },
-  { label: 'Video tools', category: 'video' },
-  { label: 'Developer tools', category: 'developer' },
-  { label: 'QR tools', category: 'qr' },
-  { label: 'Text tools', category: 'text' },
-  { label: 'Generator tools', category: 'generator' },
-  { label: 'Converter tools', category: 'converter' },
-]
+const resourceKeys = [
+  { key: 'imageTools', category: 'image' },
+  { key: 'pdfTools', category: 'pdf' },
+  { key: 'audioTools', category: 'audio' },
+  { key: 'videoTools', category: 'video' },
+  { key: 'developerTools', category: 'developer' },
+  { key: 'qrTools', category: 'qr' },
+  { key: 'textTools', category: 'text' },
+  { key: 'generatorTools', category: 'generator' },
+  { key: 'converterTools', category: 'converter' },
+] as const satisfies ReadonlyArray<{ key: 'imageTools' | 'pdfTools' | 'audioTools' | 'videoTools' | 'developerTools' | 'qrTools' | 'textTools' | 'generatorTools' | 'converterTools'; category: ToolCategory }>
 
 export function AppFooter() {
+  const copy = useT()
   const footerRef = useRef<HTMLElement>(null)
 
   useGSAP(() => {
@@ -29,56 +32,61 @@ export function AppFooter() {
   return (
     <footer ref={footerRef} className="site-footer">
       <div className="footer-stage">
-        <p className="footer-wordmark" aria-hidden="true"><span>Kits</span></p>
+        <p className="footer-wordmark" aria-hidden="true"><span>{copy.brand}</span></p>
 
         <section className="footer-cta" aria-labelledby="footer-cta-heading">
-          <p className="eyebrow">All the tools. One place.</p>
-          <h2 id="footer-cta-heading">Ready to get more done?</h2>
-          <p>Fast, private, and practical tools for everyday work.</p>
+          <p className="eyebrow">{copy.footer.ctaEyebrow}</p>
+          <h2 id="footer-cta-heading">{copy.footer.ctaTitle}</h2>
+          <p>{copy.footer.ctaCopy}</p>
           <div className="footer-cta-actions">
-            <Link className="button primary" to="/tools">
-              Explore all tools
+            <LocaleLink className="button primary" to="/tools">
+              {copy.footer.explore}
               <ArrowRight size={16} aria-hidden="true" />
-            </Link>
-            <Link className="button" to="/pricing">Get Kits Pro</Link>
+            </LocaleLink>
+            <LocaleLink className="button" to="/pricing">{copy.footer.getPro}</LocaleLink>
           </div>
         </section>
 
         <div className="footer-card">
           <div className="footer-card-top">
             <div className="footer-brand">
-              <Link to="/" className="brand">
+              <LocaleLink to="/" className="brand">
                 <span className="brand-mark"><Grid2X2 size={16} /></span>
-                Kits
-              </Link>
-              <p>Small tools. No account. Less waiting.</p>
-              <p>Files stay on your device whenever the tool supports it.</p>
+                {copy.brand}
+              </LocaleLink>
+              <p>{copy.footer.tagline}</p>
+              <p>{copy.footer.filesStay}</p>
             </div>
             <nav className="footer-nav" aria-label="Footer">
               <div className="footer-nav-group">
-                <strong>Product</strong>
-                <Link to="/tools">All tools</Link>
-                <Link to="/" search={explorerSearch} hash="all-tools" resetScroll={false}>Popular</Link>
-                <Link to="/" search={explorerSearch} hash="new" resetScroll={false}>New</Link>
-                <Link to="/" search={explorerSearch} hash="favorites" resetScroll={false}>Favorites</Link>
-                <Link to="/" search={explorerSearch} hash="recent" resetScroll={false}>Recent</Link>
-                <Link to="/pricing">Pricing</Link>
+                <strong>{copy.footer.product}</strong>
+                <LocaleLink to="/tools">{copy.footer.allTools}</LocaleLink>
+                <LocaleLink to="/" search={explorerSearch} hash="all-tools" resetScroll={false}>{copy.footer.popular}</LocaleLink>
+                <LocaleLink to="/" search={explorerSearch} hash="new" resetScroll={false}>{copy.nav.new}</LocaleLink>
+                <LocaleLink to="/" search={explorerSearch} hash="favorites" resetScroll={false}>{copy.nav.favorites}</LocaleLink>
+                <LocaleLink to="/" search={explorerSearch} hash="recent" resetScroll={false}>{copy.nav.recent}</LocaleLink>
+                <LocaleLink to="/pricing">{copy.nav.pricing}</LocaleLink>
               </div>
               <div className="footer-nav-group">
-                <strong>Resources</strong>
-                {resources.map((item) => (
-                  <Link key={item.category} to="/tools/$category" params={{ category: item.category }}>{item.label}</Link>
+                <strong>{copy.footer.resources}</strong>
+                <LocaleLink to="/docs">{copy.footer.docs}</LocaleLink>
+                <LocaleLink to="/docs/getting-started">{copy.footer.gettingStarted}</LocaleLink>
+                <LocaleLink to="/docs/privacy-and-processing">{copy.footer.privacy}</LocaleLink>
+                <LocaleLink to="/docs/troubleshooting">{copy.footer.troubleshooting}</LocaleLink>
+                {resourceKeys.map((item) => (
+                  <LocaleLink key={item.category} to="/tools/$category" params={{ category: item.category }}>{copy.footer[item.key]}</LocaleLink>
                 ))}
               </div>
               <div className="footer-nav-group">
-                <strong>Kits</strong>
-                <Link to="/pricing">Pricing</Link>
-                <Link to="/license">Activate Pro</Link>
+                <strong>{copy.footer.kits}</strong>
+                <LocaleLink to="/pricing">{copy.nav.pricing}</LocaleLink>
+                <LocaleLink to="/license">{copy.nav.license}</LocaleLink>
+                <LanguageChoices />
               </div>
             </nav>
           </div>
           <div className="footer-legal">
-            <p>© {new Date().getFullYear()} Kits. All rights reserved.</p>
+            <p>{copy.footer.legal(new Date().getFullYear())}</p>
           </div>
         </div>
       </div>

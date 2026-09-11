@@ -6,6 +6,7 @@ const icons = { light: Sun, dark: Moon, system: Monitor }
 
 function applyTheme(theme: ThemePreference) {
   const dark = theme === 'dark' || (theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
+  document.documentElement.setAttribute('data-theme', theme)
   document.documentElement.classList.toggle('dark', dark)
 }
 

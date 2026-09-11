@@ -61,6 +61,7 @@ export function PhotoEditorWorkspace(_props: { tool: ToolDefinition }) {
   const workspaceRef = useRef<HTMLElement>(null)
   const dragRef = useRef<CropDrag | null>(null)
   const liveRef = useRef<PhotoEditorState | null>(null)
+  const stopDragRef = useRef<(() => void) | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [source, setSource] = useState<Size>({ width: 0, height: 0 })
   const [history, setHistory] = useState<PhotoEditorHistory>(() => createPhotoEditorHistory(identityPhotoEditorState({ width: 1, height: 1 })))
@@ -77,6 +78,7 @@ export function PhotoEditorWorkspace(_props: { tool: ToolDefinition }) {
   const output = source.width > 0 ? photoEditorOutputSize(present, source) : { width: 0, height: 0 }
 
   useEffect(() => () => {
+    stopDragRef.current?.()
     bitmapRef.current?.close()
     bitmapRef.current = null
     if (resultUrlRef.current) URL.revokeObjectURL(resultUrlRef.current)
@@ -221,7 +223,7 @@ export function PhotoEditorWorkspace(_props: { tool: ToolDefinition }) {
     setStatus('ready')
   }
 
-  function pointerOnSource(event: ReactPointerEvent<HTMLElement>) {
+  function pointerOnSource(event: { clientX: number; clientY: number }) {
     const bounds = cropLayerRef.current?.getBoundingClientRect()
     if (!bounds || bounds.width < 1 || bounds.height < 1) return { x: 0, y: 0 }
     return {
@@ -233,25 +235,34 @@ export function PhotoEditorWorkspace(_props: { tool: ToolDefinition }) {
   function startCropDrag(event: ReactPointerEvent<HTMLElement>, handle: PhotoCropHandle) {
     if (!cropMode || source.width < 1) return
     event.preventDefault()
-    cropLayerRef.current?.setPointerCapture(event.pointerId)
+    event.stopPropagation()
+    stopDragRef.current?.()
+    const pointerId = event.pointerId
     dragRef.current = { handle, origin: present.crop, start: pointerOnSource(event) }
-  }
-
-  function moveCropDrag(event: ReactPointerEvent<HTMLElement>) {
-    const drag = dragRef.current
-    if (!drag || source.width < 1) return
-    const point = pointerOnSource(event)
-    setLive((current) => ({
-      ...(current ?? history.present),
-      crop: dragCrop(drag.origin, drag.handle, { x: point.x - drag.start.x, y: point.y - drag.start.y }, source),
-    }))
-  }
-
-  function endCropDrag() {
-    if (!dragRef.current) return
-    dragRef.current = null
-    const next = liveRef.current
-    if (next) commit(next)
+    const move = (next: PointerEvent) => {
+      if (next.pointerId !== pointerId || !dragRef.current) return
+      const point = pointerOnSource(next)
+      const drag = dragRef.current
+      setLive((current) => ({
+        ...(current ?? history.present),
+        crop: dragCrop(drag.origin, drag.handle, { x: point.x - drag.start.x, y: point.y - drag.start.y }, source),
+      }))
+    }
+    const stop = (next?: PointerEvent) => {
+      if (next && next.pointerId !== pointerId) return
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', stop)
+      window.removeEventListener('pointercancel', stop)
+      stopDragRef.current = null
+      if (!dragRef.current) return
+      dragRef.current = null
+      const committed = liveRef.current
+      if (committed) commit(committed)
+    }
+    stopDragRef.current = () => stop()
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', stop)
+    window.addEventListener('pointercancel', stop)
   }
 
   async function exportImage() {
@@ -311,13 +322,7 @@ export function PhotoEditorWorkspace(_props: { tool: ToolDefinition }) {
               <div className="photo-frame">
                 <canvas ref={canvasRef} role="img" aria-label={cropMode ? 'Crop source' : 'Edited preview'}/>
                 {cropMode && previewSize.width > 0 && (
-                  <div
-                    ref={cropLayerRef}
-                    className="crop-layer"
-                    onPointerMove={moveCropDrag}
-                    onPointerUp={endCropDrag}
-                    onPointerCancel={endCropDrag}
-                  >
+                  <div ref={cropLayerRef} className="crop-layer">
                     <div className="crop-rect" style={cropStyle} onPointerDown={(event) => startCropDrag(event, 'move')}>
                       {cropHandles.map((handle) => (
                         <button
@@ -325,10 +330,7 @@ export function PhotoEditorWorkspace(_props: { tool: ToolDefinition }) {
                           type="button"
                           aria-label={`${handle} crop handle`}
                           className={`crop-handle crop-handle-${handle}`}
-                          onPointerDown={(event) => {
-                            event.stopPropagation()
-                            startCropDrag(event, handle)
-                          }}
+                          onPointerDown={(event) => startCropDrag(event, handle)}
                         />
                       ))}
                     </div>
