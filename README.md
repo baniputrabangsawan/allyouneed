@@ -56,7 +56,10 @@ From `apps/api`:
 ```bash
 cd apps/api
 uv sync
+uv run playwright install chromium
 ```
+
+HTML to Image needs Chromium. Skip `playwright install` only if you will not run that tool or its tests.
 
 The API loads `.env` from the working directory. Either run it from the repo root (so the root `.env` is found) or copy the needed variables next to `apps/api`.
 

@@ -13,6 +13,16 @@ IMAGES = {"image/jpeg", "image/png", "image/webp", "image/avif"}
 PDF = {"application/pdf"}
 AUDIO = {"audio/mpeg", "audio/wav", "audio/x-wav", "audio/mp4", "audio/ogg", "audio/webm"}
 VIDEO = {"video/mp4", "video/webm", "video/quicktime", "image/gif"}
+SUBTITLES = {
+    "text/plain",
+    "text/vtt",
+    "application/x-subrip",
+    "text/x-subrip",
+    "application/x-ass",
+    "text/x-ass",
+    "text/x-ssa",
+    "application/octet-stream",
+}
 TEXT = {"text/plain"}
 
 
@@ -63,9 +73,30 @@ tool_registry: dict[str, Tool] = {
     **tools(IMAGE_TOOLS, "image", IMAGES, timeout=60),
     **tools(PDF_TOOLS, "pdf", PDF | {"image/jpeg", "image/png"}, max_files=20, timeout=120),
     **tools(AUDIO_TOOLS, "audio", AUDIO | VIDEO, max_files=20, timeout=300),
-    **tools(VIDEO_TOOLS, "video", AUDIO | VIDEO, max_files=20, timeout=600),
+    **tools(VIDEO_TOOLS - {"add-subtitle"}, "video", AUDIO | VIDEO, max_files=20, timeout=600),
+    **tools({"add-subtitle"}, "video", VIDEO | SUBTITLES, max_files=2, timeout=600),
     **tools({"ocr-pdf"}, "ocr", PDF | IMAGES, timeout=300),
     **tools({"speech-to-text"}, "stt", AUDIO | VIDEO, timeout=900),
     **tools({"text-to-speech"}, "tts", TEXT, timeout=180),
     **tools({"remove-background", "upscale-image"}, "ai-image", IMAGES, timeout=300, premium=True),
+    "basic-background-removal": Tool(
+        id="basic-background-removal",
+        processor="basic-background-removal",
+        queue="image",
+        accepted_mimes={"image/jpeg", "image/png", "image/webp"},
+        output_mimes={"image/png"},
+        max_file_size=100 * MB,
+        max_files=1,
+        timeout=120,
+    ),
+    "html-to-image": Tool(
+        id="html-to-image",
+        processor="html-to-image",
+        queue="image",
+        accepted_mimes={"text/html", "text/plain"},
+        output_mimes={"image/png", "image/jpeg"},
+        max_file_size=512 * 1024,
+        max_files=1,
+        timeout=120,
+    ),
 }

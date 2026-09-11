@@ -8,9 +8,33 @@ from tests.helpers import png_bytes
 
 
 def test_processor_registry_covers_core_tools() -> None:
-    for tool_id in ("resize-image", "merge-pdf", "video-compressor", "speech-to-text"):
+    for tool_id in (
+        "resize-image",
+        "merge-pdf",
+        "video-compressor",
+        "speech-to-text",
+        "noise-reduction",
+    ):
         assert tool_id in processor_registry
         assert get_processor(tool_id) is not None
+
+
+async def test_crop_image(tmp_path: Path) -> None:
+    source = tmp_path / "in.png"
+    source.write_bytes(png_bytes((16, 10)))
+    output = tmp_path / "out.png"
+    context = ProcessorContext(
+        job_id="job_crop",
+        tool_id="crop-image",
+        options={"left": 2, "top": 2, "right": 10, "bottom": 8},
+        work_dir=tmp_path,
+    )
+    result = await get_processor("crop-image").process([source], output, context=context)
+    assert output.is_file()
+    assert result.metadata["width"] == 8
+    assert result.metadata["height"] == 6
+    with Image.open(output) as image:
+        assert image.size == (8, 6)
 
 
 async def test_image_conversion(tmp_path: Path) -> None:

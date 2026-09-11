@@ -1,6 +1,45 @@
 export const MAX_IMAGE_PIXELS = 40_000_000
 export const MAX_IMAGE_DIMENSION = 16_384
 
+export type ImageWorkspaceMode =
+  | 'compress'
+  | 'resize'
+  | 'crop'
+  | 'transform'
+  | 'converter'
+  | 'watermark'
+  | 'metadata'
+  | 'svg-to-png'
+  | 'favicon'
+  | 'meme'
+  | 'photo-editor'
+
+const imageConverterSlugs = new Set([
+  'convert-to-jpg',
+  'convert-from-jpg',
+  'image-converter',
+  'jpg-to-png',
+  'png-to-jpg',
+  'jpg-to-webp',
+  'png-to-webp',
+  'webp-to-jpg',
+])
+
+export function getImageWorkspaceMode(slug: string): ImageWorkspaceMode | null {
+  if (slug === 'compress-image') return 'compress'
+  if (slug === 'resize-image') return 'resize'
+  if (slug === 'crop-image') return 'crop'
+  if (slug === 'rotate-image' || slug === 'flip-image') return 'transform'
+  if (slug === 'watermark-image') return 'watermark'
+  if (slug === 'remove-metadata') return 'metadata'
+  if (slug === 'favicon-generator') return 'favicon'
+  if (slug === 'svg-to-png') return 'svg-to-png'
+  if (slug === 'meme-generator') return 'meme'
+  if (slug === 'photo-editor') return 'photo-editor'
+  if (imageConverterSlugs.has(slug)) return 'converter'
+  return null
+}
+
 export type WatermarkPosition =
   | 'top-left' | 'top-center' | 'top-right'
   | 'center-left' | 'center' | 'center-right'

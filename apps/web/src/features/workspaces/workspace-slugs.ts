@@ -9,4 +9,4 @@ export const randomWorkspaceSlugs = ['pin-generator', 'random-number-generator',
 export const dateTimeWorkspaceSlugs = ['unix-timestamp-converter'] as const
 export const colorWorkspaceSlugs = ['hex-rgb-hsl-converter', 'palette-generator', 'color-palette-generator', 'color-picker'] as const
 export const cssWorkspaceSlugs = ['gradient-generator', 'css-shadow-generator', 'border-radius-generator'] as const
-export const browserMediaWorkspaceSlugs = ['text-to-speech', 'change-audio-speed', 'change-volume', 'voice-recorder', 'generate-thumbnail', 'video-screenshot', 'video-metadata-viewer'] as const
+export const browserMediaWorkspaceSlugs = ['generate-thumbnail', 'video-screenshot', 'video-metadata-viewer', 'voice-recorder'] as const

@@ -1,6 +1,6 @@
 import { useNavigate } from '@tanstack/react-router'
 import { Search, Wrench } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   getPopularTools,
   getToolBySlug,
@@ -8,9 +8,6 @@ import {
   type ToolDefinition,
 } from '@/features/tools/tool-registry'
 import { getRecentTools } from '@/lib/storage/tools'
-import { motion } from '@/lib/motion/config'
-import { gsap, useGSAP } from '@/lib/motion/gsap'
-import { prefersReducedMotion } from '@/lib/motion/prefers-reduced-motion'
 
 type PaletteTool = ToolDefinition & { source?: 'Recent' | 'Popular' }
 
@@ -31,25 +28,24 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   ]
   const results: readonly PaletteTool[] = (query ? searchTools(query).filter((tool) => tool.available) : defaults).slice(0, 10)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const dialog = dialogRef.current
     if (!dialog) return
-    if (open && !dialog.open) {
-      returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
-      setRecentIds(getRecentTools())
-      dialog.showModal()
+    if (open) {
+      if (!dialog.open) {
+        returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+        setRecentIds(getRecentTools())
+        dialog.showModal()
+      }
       inputRef.current?.focus()
-    } else if (!open && dialog.open) {
+      const frame = window.requestAnimationFrame(() => inputRef.current?.focus())
+      return () => window.cancelAnimationFrame(frame)
+    }
+    if (dialog.open) {
       dialog.close()
       returnFocusRef.current?.focus()
     }
   }, [open])
-
-  useGSAP(() => {
-    const panel = dialogRef.current?.querySelector('.command-panel')
-    if (!open || !panel || prefersReducedMotion()) return
-    gsap.fromTo(panel, { autoAlpha: 0, y: 10, scale: 0.96, filter: 'blur(8px)' }, { autoAlpha: 1, y: 0, scale: 1, filter: 'blur(0px)', duration: motion.duration.fast + 0.04, ease: motion.ease.enter, clearProps: 'filter' })
-  }, { dependencies: [open] })
 
   useEffect(() => {
     const active = resultsRef.current?.querySelector<HTMLElement>(`[data-result-index="${activeIndex}"]`)

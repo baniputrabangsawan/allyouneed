@@ -3,13 +3,13 @@ import { tools } from '../tools/tool-registry'
 import {
   browserMediaWorkspaceSlugs, colorWorkspaceSlugs, cryptoWorkspaceSlugs, cssWorkspaceSlugs,
   dateTimeWorkspaceSlugs, encodingWorkspaceSlugs, genericTextWorkspaceSlugs, getSpecialWorkspace,
-  getWorkspaceComponent, QrisParserWorkspace, QrWorkspace, randomWorkspaceSlugs, WordCounterWorkspace,
-  workspaceComponents,
+  getWorkspaceComponent, HtmlWorkspace, JavaScriptWorkspace, QrisParserWorkspace, QrWorkspace, randomWorkspaceSlugs, WordCounterWorkspace,
+  workspaceComponents, YamlWorkspace,
 } from './index'
 
 describe('workspace component mapping', () => {
   it('exports a component for every implemented workspace class', () => {
-    expect(Object.keys(workspaceComponents).sort()).toEqual(['browser-media', 'color', 'crypto', 'css', 'date-time', 'encoding', 'json', 'qr-code', 'random', 'remote-api', 'text'])
+    expect(Object.keys(workspaceComponents).sort()).toEqual(['browser-media', 'color', 'crypto', 'css', 'date-time', 'encoding', 'json', 'qr-code', 'random', 'remote-api', 'text', 'xml', 'yaml'])
   })
 
   it('dispatches all declared simple tool slugs', () => {
@@ -28,8 +28,17 @@ describe('workspace component mapping', () => {
   it('dispatches focused and colliding implementations', () => {
     const get = (slug: string) => tools.find((tool) => tool.slug === slug)
     expect(getWorkspaceComponent(get('json-formatter')!)).toBeTypeOf('function')
+    expect(getWorkspaceComponent(get('xml-formatter')!)).toBeTypeOf('function')
+    expect(getWorkspaceComponent(get('javascript-formatter')!)).toBeTypeOf('function')
+    expect(getSpecialWorkspace(get('javascript-formatter')!)).toBe(JavaScriptWorkspace)
+    expect(getWorkspaceComponent(get('html-formatter')!)).toBeTypeOf('function')
+    expect(getSpecialWorkspace(get('html-formatter')!)).toBe(HtmlWorkspace)
+    expect(getWorkspaceComponent(get('html-to-image')!)).toBeTypeOf('function')
+    expect(getWorkspaceComponent(get('yaml-to-json')!)).toBe(YamlWorkspace)
+    expect(getWorkspaceComponent(get('json-to-yaml')!)).toBe(YamlWorkspace)
     for (const tool of tools.filter(({ implementation }) => implementation === 'qr-code')) expect(getWorkspaceComponent(tool), tool.slug).toBe(QrWorkspace)
     expect(getSpecialWorkspace(get('word-counter')!)).toBe(WordCounterWorkspace)
     expect(getSpecialWorkspace(get('qris-payload-parser')!)).toBe(QrisParserWorkspace)
+    expect(getSpecialWorkspace(get('basic-background-removal')!)).toBeTypeOf('function')
   })
 })

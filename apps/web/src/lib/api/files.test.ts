@@ -26,4 +26,25 @@ describe('uploadFile', () => {
 
     expect(percents).toEqual([50])
   })
+
+  it('prefixes relative upload URLs with the API origin', async () => {
+    let opened = ''
+    vi.stubGlobal('XMLHttpRequest', class {
+      status = 204
+      upload = { onprogress: null as ((event: { lengthComputable: boolean; loaded: number; total: number }) => void) | null }
+      onload: (() => void) | null = null
+      open(_method: string, url: string) { opened = url }
+      setRequestHeader() {}
+      send() { this.onload?.() }
+    })
+
+    await uploadFile(
+      { uploadUrl: '/api/v1/uploads/local/file-key', fileKey: 'file-key', expiresIn: 60 },
+      new Blob(['abcd']),
+      { onProgress: () => undefined },
+    )
+
+    expect(opened).toMatch(/\/api\/v1\/uploads\/local\/file-key$/)
+    expect(opened.startsWith('http')).toBe(true)
+  })
 })

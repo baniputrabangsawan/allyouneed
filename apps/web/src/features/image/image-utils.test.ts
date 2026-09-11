@@ -1,7 +1,24 @@
 import { describe, expect, it } from 'vitest'
 import {
-  assertValidImageSize, fileMatchesAccept, normalizeCrop, rotatedSize, validateFiles, watermarkPoint,
+  assertValidImageSize, fileMatchesAccept, getImageWorkspaceMode, normalizeCrop, rotatedSize, validateFiles, watermarkPoint,
 } from './image-utils'
+
+describe('image workspace modes', () => {
+  it('maps implemented canvas tools and rejects incomplete image-canvas slugs', () => {
+    expect(getImageWorkspaceMode('compress-image')).toBe('compress')
+    expect(getImageWorkspaceMode('resize-image')).toBe('resize')
+    expect(getImageWorkspaceMode('crop-image')).toBe('crop')
+    expect(getImageWorkspaceMode('rotate-image')).toBe('transform')
+    expect(getImageWorkspaceMode('flip-image')).toBe('transform')
+    expect(getImageWorkspaceMode('watermark-image')).toBe('watermark')
+    expect(getImageWorkspaceMode('remove-metadata')).toBe('metadata')
+    expect(getImageWorkspaceMode('png-to-jpg')).toBe('converter')
+    expect(getImageWorkspaceMode('svg-to-png')).toBe('svg-to-png')
+    expect(getImageWorkspaceMode('favicon-generator')).toBe('favicon')
+    expect(getImageWorkspaceMode('meme-generator')).toBe('meme')
+    expect(getImageWorkspaceMode('photo-editor')).toBe('photo-editor')
+  })
+})
 
 describe('image calculations', () => {
   it('validates dimensions and pixel count', () => {

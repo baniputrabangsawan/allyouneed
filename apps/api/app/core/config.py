@@ -9,7 +9,9 @@ class Settings(BaseSettings):
 
     app_env: str = "development"
     app_name: str = "utility-api"
-    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+    cors_origins: list[str] = Field(
+        default_factory=lambda: ["http://localhost:3000", "http://127.0.0.1:3000"]
+    )
     database_url: str = ""
     license_database_url: str = "sqlite+aiosqlite:///./data/licenses.db"
     admin_api_key: str = "dev-admin-key"

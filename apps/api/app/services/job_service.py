@@ -3,12 +3,12 @@ import hashlib
 import json
 import mimetypes
 import shutil
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
 from fastapi import status
+from sqlalchemy.exc import IntegrityError
 
 from app.core.capabilities import capability_for_tool
 from app.core.config import get_settings
@@ -53,7 +53,7 @@ class JobService:
         ).hexdigest()
         async with self._lock:
             if idempotency_key:
-                prior = self._repo.idempotency(idempotency_key)
+                prior = await self._repo.idempotency(idempotency_key)
                 if prior is not None:
                     prior_fingerprint, job_id = prior
                     if prior_fingerprint != fingerprint:
@@ -62,7 +62,7 @@ class JobService:
                             "IDEMPOTENCY_CONFLICT",
                             "Idempotency key was reused with another request.",
                         )
-                    found = self._repo.get(job_id)
+                    found = await self._repo.get(job_id)
                     if found is None:
                         raise ApiError(
                             status.HTTP_404_NOT_FOUND, "JOB_NOT_FOUND", "Job was not found."
@@ -85,9 +85,33 @@ class JobService:
                         "CONCURRENCY_LIMIT",
                         "Too many jobs are already running for this license.",
                     )
-            self._repo.save(job, payload)
-            if idempotency_key:
-                self._repo.remember_idempotency(idempotency_key, fingerprint, job.job_id)
+            try:
+                await self._repo.save(
+                    job,
+                    payload,
+                    idempotency_key=idempotency_key,
+                    idempotency_fingerprint=fingerprint,
+                    execution_mode=tool.execution_mode,
+                )
+            except IntegrityError:
+                if not idempotency_key:
+                    raise
+                prior = await self._repo.idempotency(idempotency_key)
+                if prior is None:
+                    raise
+                prior_fingerprint, job_id = prior
+                if prior_fingerprint != fingerprint:
+                    raise ApiError(
+                        status.HTTP_409_CONFLICT,
+                        "IDEMPOTENCY_CONFLICT",
+                        "Idempotency key was reused with another request.",
+                    ) from None
+                found = await self._repo.get(job_id)
+                if found is None:
+                    raise ApiError(
+                        status.HTTP_404_NOT_FOUND, "JOB_NOT_FOUND", "Job was not found."
+                    ) from None
+                return found
             self._cancel[job.job_id] = asyncio.Event()
             if get_settings().inline_jobs:
                 self._tasks[job.job_id] = asyncio.create_task(self.execute(job.job_id))
@@ -97,8 +121,8 @@ class JobService:
                 enqueue(tool.queue, job.job_id)
             return job
 
-    def get(self, job_id: str) -> Job:
-        job = self._repo.get(job_id)
+    async def get(self, job_id: str) -> Job:
+        job = await self._repo.get(job_id)
         if job is None:
             raise ApiError(
                 status.HTTP_404_NOT_FOUND, "JOB_NOT_FOUND", "Job was not found."
@@ -106,7 +130,7 @@ class JobService:
         return job
 
     async def cancel(self, job_id: str) -> Job:
-        job = self.get(job_id)
+        job = await self.get(job_id)
         if job.status in TERMINAL:
             return job
         event = self._cancel.get(job_id)
@@ -116,7 +140,9 @@ class JobService:
         if task:
             task.cancel()
         await self._limiter.release(job_id)
-        return self._update(job_id, status=JobStatus.CANCELLED.value, stage=None, progress=None)
+        return await self._update(
+            job_id, status=JobStatus.CANCELLED.value, stage=None, progress=None
+        )
 
     async def validate_tool_accepts(
         self,
@@ -143,42 +169,68 @@ class JobService:
         return tool
 
     async def execute(self, job_id: str) -> None:
-        job = self.get(job_id)
+        job = await self.get(job_id)
+        if job.status in TERMINAL:
+            return
         tool = self._tool(job.tool_id or "")
         upload_service = get_upload_service()
         try:
-            payload = self._repo.payload(job_id)
-            self._update(job_id, status=JobStatus.PROCESSING.value, stage="downloading", progress=5)
+            payload = await self._repo.payload(job_id)
+            if job.status == JobStatus.QUEUED.value:
+                claimed = await self._repo.update_from(
+                    JobStatus.QUEUED.value,
+                    job_id,
+                    status=JobStatus.PROCESSING.value,
+                    stage="downloading",
+                    progress=5,
+                )
+                if claimed is None or claimed.status != JobStatus.PROCESSING.value:
+                    return
+            elif job.status != JobStatus.PROCESSING.value:
+                return
             keys = input_keys(payload.input)
             source_paths = [upload_service.require_completed(key) for key in keys]
             work = job_work_dir(job_id)
             inputs = []
             for index, source in enumerate(source_paths):
-                dest = work / f"input-{index}{source.suffix}"
+                dest = work / f"input-{index}{_source_suffix(upload_service, keys[index], source)}"
                 shutil.copy2(source, dest)
                 inputs.append(dest)
             if not inputs:
-                inputs = [work / "input-0.txt"]
-                inputs[0].write_text(str(payload.options.get("text", "")), encoding="utf-8")
+                if tool.id == "html-to-image":
+                    inputs = [work / "input-0.html"]
+                    inputs[0].write_text(str(payload.options.get("html", "")), encoding="utf-8")
+                else:
+                    inputs = [work / "input-0.txt"]
+                    inputs[0].write_text(str(payload.options.get("text", "")), encoding="utf-8")
             extension, content_type = output_format(tool.id, payload.options, inputs[0])
             output = work / f"output.{extension}"
 
-            def report_progress(progress: int | None, stage: str | None) -> None:
-                self._update(job_id, progress=progress, stage=stage)
+            async def report_progress(progress: int | None, stage: str | None) -> None:
+                current = await self._repo.get(job_id)
+                if current is None or current.status in TERMINAL:
+                    raise InterruptedError("Job was cancelled.")
+                await self._update(job_id, progress=progress, stage=stage)
 
             context = ProcessorContext(
                 job_id=job_id,
                 tool_id=tool.id,
                 options=payload.options,
                 work_dir=work,
-                cancel_event=self._cancel.get(job_id),
+                cancel_event=self._cancel.setdefault(job_id, asyncio.Event()),
                 on_progress=report_progress,
             )
-            self._update(job_id, stage="processing", progress=None)
+            await self._update(job_id, stage="processing", progress=None)
+            current = await self._repo.get(job_id)
+            if current is None or current.status in TERMINAL:
+                return
             processor = get_processor(tool.id)
             result = await asyncio.wait_for(
                 processor.process(inputs, output, context=context), timeout=tool.timeout
             )
+            current = await self._repo.get(job_id)
+            if current is None or current.status in TERMINAL:
+                return
             if result.extension:
                 extension = result.extension
             if result.content_type:
@@ -197,23 +249,26 @@ class JobService:
                 "filename": f"{tool.id}-result.{extension}",
                 "contentType": content_type,
                 "size": stored.stat().st_size,
+                "storageKey": storage_key,
                 "downloadUrl": download_url,
                 "expiresAt": expires_at.isoformat(),
                 **result.metadata,
             }
-            self._update(
+            await self._update(
                 job_id,
                 status=JobStatus.COMPLETED.value,
                 stage="finalizing",
                 progress=100,
                 result=payload_result,
             )
-        except asyncio.CancelledError:
-            current = self._repo.get(job_id)
+        except (asyncio.CancelledError, InterruptedError):
+            current = await self._repo.get(job_id)
             if current and current.status not in TERMINAL:
-                self._update(job_id, status=JobStatus.CANCELLED.value, stage=None, progress=None)
+                await self._update(
+                    job_id, status=JobStatus.CANCELLED.value, stage=None, progress=None
+                )
         except TimeoutError:
-            self._update(
+            await self._update(
                 job_id,
                 status=JobStatus.FAILED.value,
                 stage=None,
@@ -223,7 +278,7 @@ class JobService:
         except (ApiError, ProcessingError, OSError, ValueError) as exc:
             message = exc.message if isinstance(exc, ApiError) else str(exc)
             code = exc.code if isinstance(exc, (ApiError, ProcessingError)) else "PROCESSING_FAILED"
-            self._update(
+            await self._update(
                 job_id,
                 status=JobStatus.FAILED.value,
                 stage=None,
@@ -234,14 +289,16 @@ class JobService:
             cleanup_work_dir(job_id)
             await self._limiter.release(job_id)
 
-    def _update(self, job_id: str, **updates: Any) -> Job:
-        current = self.get(job_id)
+    async def _update(self, job_id: str, **updates: Any) -> Job:
+        current = await self.get(job_id)
         if current.status in TERMINAL and updates.get("status") != JobStatus.EXPIRED:
             return current
         target = updates.get("status", current.status)
         ensure_transition(current.status, str(target))
-        updated = current.model_copy(update={**updates, "updated_at": datetime.now(UTC)})
-        return self._repo.save(updated)
+        updated = await self._repo.update_from(current.status, job_id, **updates)
+        if updated is None:
+            return await self.get(job_id)
+        return updated
 
     async def _require_premium(
         self,
@@ -270,9 +327,17 @@ class JobService:
                 "Tool must run client-side.",
             )
         keys = input_keys(payload.input)
-        allow_empty = tool.id == "text-to-speech" and bool(payload.options.get("text"))
+        allow_empty = (tool.id == "text-to-speech" and bool(payload.options.get("text"))) or (
+            tool.id == "html-to-image" and bool(str(payload.options.get("html") or "").strip())
+        )
         if allow_empty and not keys:
             return
+        if tool.id == "add-subtitle" and len(keys) != 2:
+            raise ApiError(
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                "VALIDATION_ERROR",
+                "Add Subtitle needs one video file and one subtitle file.",
+            )
         if not keys or len(keys) > tool.max_files:
             raise ApiError(
                 status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -296,6 +361,15 @@ class JobService:
             raise ApiError(
                 status.HTTP_404_NOT_FOUND, "JOB_NOT_FOUND", "Tool was not found."
             ) from None
+
+
+def _source_suffix(upload_service: Any, file_key: str, source: Path) -> str:
+    issued = upload_service.issued(file_key)
+    if issued is not None:
+        suffix = Path(issued.filename).suffix.lower()
+        if suffix:
+            return suffix
+    return source.suffix.lower()
 
 
 def input_keys(input_data: dict[str, Any]) -> list[str]:
@@ -332,12 +406,24 @@ def output_format(tool_id: str, options: dict[str, Any], source: Path) -> tuple[
         "speech-to-text": "json",
         "text-to-speech": "wav",
         "remove-background": "png",
+        "basic-background-removal": "png",
     }
     extension = fixed.get(tool_id)
+    if extension is None and tool_id == "html-to-image":
+        raw = str(options.get("format", "png")).split("/")[-1].lower().replace("jpeg", "jpg")
+        if raw not in {"png", "jpg"}:
+            raise ApiError(
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                "UNSUPPORTED_FORMAT",
+                "Output format is not supported.",
+            )
+        extension = raw
     if extension is None and tool_id == "image-converter":
         extension = str(options.get("format", "jpeg")).split("/")[-1].replace("jpeg", "jpg")
     if extension is None and tool_id in PDF_TOOLS:
         extension = "pdf"
+    if extension is None and tool_id == "add-subtitle":
+        extension = str(options.get("format", "mp4")).split("/")[-1].lower().lstrip(".")
     if extension is None and tool_id in MEDIA_TOOLS:
         extension = str(options.get("format", "mp4" if "video" in tool_id else "mp3")).lstrip(".")
     if extension is None and tool_id in IMAGE_TOOLS:

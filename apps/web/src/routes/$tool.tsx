@@ -2,7 +2,9 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 import { ChevronRight, LockKeyhole, ShieldCheck } from 'lucide-react'
 import { useEffect } from 'react'
 import { ToolCard } from '@/components/tool/ToolCard'
+import { HtmlToImageWorkspace } from '@/features/image/HtmlToImageWorkspace'
 import { ImageWorkspace } from '@/features/image/ImageWorkspace'
+import { SvgToPngWorkspace } from '@/features/image/SvgToPngWorkspace'
 import { PremiumGate } from '@/features/licensing/PremiumGate'
 import { getRelatedTools, getToolBySlug, type ToolDefinition } from '@/features/tools/tool-registry'
 import { getWorkspaceComponent } from '@/features/workspaces'
@@ -40,6 +42,8 @@ function ToolRoute() {
 }
 
 function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
+  if (tool.slug === 'svg-to-png' && tool.available) return <SvgToPngWorkspace key={tool.slug} tool={tool}/>
+  if (tool.slug === 'html-to-image' && tool.available) return <HtmlToImageWorkspace key={tool.slug} tool={tool}/>
   if (tool.implementation === 'image-canvas' && tool.available) return <ImageWorkspace key={tool.slug} tool={tool}/>
   const Workspace = getWorkspaceComponent(tool)
   if (Workspace && tool.available) return <Workspace tool={tool}/>
