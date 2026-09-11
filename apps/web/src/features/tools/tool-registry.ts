@@ -9,12 +9,14 @@ export type ToolImplementation =
   | 'qr-code'
   | 'text'
   | 'json'
+  | 'xml'
   | 'encoding'
   | 'crypto'
   | 'date-time'
   | 'color'
   | 'random'
   | 'css'
+  | 'yaml'
   | 'browser-media'
   | 'remote-api'
   | 'dependency-required'
@@ -45,7 +47,7 @@ export interface ToolDefinition {
 }
 
 type ToolOptions = Partial<Pick<ToolDefinition,
-  'acceptedFormats' | 'outputFormats' | 'ai' | 'popular' | 'new' | 'processingMode' | 'accessTier' | 'requiredCapability'
+  'acceptedFormats' | 'outputFormats' | 'ai' | 'popular' | 'new' | 'processingMode' | 'accessTier' | 'requiredCapability' | 'shortDescription' | 'description'
 >> & { aliases?: string[]; tags?: string[] }
 
 const icons: Record<ToolCategory, string> = {
@@ -55,20 +57,29 @@ const icons: Record<ToolCategory, string> = {
 
 const slugify = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 const implementedSlugs = new Set([
-  'compress-image', 'resize-image', 'rotate-image', 'flip-image', 'convert-to-jpg', 'convert-from-jpg',
-  'image-converter', 'jpg-to-png', 'png-to-jpg', 'jpg-to-webp', 'png-to-webp', 'webp-to-jpg',
-  'watermark-image', 'remove-metadata', 'qr-code-generator', 'url-qr-code', 'text-qr-code',
-  'wifi-qr-code', 'whatsapp-qr-code', 'email-qr-code', 'phone-qr-code', 'vcard-qr-code',
-  'location-qr-code', 'qr-generator', 'qris-payload-parser', 'text-to-speech', 'change-audio-speed',
-  'change-volume', 'voice-recorder', 'generate-thumbnail', 'video-screenshot', 'video-metadata-viewer',
-  'word-counter', 'character-counter', 'case-converter', 'remove-duplicate-lines', 'remove-extra-spaces',
-  'sort-lines', 'text-cleaner', 'text-formatter', 'lorem-ipsum-generator', 'slug-generator', 'text-compare',
-  'text-diff', 'markdown-preview', 'markdown-to-html', 'html-to-markdown', 'json-formatter',
-  'json-validator', 'json-minifier', 'base64-encode', 'base64-decode', 'url-encode', 'url-decode',
-  'jwt-decoder', 'image-to-base64', 'base64-to-image', 'hash-generator', 'sha-256', 'sha-512',
-  'unix-timestamp-converter', 'hex-rgb-hsl-converter', 'password-generator', 'pin-generator',
-  'random-number-generator', 'uuid-generator', 'gradient-generator', 'css-shadow-generator',
-  'border-radius-generator', 'color-palette-generator', 'palette-generator', 'color-picker',
+  'compress-image', 'resize-image', 'crop-image', 'rotate-image', 'flip-image', 'convert-to-jpg',
+  'convert-from-jpg', 'image-converter', 'jpg-to-png', 'png-to-jpg', 'jpg-to-webp', 'png-to-webp',
+  'webp-to-jpg', 'svg-to-png', 'photo-editor', 'watermark-image', 'remove-metadata', 'favicon-generator', 'meme-generator', 'blur-face', 'basic-background-removal', 'html-to-image', 'qr-code-generator', 'url-qr-code',
+  'text-qr-code', 'wifi-qr-code', 'whatsapp-qr-code', 'email-qr-code', 'phone-qr-code', 'vcard-qr-code',
+  'location-qr-code', 'qr-generator', 'qris-payload-parser', 'change-audio-speed', 'change-volume',
+  'audio-converter', 'audio-compressor', 'audio-cutter', 'audio-trimmer', 'audio-merger',
+  'remove-silence', 'noise-reduction', 'extract-audio-from-video', 'voice-recorder', 'generate-thumbnail', 'video-screenshot',
+  'video-metadata-viewer', 'video-compressor', 'video-converter', 'video-to-gif', 'gif-to-video',
+  'video-cutter', 'video-trimmer', 'video-merger', 'resize-video', 'crop-video', 'rotate-video',
+  'remove-audio', 'extract-audio', 'add-audio', 'change-video-speed', 'add-watermark', 'compress-pdf',
+  'merge-pdf',
+  'split-pdf', 'jpg-to-pdf', 'png-to-pdf', 'pdf-to-jpg', 'pdf-to-png', 'rotate-pdf',
+  'delete-pdf-pages', 'reorder-pdf-pages', 'extract-pdf-pages', 'watermark-pdf', 'page-number-pdf',
+  'protect-pdf', 'unlock-pdf', 'pdf-metadata-viewer', 'pdf-to-text', 'word-counter',
+  'character-counter', 'case-converter', 'remove-duplicate-lines', 'remove-extra-spaces',
+  'sort-lines', 'text-cleaner', 'text-formatter', 'lorem-ipsum-generator', 'slug-generator',
+  'text-compare', 'text-diff', 'markdown-preview', 'markdown-to-html', 'html-to-markdown',
+  'json-formatter', 'json-validator', 'json-minifier', 'xml-formatter', 'html-formatter', 'javascript-formatter', 'yaml-to-json', 'json-to-yaml', 'base64-encode', 'base64-decode',
+  'url-encode', 'url-decode', 'jwt-decoder', 'image-to-base64', 'base64-to-image', 'hash-generator',
+  'sha-256', 'sha-512', 'unix-timestamp-converter', 'hex-rgb-hsl-converter', 'password-generator',
+  'pin-generator', 'random-number-generator', 'uuid-generator', 'gradient-generator',
+  'css-shadow-generator', 'border-radius-generator', 'color-palette-generator', 'palette-generator',
+  'color-picker',
 ])
 const defineTool = (
   name: string,
@@ -78,8 +89,8 @@ const defineTool = (
   options: ToolOptions = {},
 ): ToolDefinition => {
   const slug = slugify(name)
-  const shortDescription = `${name} quickly with a focused, easy-to-use tool.`
-  const description = `${name} online with clear controls and privacy-conscious processing.`
+  const shortDescription = options.shortDescription ?? `${name} quickly with a focused, easy-to-use tool.`
+  const description = options.description ?? `${name} online with clear controls and privacy-conscious processing.`
   const processingMode = options.processingMode ?? (implementation === 'remote-api' ? 'remote' : 'client')
   const available = implementedSlugs.has(slug)
   return {
@@ -109,13 +120,16 @@ const defineTool = (
 }
 
 const imageFormats = ['image/jpeg', 'image/png', 'image/webp', 'image/avif']
+const pdfFormat = ['application/pdf']
+const audioFormats = ['audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/mp4', 'audio/ogg', 'audio/webm']
+const videoFormats = ['video/mp4', 'video/webm', 'video/quicktime']
 const qrOutputs = ['image/png', 'image/svg+xml']
 const t = defineTool
 
 export const tools: readonly ToolDefinition[] = [
   t('Compress Image', 'image', ['optimize'], 'image-canvas', { acceptedFormats: imageFormats, processingMode: 'hybrid', aliases: ['compress photo', 'shrink image', 'kompres gambar'], popular: true }),
   t('Resize Image', 'image', ['edit'], 'image-canvas', { acceptedFormats: imageFormats, popular: true }),
-  t('Crop Image', 'image', ['edit'], 'image-canvas'),
+  t('Crop Image', 'image', ['edit'], 'image-canvas', { acceptedFormats: imageFormats }),
   t('Rotate Image', 'image', ['edit'], 'image-canvas'),
   t('Flip Image', 'image', ['edit'], 'image-canvas'),
   t('Convert to JPG', 'image', ['convert'], 'image-canvas', { outputFormats: ['image/jpeg'] }),
@@ -128,20 +142,27 @@ export const tools: readonly ToolDefinition[] = [
   t('WebP to JPG', 'image', ['convert'], 'image-canvas'),
   t('AVIF Converter', 'image', ['convert'], 'dependency-required'),
   t('HEIC Converter', 'image', ['convert'], 'dependency-required'),
-  t('SVG to PNG', 'image', ['convert'], 'image-canvas'),
+  t('SVG to PNG', 'image', ['convert'], 'image-canvas', { acceptedFormats: ['image/svg+xml', '.svg'], outputFormats: ['image/png'] }),
   t('TIFF Converter', 'image', ['convert'], 'dependency-required'),
-  t('Photo Editor', 'image', ['edit'], 'image-canvas'),
+  t('Photo Editor', 'image', ['edit'], 'image-canvas', { acceptedFormats: ['image/jpeg', 'image/png', 'image/webp'], outputFormats: ['image/jpeg', 'image/png', 'image/webp'] }),
   t('Watermark Image', 'image', ['edit', 'security'], 'image-canvas'),
-  t('Blur Face', 'image', ['edit'], 'remote-api', { ai: true }),
+  t('Blur Face', 'image', ['edit'], 'remote-api', { acceptedFormats: imageFormats, processingMode: 'remote' }),
   t('Blur Area', 'image', ['edit'], 'image-canvas'),
   t('Pixelate Image', 'image', ['edit'], 'image-canvas'),
   t('Remove Background', 'image', ['edit'], 'remote-api', { ai: true, accessTier: 'pro', requiredCapability: 'image.ai.background_removal', aliases: ['remove bg', 'hapus background'] }),
+  t('Basic Background Removal', 'image', ['edit'], 'remote-api', {
+    acceptedFormats: ['image/jpeg', 'image/png', 'image/webp'],
+    outputFormats: ['image/png'],
+    aliases: ['grabcut', 'cutout', 'basic remove background'],
+    shortDescription: 'Basic GrabCut cutout with a foreground box. Not AI — hair and busy backgrounds often fail.',
+    description: 'Remove a simple background with OpenCV GrabCut. Adjust the foreground box, then export a transparent PNG at the original size. This is not AI segmentation: hair, glass, and complex scenes often leave leftovers or holes.',
+  }),
   t('Replace Background', 'image', ['edit'], 'image-canvas'),
   t('Background Blur', 'image', ['edit'], 'remote-api', { ai: true }),
   t('Upscale Image', 'image', ['optimize'], 'remote-api', { ai: true, accessTier: 'pro', requiredCapability: 'image.ai.upscale' }),
   t('Image Enhancement', 'image', ['optimize'], 'remote-api', { ai: true }),
-  t('Meme Generator', 'image', ['create'], 'image-canvas'),
-  t('HTML to Image', 'image', ['convert'], 'dependency-required'),
+  t('Meme Generator', 'image', ['create'], 'image-canvas', { acceptedFormats: imageFormats, outputFormats: ['image/png', 'image/jpeg'] }),
+  t('HTML to Image', 'image', ['convert'], 'remote-api', { acceptedFormats: ['text/html'], outputFormats: ['image/png', 'image/jpeg'] }),
   t('Website Screenshot', 'image', ['create'], 'remote-api'),
   t('Image to Base64', 'image', ['convert'], 'encoding'),
   t('Base64 to Image', 'image', ['convert'], 'encoding'),
@@ -149,7 +170,7 @@ export const tools: readonly ToolDefinition[] = [
   t('Remove Metadata', 'image', ['security'], 'image-canvas'),
   t('Color Picker', 'image', ['create'], 'color'),
   t('Palette Generator', 'image', ['create'], 'color'),
-  t('Favicon Generator', 'image', ['create'], 'image-canvas'),
+  t('Favicon Generator', 'image', ['create'], 'image-canvas', { acceptedFormats: ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'], outputFormats: ['image/png', 'image/x-icon', 'application/zip'] }),
   t('Profile Picture Maker', 'image', ['create'], 'image-canvas'),
   t('Passport Photo Maker', 'image', ['create'], 'image-canvas'),
   t('Thumbnail Generator', 'image', ['create'], 'image-canvas'),
@@ -172,55 +193,55 @@ export const tools: readonly ToolDefinition[] = [
 
   t('Text to Speech', 'audio', ['convert'], 'browser-media'),
   t('Speech to Text', 'audio', ['convert'], 'remote-api', { ai: true }),
-  t('Audio Converter', 'audio', ['convert'], 'dependency-required'),
-  t('Audio Compressor', 'audio', ['optimize'], 'dependency-required'),
-  t('Audio Cutter', 'audio', ['edit'], 'dependency-required'),
-  t('Audio Trimmer', 'audio', ['edit'], 'dependency-required'),
-  t('Audio Merger', 'audio', ['edit'], 'dependency-required'),
-  t('Change Audio Speed', 'audio', ['edit'], 'browser-media'),
-  t('Change Volume', 'audio', ['edit'], 'browser-media'),
-  t('Remove Silence', 'audio', ['edit'], 'dependency-required'),
-  t('Noise Reduction', 'audio', ['optimize'], 'remote-api', { ai: true }),
-  t('Extract Audio From Video', 'audio', ['convert'], 'dependency-required'),
+  t('Audio Converter', 'audio', ['convert'], 'remote-api', { acceptedFormats: [...audioFormats, ...videoFormats] }),
+  t('Audio Compressor', 'audio', ['optimize'], 'remote-api', { acceptedFormats: audioFormats }),
+  t('Audio Cutter', 'audio', ['edit'], 'remote-api', { acceptedFormats: audioFormats }),
+  t('Audio Trimmer', 'audio', ['edit'], 'remote-api', { acceptedFormats: audioFormats }),
+  t('Audio Merger', 'audio', ['edit'], 'remote-api', { acceptedFormats: audioFormats }),
+  t('Change Audio Speed', 'audio', ['edit'], 'remote-api', { acceptedFormats: audioFormats }),
+  t('Change Volume', 'audio', ['edit'], 'remote-api', { acceptedFormats: audioFormats }),
+  t('Remove Silence', 'audio', ['edit'], 'remote-api', { acceptedFormats: audioFormats }),
+  t('Noise Reduction', 'audio', ['optimize'], 'remote-api', { acceptedFormats: audioFormats }),
+  t('Extract Audio From Video', 'audio', ['convert'], 'remote-api', { acceptedFormats: videoFormats }),
   t('Voice Recorder', 'audio', ['create'], 'browser-media'),
 
-  t('Compress PDF', 'pdf', ['optimize'], 'dependency-required'),
-  t('Merge PDF', 'pdf', ['edit'], 'dependency-required'),
-  t('Split PDF', 'pdf', ['edit'], 'dependency-required'),
-  t('JPG to PDF', 'pdf', ['convert'], 'dependency-required'),
-  t('PNG to PDF', 'pdf', ['convert'], 'dependency-required'),
-  t('PDF to JPG', 'pdf', ['convert'], 'dependency-required'),
-  t('PDF to PNG', 'pdf', ['convert'], 'dependency-required'),
-  t('Rotate PDF', 'pdf', ['edit'], 'dependency-required'),
-  t('Delete PDF Pages', 'pdf', ['edit'], 'dependency-required'),
-  t('Reorder PDF Pages', 'pdf', ['edit'], 'dependency-required'),
-  t('Extract PDF Pages', 'pdf', ['edit'], 'dependency-required'),
-  t('Watermark PDF', 'pdf', ['edit', 'security'], 'dependency-required'),
-  t('Page Number PDF', 'pdf', ['edit'], 'dependency-required'),
-  t('Protect PDF', 'pdf', ['security'], 'dependency-required'),
-  t('Unlock PDF', 'pdf', ['security'], 'dependency-required'),
-  t('PDF Metadata Viewer', 'pdf', ['edit'], 'dependency-required'),
-  t('PDF to Text', 'pdf', ['convert'], 'dependency-required'),
+  t('Compress PDF', 'pdf', ['optimize'], 'remote-api', { acceptedFormats: pdfFormat }),
+  t('Merge PDF', 'pdf', ['edit'], 'remote-api', { acceptedFormats: pdfFormat }),
+  t('Split PDF', 'pdf', ['edit'], 'remote-api', { acceptedFormats: pdfFormat }),
+  t('JPG to PDF', 'pdf', ['convert'], 'remote-api', { acceptedFormats: ['image/jpeg'] }),
+  t('PNG to PDF', 'pdf', ['convert'], 'remote-api', { acceptedFormats: ['image/png'] }),
+  t('PDF to JPG', 'pdf', ['convert'], 'remote-api', { acceptedFormats: pdfFormat, outputFormats: ['image/jpeg'] }),
+  t('PDF to PNG', 'pdf', ['convert'], 'remote-api', { acceptedFormats: pdfFormat, outputFormats: ['image/png'] }),
+  t('Rotate PDF', 'pdf', ['edit'], 'remote-api', { acceptedFormats: pdfFormat }),
+  t('Delete PDF Pages', 'pdf', ['edit'], 'remote-api', { acceptedFormats: pdfFormat }),
+  t('Reorder PDF Pages', 'pdf', ['edit'], 'remote-api', { acceptedFormats: pdfFormat }),
+  t('Extract PDF Pages', 'pdf', ['edit'], 'remote-api', { acceptedFormats: pdfFormat }),
+  t('Watermark PDF', 'pdf', ['edit', 'security'], 'remote-api', { acceptedFormats: pdfFormat }),
+  t('Page Number PDF', 'pdf', ['edit'], 'remote-api', { acceptedFormats: pdfFormat }),
+  t('Protect PDF', 'pdf', ['security'], 'remote-api', { acceptedFormats: pdfFormat }),
+  t('Unlock PDF', 'pdf', ['security'], 'remote-api', { acceptedFormats: pdfFormat }),
+  t('PDF Metadata Viewer', 'pdf', ['edit'], 'remote-api', { acceptedFormats: pdfFormat }),
+  t('PDF to Text', 'pdf', ['convert'], 'remote-api', { acceptedFormats: pdfFormat }),
   t('OCR PDF', 'pdf', ['convert'], 'remote-api', { ai: true }),
   t('HTML to PDF', 'pdf', ['convert'], 'dependency-required'),
 
-  t('Video Compressor', 'video', ['optimize'], 'remote-api'),
-  t('Video Converter', 'video', ['convert'], 'remote-api'),
-  t('Video to GIF', 'video', ['convert'], 'dependency-required'),
-  t('GIF to Video', 'video', ['convert'], 'dependency-required'),
-  t('Video Cutter', 'video', ['edit'], 'remote-api'),
-  t('Video Trimmer', 'video', ['edit'], 'remote-api'),
-  t('Video Merger', 'video', ['edit'], 'remote-api'),
-  t('Resize Video', 'video', ['edit'], 'remote-api'),
-  t('Crop Video', 'video', ['edit'], 'remote-api'),
-  t('Rotate Video', 'video', ['edit'], 'remote-api'),
-  t('Remove Audio', 'video', ['edit'], 'remote-api'),
-  t('Extract Audio', 'video', ['convert'], 'remote-api'),
-  t('Add Audio', 'video', ['edit'], 'remote-api'),
-  t('Change Video Speed', 'video', ['edit'], 'remote-api'),
+  t('Video Compressor', 'video', ['optimize'], 'remote-api', { acceptedFormats: videoFormats }),
+  t('Video Converter', 'video', ['convert'], 'remote-api', { acceptedFormats: videoFormats }),
+  t('Video to GIF', 'video', ['convert'], 'remote-api', { acceptedFormats: videoFormats }),
+  t('GIF to Video', 'video', ['convert'], 'remote-api', { acceptedFormats: ['image/gif'] }),
+  t('Video Cutter', 'video', ['edit'], 'remote-api', { acceptedFormats: videoFormats }),
+  t('Video Trimmer', 'video', ['edit'], 'remote-api', { acceptedFormats: videoFormats }),
+  t('Video Merger', 'video', ['edit'], 'remote-api', { acceptedFormats: videoFormats }),
+  t('Resize Video', 'video', ['edit'], 'remote-api', { acceptedFormats: videoFormats }),
+  t('Crop Video', 'video', ['edit'], 'remote-api', { acceptedFormats: videoFormats }),
+  t('Rotate Video', 'video', ['edit'], 'remote-api', { acceptedFormats: videoFormats }),
+  t('Remove Audio', 'video', ['edit'], 'remote-api', { acceptedFormats: videoFormats }),
+  t('Extract Audio', 'video', ['convert'], 'remote-api', { acceptedFormats: videoFormats }),
+  t('Add Audio', 'video', ['edit'], 'remote-api', { acceptedFormats: [...videoFormats, ...audioFormats] }),
+  t('Change Video Speed', 'video', ['edit'], 'remote-api', { acceptedFormats: videoFormats }),
   t('Generate Thumbnail', 'video', ['create'], 'browser-media'),
-  t('Add Watermark', 'video', ['edit'], 'remote-api'),
-  t('Add Subtitle', 'video', ['edit'], 'remote-api'),
+  t('Add Watermark', 'video', ['edit'], 'remote-api', { acceptedFormats: videoFormats }),
+  t('Add Subtitle', 'video', ['edit'], 'remote-api', { acceptedFormats: [...videoFormats, '.srt', '.vtt', '.ass', '.ssa', 'text/plain', 'text/vtt', 'application/x-subrip'] }),
   t('Video Screenshot', 'video', ['create'], 'browser-media'),
   t('Video Metadata Viewer', 'video', ['edit'], 'browser-media'),
 
@@ -244,10 +265,10 @@ export const tools: readonly ToolDefinition[] = [
   t('JSON Formatter', 'developer', ['edit'], 'json', { aliases: ['beautify json'], popular: true }),
   t('JSON Validator', 'developer', ['edit'], 'json'),
   t('JSON Minifier', 'developer', ['optimize'], 'json'),
-  t('XML Formatter', 'developer', ['edit'], 'text'),
+  t('XML Formatter', 'developer', ['edit'], 'xml'),
   t('XML to JSON', 'developer', ['convert'], 'text'),
-  t('YAML to JSON', 'developer', ['convert'], 'dependency-required'),
-  t('JSON to YAML', 'developer', ['convert'], 'dependency-required'),
+  t('YAML to JSON', 'developer', ['convert'], 'yaml'),
+  t('JSON to YAML', 'developer', ['convert'], 'yaml'),
   t('HTML Formatter', 'developer', ['edit'], 'text'),
   t('CSS Formatter', 'developer', ['edit'], 'text'),
   t('JavaScript Formatter', 'developer', ['edit'], 'text'),

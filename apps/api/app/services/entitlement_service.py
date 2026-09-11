@@ -32,7 +32,7 @@ class EntitlementService:
         self._clock = clock
         self._cache = cache or get_license_status_cache()
         self._licenses = LicenseService(session, clock=clock, cache=self._cache)
-        self._signer = signer or EntitlementSigner(self._settings, clock=clock)
+        self._signer = signer
 
     async def activate(self, license_key: str, installation_id: str) -> EntitlementPayload:
         license, installation_hash = await self._licenses.activate(license_key, installation_id)
@@ -92,9 +92,14 @@ class EntitlementService:
             )
         return license.id, installation_hash
 
+    def _get_signer(self) -> EntitlementSigner:
+        if self._signer is None:
+            self._signer = EntitlementSigner(self._settings, clock=self._clock)
+        return self._signer
+
     def _claims(self, token: str) -> tuple[str, str]:
         try:
-            claims = self._signer.verify(token)
+            claims = self._get_signer().verify(token)
         except ValueError as exc:
             message = str(exc)
             code = "ENTITLEMENT_EXPIRED" if "expired" in message else "ENTITLEMENT_INVALID"
@@ -173,7 +178,7 @@ class EntitlementService:
 
     def _payload(self, license: License, installation_hash: str) -> EntitlementPayload:
         capabilities = self._licenses.capabilities(license)
-        token = self._signer.issue(
+        token = self._get_signer().issue(
             license_id=license.id,
             installation_hash=installation_hash,
             plan=license.plan,

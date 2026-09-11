@@ -1,6 +1,18 @@
+from unittest.mock import MagicMock
+
 from httpx import AsyncClient
 
+from app.core.config import Settings
+from app.services.entitlement_service import EntitlementService
 from tests.helpers import png_bytes, upload_image
+
+
+def test_entitlement_service_defers_signer_without_keys() -> None:
+    service = EntitlementService(
+        MagicMock(),
+        settings=Settings(entitlement_private_key="", entitlement_public_key=""),
+    )
+    assert service._signer is None
 
 
 async def test_status_without_token(api: AsyncClient) -> None:

@@ -11,7 +11,7 @@ export const motion = {
     enter: 'power3.out',
     exit: 'power2.in',
     emphasized: 'power4.out',
-    layout: 'power2.inOut',
+    layout: 'power3.inOut',
   },
   blur: {
     small: 6,
@@ -19,8 +19,9 @@ export const motion = {
     large: 18,
   },
   card: {
-    enter: { y: 28, scale: 0.96, blur: 14, duration: 0.55, stagger: 0.035 },
-    exit: { y: -8, scale: 0.94, blur: 10, duration: 0.22 },
+    enter: { y: 20, scale: 0.965, blur: 10, duration: 0.45, stagger: 0.035 },
+    exit: { y: -8, scale: 0.95, blur: 8, duration: 0.22 },
+    comingSoon: { y: 14, scale: 0.985, blur: 6, duration: 0.45, stagger: 0.025 },
     hoverY: -4,
     hoverScale: 1.01,
   },

@@ -7,7 +7,27 @@ import { cancelJob, createJob, getJob, getJobResult } from '../../lib/api/jobs'
 import type { Job } from '../../lib/api/types'
 import type { ToolDefinition } from '../tools/tool-registry'
 
-const multipleTools = new Set(['merge-pdf', 'jpg-to-pdf', 'png-to-pdf', 'audio-merger', 'video-merger'])
+const multipleTools = new Set(['merge-pdf', 'jpg-to-pdf', 'png-to-pdf', 'audio-merger', 'video-merger', 'add-audio', 'add-subtitle'])
+
+const defaultOptions: Record<string, string> = {
+  'split-pdf': '{"pages":[1]}',
+  'delete-pdf-pages': '{"pages":[1]}',
+  'extract-pdf-pages': '{"pages":[1]}',
+  'reorder-pdf-pages': '{"pages":[1]}',
+  'protect-pdf': '{"password":""}',
+  'unlock-pdf': '{"password":""}',
+  'watermark-pdf': '{"text":"Watermark"}',
+  'rotate-pdf': '{"rotation":90}',
+  'resize-video': '{"width":640,"height":360}',
+  'crop-video': '{"width":320,"height":180}',
+  'change-volume': '{"volume":1}',
+  'change-audio-speed': '{"speed":1}',
+  'change-video-speed': '{"speed":1}',
+  'add-watermark': '{"text":"Watermark"}',
+  'blur-face': '{"mode":"blur","strength":8}',
+  'noise-reduction': '{"strength":"medium"}',
+  'add-subtitle': '{"mode":"burn","format":"mp4"}',
+}
 
 interface Transfer {
   status: DropzoneStatus
@@ -18,7 +38,7 @@ const idleTransfer: Transfer = { status: 'idle', progress: {} }
 
 export function RemoteFileWorkspace({ tool }: { tool: ToolDefinition }) {
   const [files, setFiles] = useState<File[]>([])
-  const [options, setOptions] = useState('{}')
+  const [options, setOptions] = useState(defaultOptions[tool.id] ?? '{}')
   const [job, setJob] = useState<Job | null>(null)
   const [download, setDownload] = useState<{ url: string; filename: string } | null>(null)
   const [error, setError] = useState('')
@@ -92,5 +112,7 @@ export function RemoteFileWorkspace({ tool }: { tool: ToolDefinition }) {
   }
 
   const busy = transfer.status === 'uploading' || job?.status === 'queued' || job?.status === 'processing'
-  return <section className="workspace split-workspace"><div className="options-panel"><FileDropzone accept={tool.acceptedFormats ?? []} multiple={multipleTools.has(tool.id)} maxFiles={20} maxFileSize={100 * 1024 * 1024} status={transfer.status} progress={transfer.progress} disabled={busy} onFilesSelected={chooseFiles}/>{files.length > 0 && <ul>{files.map((file) => <li key={`${file.name}-${file.size}`}>{file.name}</li>)}</ul>}<label className="field"><span>Advanced options (JSON)</span><textarea rows={5} value={options} onChange={(event) => setOptions(event.target.value)} spellCheck={false}/></label><div className="button-row"><button className="button primary" type="button" disabled={files.length === 0 || busy} onClick={run}>{busy && <LoaderCircle size={17}/>} Process</button>{busy && <button className="button secondary" type="button" onClick={stop}><Square size={15}/> Cancel</button>}</div>{error && transfer.status !== 'error' && <p className="field-error" role="alert">{error}</p>}</div><div className="result-card"><div className="panel-label"><span>Job status</span><span className="badge">{job?.status ?? 'Ready'}</span></div>{job && <><p>{job.stage ?? job.status}</p><progress max="100" value={job.progress ?? undefined}/></>}{download && <a className="button primary" href={download.url} download={download.filename}><Download size={18}/> Download result</a>}</div></section>
+  const requiredFiles = tool.id === 'add-subtitle' ? 2 : 1
+  const maxFiles = tool.id === 'add-subtitle' ? 2 : 20
+  return <section className="workspace split-workspace"><div className="options-panel"><FileDropzone accept={tool.acceptedFormats ?? []} multiple={multipleTools.has(tool.id)} maxFiles={maxFiles} maxFileSize={100 * 1024 * 1024} status={transfer.status} progress={transfer.progress} disabled={busy} onFilesSelected={chooseFiles}/>{files.length > 0 && <ul>{files.map((file) => <li key={`${file.name}-${file.size}`}>{file.name}</li>)}</ul>}{tool.slug === 'blur-face' && <p role="note">Basic Haar frontal-face detection, not high-accuracy AI. Profile, side, or busy photos may miss. Zero detections fail with “No faces detected.”</p>}{tool.slug === 'noise-reduction' && <p role="note">FFT denoise with FFmpeg afftdn. Strength is light, medium, or strong. This reduces broadband hiss; it is not vocal isolation.</p>}{tool.slug === 'add-subtitle' && <p role="note">Burns or muxes an existing .srt, .vtt, or .ass file into a video. This tool does not generate subtitles. Audio is kept unless keepAudio is false.</p>}<label className="field"><span>Advanced options (JSON)</span><textarea rows={5} value={options} onChange={(event) => setOptions(event.target.value)} spellCheck={false}/></label><div className="button-row"><button className="button primary" type="button" disabled={files.length < requiredFiles || busy} onClick={run}>{busy && <LoaderCircle size={17}/>} Process</button>{busy && <button className="button secondary" type="button" onClick={stop}><Square size={15}/> Cancel</button>}</div>{error && transfer.status !== 'error' && <p className="field-error" role="alert">{error}</p>}</div><div className="result-card"><div className="panel-label"><span>Job status</span><span className="badge">{job?.status ?? 'Ready'}</span></div>{job && <><p>{job.stage ?? job.status}</p><progress max="100" value={job.progress ?? undefined}/></>}{download && <a className="button primary" href={download.url} download={download.filename}><Download size={18}/> Download result</a>}</div></section>
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { getThemePreference, saveThemePreference, type StorageLike } from './preferences'
-import { addRecentTool, getFavoriteTools, getRecentTools, saveFavoriteTools, saveRecentTools } from './tools'
+import { addRecentTool, getFavoriteTools, getRecentTools, parseRecentCookie, saveFavoriteTools, saveRecentTools } from './tools'
 import { getOrCreateInstallationId, getInstallationId, INSTALLATION_STORAGE_KEY } from './installation'
 import { isLicenseKey, normalizeLicenseKey } from './license'
 import { clearEntitlement, getStoredEntitlementToken, saveEntitlement } from './entitlement'
@@ -39,6 +39,12 @@ describe('storage helpers', () => {
     expect(getRecentTools(storage)).toHaveLength(10)
     expect(addRecentTool('tool-5', storage)).toBe(true)
     expect(getRecentTools(storage)).toEqual(['tool-5', 'tool-0', 'tool-1', 'tool-2', 'tool-3', 'tool-4', 'tool-6', 'tool-7', 'tool-8', 'tool-9'])
+  })
+
+  it('parses recent tool ids from the SSR cookie header', () => {
+    expect(parseRecentCookie('kits_recent=json-formatter%7Ccompress-image; theme=dark')).toEqual(['json-formatter', 'compress-image'])
+    expect(parseRecentCookie('')).toEqual([])
+    expect(parseRecentCookie('kits_recent=bad id|ok-tool')).toEqual(['ok-tool'])
   })
 
   it('creates and reuses an installation id', () => {

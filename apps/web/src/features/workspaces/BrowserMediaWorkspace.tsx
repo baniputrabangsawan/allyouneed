@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ToolDefinition } from '../tools/tool-registry'
+import { VoiceRecorderWorkspace } from './VoiceRecorderWorkspace'
 import { formatBytes } from './workspace-utils'
 
 export function BrowserMediaWorkspace({ tool }: { tool: ToolDefinition }) {
   if (tool.slug === 'text-to-speech') return <SpeechWorkspace/>
-  if (tool.slug === 'voice-recorder') return <RecorderWorkspace/>
+  if (tool.slug === 'voice-recorder') return <VoiceRecorderWorkspace/>
   return <MediaWorkspace tool={tool}/>
 }
 
@@ -18,16 +19,6 @@ function SpeechWorkspace() {
   useEffect(() => () => { if ('speechSynthesis' in window) speechSynthesis.cancel() }, [])
   return <section className="workspace"><label className="counter-editor"><span>Text to speak</span><textarea aria-label="Text to speak" value={text} onChange={(event) => setText(event.target.value)}/></label>{error && <p className="field-error" role="alert">{error}</p>}<div className="button-row"><button className="button primary" type="button" onClick={speak}>Speak</button><button className="button secondary" type="button" onClick={() => speechSynthesis.cancel()}>Stop</button></div></section>
 }
-
-function RecorderWorkspace() {
-  const [error, setError] = useState('')
-  async function check() {
-    if (!navigator.mediaDevices?.getUserMedia || !('MediaRecorder' in window)) { setError('Audio recording is not supported in this browser or insecure context.'); return }
-    setError('Recording requires a permission and session workflow that this basic workspace does not provide. No microphone data was captured.')
-  }
-  return <section className="workspace compact-workspace"><div className="result-card"><p>This browser may support microphone recording, but capability and permission vary by browser and context.</p>{error && <p className="field-error" role="status">{error}</p>}<button className="button primary" type="button" onClick={() => void check()}>Check recording capability</button></div></section>
-}
-
 function MediaWorkspace({ tool }: { tool: ToolDefinition }) {
   const [file, setFile] = useState<File | null>(null), [url, setUrl] = useState(''), [error, setError] = useState(''), [duration, setDuration] = useState<number | null>(null)
   const [rate, setRate] = useState(1), [volume, setVolume] = useState(1)

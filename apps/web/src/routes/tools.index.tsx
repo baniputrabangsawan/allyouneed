@@ -1,12 +1,8 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
-import { useRef } from 'react'
 import { AvailabilityFlipGrids } from '@/components/tool/ToolFlipGrid'
 import { partitionByAvailability } from '@/features/tools/tool-availability'
 import { tools } from '@/features/tools/tool-registry'
-import { useGSAP } from '@/lib/motion/gsap'
-import { prefersReducedMotion } from '@/lib/motion/prefers-reduced-motion'
-import { revealPage } from '@/lib/motion/reveal'
 
 const categories = ['image', 'qr', 'developer', 'generator', 'text', 'pdf', 'audio', 'video', 'converter'] as const
 
@@ -17,13 +13,8 @@ export const Route = createFileRoute('/tools/')({
 
 function ToolsCatalog() {
   const { available, comingSoon } = partitionByAvailability(tools)
-  const pageRef = useRef<HTMLElement>(null)
-  useGSAP(() => {
-    if (prefersReducedMotion()) return
-    revealPage(pageRef.current?.querySelector('.catalog-header') ?? null)
-  }, { scope: pageRef })
   return (
-    <main ref={pageRef} className="catalog-page">
+    <main className="catalog-page">
       <header className="catalog-header">
         <nav className="breadcrumb" aria-label="Breadcrumb"><Link to="/">Home</Link><ChevronRight size={14}/><span>Tools</span></nav>
         <p className="eyebrow">Complete catalog</p>

@@ -1,11 +1,12 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { DiscoveryToolCard } from '@/components/common/DiscoveryToolCard'
 import type { ToolDefinition } from '@/features/tools/tool-registry'
-import { cardEnterVars, cardExitVars, comingSoonEnterVars } from '@/lib/motion/cards'
+import { animateEnteringCards, cardExitVars } from '@/lib/motion/cards'
 import { motion } from '@/lib/motion/config'
 import { itemSignature } from '@/lib/motion/flip-grid'
-import { Flip, gsap, registerMotion } from '@/lib/motion/gsap'
+import { Flip, ScrollTrigger, gsap, registerMotion } from '@/lib/motion/gsap'
 import { prefersReducedMotion } from '@/lib/motion/prefers-reduced-motion'
+import { batchRevealCards } from '@/lib/motion/scroll'
 
 function idOf(tool: ToolDefinition) {
   return tool.id
@@ -15,6 +16,7 @@ function useFlipItems(next: readonly ToolDefinition[]) {
   const [rendered, setRendered] = useState<ToolDefinition[]>(() => [...next])
   const scopeRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<Flip.FlipState | null>(null)
+  const bootedRef = useRef(false)
   const renderedRef = useRef(rendered)
   const nextRef = useRef(next)
   renderedRef.current = rendered
@@ -26,13 +28,16 @@ function useFlipItems(next: readonly ToolDefinition[]) {
     const upcoming = nextRef.current
     if (itemSignature(renderedRef.current, idOf) === signature) return
     const root = scopeRef.current
-    if (prefersReducedMotion() || !root) {
+    if (prefersReducedMotion() || !root || renderedRef.current.length === 0) {
       setRendered([...upcoming])
       return
     }
     const cards = root.querySelectorAll('[data-flip-id]')
     gsap.killTweensOf(cards)
     Flip.killFlipsOf(cards)
+    ScrollTrigger.getAll().forEach((trigger) => {
+      if (trigger.trigger && root.contains(trigger.trigger)) trigger.kill()
+    })
     stateRef.current = Flip.getState(cards)
     setRendered([...upcoming])
   }, [signature])
@@ -42,8 +47,6 @@ function useFlipItems(next: readonly ToolDefinition[]) {
     const state = stateRef.current
     if (!root || !state) return
     stateRef.current = null
-    const enter = cardEnterVars()
-    const leave = cardExitVars()
     Flip.from(state, {
       duration: motion.duration.normal,
       ease: motion.ease.layout,
@@ -52,29 +55,20 @@ function useFlipItems(next: readonly ToolDefinition[]) {
       nested: true,
       prune: true,
       scale: false,
-      onEnter: (elements) => {
-        const list = gsap.utils.toArray<Element>(elements)
-        const comingSoon = list.filter((element) => element.querySelector('.tool-card.disabled'))
-        const available = list.filter((element) => !comingSoon.includes(element))
-        if (available.length) {
-          gsap.fromTo(available, { autoAlpha: 0, scale: enter.from.scale, filter: enter.from.filter }, {
-            autoAlpha: 1,
-            scale: 1,
-            filter: 'blur(0px)',
-            duration: enter.to.duration,
-            stagger: enter.to.stagger,
-            ease: motion.ease.enter,
-            clearProps: 'filter',
-          })
-        }
-        if (comingSoon.length) {
-          const soon = comingSoonEnterVars()
-          gsap.fromTo(comingSoon, soon.from, soon.to)
-        }
-      },
-      onLeave: (elements) => gsap.to(elements, leave),
+      onEnter: (elements) => animateEnteringCards(gsap.utils.toArray<Element>(elements)),
+      onLeave: (elements) => gsap.to(elements, cardExitVars()),
     })
   }, [rendered])
+
+  useLayoutEffect(() => {
+    const root = scopeRef.current
+    if (!root || bootedRef.current) return
+    const cards = root.querySelectorAll('[data-flip-id]')
+    if (!cards.length) return
+    bootedRef.current = true
+    if (root.closest('.discovery-personal')) return
+    batchRevealCards(cards)
+  }, [signature])
 
   return { scopeRef, rendered }
 }

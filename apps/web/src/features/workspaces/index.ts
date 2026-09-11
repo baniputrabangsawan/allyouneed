@@ -1,4 +1,6 @@
 import type { ComponentType } from 'react'
+import { BasicBackgroundWorkspace } from '../image/BasicBackgroundWorkspace'
+import { HtmlToImageWorkspace } from '../image/HtmlToImageWorkspace'
 import type { ToolDefinition, ToolImplementation } from '../tools/tool-registry'
 import { BrowserMediaWorkspace } from './BrowserMediaWorkspace'
 import { ColorWorkspace } from './ColorWorkspace'
@@ -7,13 +9,18 @@ import { CssWorkspace } from './CssWorkspace'
 import { DateTimeWorkspace } from './DateTimeWorkspace'
 import { EncodingWorkspace } from './EncodingWorkspace'
 import { GenericTextWorkspace } from './GenericTextWorkspace'
+import { HtmlWorkspace } from './HtmlWorkspace'
+import { JavaScriptWorkspace } from './JavaScriptWorkspace'
 import { JsonWorkspace } from './JsonWorkspace'
 import { QrisParserWorkspace } from './QrisParserWorkspace'
 import { QrWorkspace } from './QrWorkspace'
 import { RandomWorkspace } from './RandomWorkspace'
 import { RemoteFileWorkspace } from './RemoteFileWorkspace'
 import { WordCounterWorkspace } from './WordCounterWorkspace'
+import { XmlWorkspace } from './XmlWorkspace'
+import { YamlWorkspace } from './YamlWorkspace'
 
+export { BasicBackgroundWorkspace } from '../image/BasicBackgroundWorkspace'
 export { BrowserMediaWorkspace } from './BrowserMediaWorkspace'
 export { ColorWorkspace } from './ColorWorkspace'
 export { CryptoWorkspace } from './CryptoWorkspace'
@@ -21,12 +28,16 @@ export { CssWorkspace } from './CssWorkspace'
 export { DateTimeWorkspace } from './DateTimeWorkspace'
 export { EncodingWorkspace } from './EncodingWorkspace'
 export { GenericTextWorkspace } from './GenericTextWorkspace'
+export { HtmlWorkspace } from './HtmlWorkspace'
+export { JavaScriptWorkspace } from './JavaScriptWorkspace'
 export { JsonWorkspace } from './JsonWorkspace'
 export { QrisParserWorkspace } from './QrisParserWorkspace'
 export { QrWorkspace } from './QrWorkspace'
 export { RandomWorkspace } from './RandomWorkspace'
 export { RemoteFileWorkspace } from './RemoteFileWorkspace'
 export { WordCounterWorkspace } from './WordCounterWorkspace'
+export { XmlWorkspace } from './XmlWorkspace'
+export { YamlWorkspace } from './YamlWorkspace'
 export * from './focused-workspace-utils'
 export * from './workspace-slugs'
 
@@ -35,6 +46,8 @@ export type WorkspaceComponent = ComponentType<{ tool: ToolDefinition }>
 export const workspaceComponents = {
   text: GenericTextWorkspace,
   json: JsonWorkspace,
+  xml: XmlWorkspace,
+  yaml: YamlWorkspace,
   'qr-code': QrWorkspace,
   encoding: EncodingWorkspace,
   crypto: CryptoWorkspace,
@@ -49,6 +62,10 @@ export const workspaceComponents = {
 export function getSpecialWorkspace(tool: ToolDefinition): WorkspaceComponent | undefined {
   if (tool.slug === 'word-counter' || tool.slug === 'character-counter') return WordCounterWorkspace
   if (tool.slug === 'qris-payload-parser') return QrisParserWorkspace
+  if (tool.slug === 'javascript-formatter') return JavaScriptWorkspace
+  if (tool.slug === 'html-formatter') return HtmlWorkspace
+  if (tool.slug === 'html-to-image') return HtmlToImageWorkspace
+  if (tool.slug === 'basic-background-removal') return BasicBackgroundWorkspace
 }
 
 export function getWorkspaceComponent(tool: ToolDefinition): WorkspaceComponent | undefined {

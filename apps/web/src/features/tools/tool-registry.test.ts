@@ -40,7 +40,7 @@ describe('tool registry', () => {
   })
 
   it('includes every documented section and conversion grouping', () => {
-    expect(tools.length).toBe(159)
+    expect(tools.length).toBe(160)
     expect(getToolBySlug('social-media-image-resizer')).toBeDefined()
     expect(getToolBySlug('certificate-generator')).toBeDefined()
     expect(getToolsByGroup('convert').length).toBeGreaterThan(0)
@@ -56,6 +56,16 @@ describe('tool registry', () => {
     expect(getAllTools()).toEqual(tools)
     expect(getAllTools()).not.toBe(tools)
     expect(getToolBySlug('json-formatter')?.available).toBe(true)
+    expect(getToolBySlug('xml-formatter')?.available).toBe(true)
+    expect(getToolBySlug('xml-formatter')?.implementation).toBe('xml')
+    expect(getToolBySlug('javascript-formatter')?.available).toBe(true)
+    expect(getToolBySlug('html-formatter')?.available).toBe(true)
+    expect(getToolBySlug('basic-background-removal')?.available).toBe(true)
+    expect(getToolBySlug('basic-background-removal')?.implementation).toBe('remote-api')
+    expect(getToolBySlug('remove-background')?.available).toBe(false)
+    expect(getToolBySlug('remove-background')?.ai).toBe(true)
+    expect(getToolBySlug('noise-reduction')?.available).toBe(true)
+    expect(getToolBySlug('noise-reduction')?.ai).toBeUndefined()
     expect(getPopularTools().every((tool) => tool.available && tool.popular)).toBe(true)
   })
 

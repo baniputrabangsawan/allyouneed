@@ -1,4 +1,4 @@
-import { apiClient, type ApiClient, type ApiRequestOptions } from './client'
+import { API_BASE_URL, apiClient, type ApiClient, type ApiRequestOptions } from './client'
 import type {
   ApiResponse,
   CompleteUploadRequest,
@@ -9,6 +9,11 @@ import type {
 
 export interface UploadFileOptions extends ApiRequestOptions {
   onProgress?: (percent: number) => void
+}
+
+const resolveUploadUrl = (path: string) => {
+  if (/^https?:\/\//i.test(path)) return path
+  return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
 }
 
 export const createUpload = async (
@@ -57,11 +62,12 @@ export const uploadFile = async (
   const { onProgress, ...requestOptions } = options ?? {}
   const headers = new Headers(upload.headers)
   new Headers(requestOptions.headers).forEach((value, key) => headers.set(key, value))
+  const uploadUrl = resolveUploadUrl(upload.uploadUrl)
   if (onProgress) {
-    await putWithProgress(upload.uploadUrl, file, headers, onProgress, requestOptions.signal)
+    await putWithProgress(uploadUrl, file, headers, onProgress, requestOptions.signal)
     return
   }
-  await client.request<void>(upload.uploadUrl, {
+  await client.request<void>(uploadUrl, {
     ...requestOptions,
     method: 'PUT',
     credentials: 'omit',

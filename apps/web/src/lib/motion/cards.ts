@@ -8,6 +8,10 @@ export function visibleCards(cards: Iterable<Element>) {
   return [...cards].filter((card) => card.getBoundingClientRect().top < limit)
 }
 
+function settledCard() {
+  return { autoAlpha: 1, y: 0, scale: 1, filter: 'none' }
+}
+
 export function cardEnterVars() {
   const compact = isCompactMotion()
   return {
@@ -44,31 +48,56 @@ export function cardExitVars() {
   }
 }
 
-export function revealCards(cards: Iterable<Element>) {
-  const elements = visibleCards(cards)
-  const rest = [...cards].filter((card) => !elements.includes(card))
-  if (rest.length) gsap.set(rest, { autoAlpha: 1, y: 0, scale: 1, filter: 'blur(0px)' })
-  if (!elements.length || prefersReducedMotion()) {
-    gsap.set([...cards], { autoAlpha: 1, y: 0, scale: 1, filter: 'none' })
-    return
-  }
-  const { from, to } = cardEnterVars()
-  gsap.fromTo(elements, from, to)
-}
-
 export function comingSoonEnterVars() {
   const compact = isCompactMotion()
+  const soon = motion.card.comingSoon
   return {
-    from: { autoAlpha: 0.35, y: compact ? 10 : 18, filter: `blur(${compact ? 6 : 10}px)` },
+    from: {
+      autoAlpha: 0,
+      y: compact ? 10 : soon.y,
+      scale: soon.scale,
+      filter: `blur(${compact ? motion.blur.small : soon.blur}px)`,
+    },
     to: {
       autoAlpha: 1,
       y: 0,
+      scale: 1,
       filter: 'blur(0px)',
-      duration: motion.duration.normal,
-      stagger: { each: 0.025, from: 'start' as const },
+      duration: compact ? motion.duration.normal : soon.duration,
+      stagger: { each: compact ? 0.02 : soon.stagger, from: 'start' as const },
       ease: motion.ease.enter,
       overwrite: 'auto' as const,
       clearProps: 'filter',
     },
   }
+}
+
+function playEnter(elements: Element[], from: object, to: object) {
+  const visible = visibleCards(elements)
+  const rest = elements.filter((element) => !visible.includes(element))
+  if (visible.length) gsap.fromTo(visible, from, to)
+  if (rest.length) gsap.set(rest, settledCard())
+}
+
+export function animateEnteringCards(elements: Iterable<Element>) {
+  const list = [...elements]
+  if (!list.length) return
+  if (prefersReducedMotion()) {
+    gsap.set(list, settledCard())
+    return
+  }
+  const soon = list.filter((element) => element.querySelector('.tool-card.disabled'))
+  const available = list.filter((element) => !soon.includes(element))
+  if (available.length) {
+    const enter = cardEnterVars()
+    playEnter(available, enter.from, enter.to)
+  }
+  if (soon.length) {
+    const vars = comingSoonEnterVars()
+    playEnter(soon, vars.from, vars.to)
+  }
+}
+
+export function revealCards(cards: Iterable<Element>) {
+  animateEnteringCards(cards)
 }

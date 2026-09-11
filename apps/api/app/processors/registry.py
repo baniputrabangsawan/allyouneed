@@ -7,6 +7,9 @@ from app.processors.ai.generic import (
     UpscaleProcessor,
 )
 from app.processors.base import ProcessingError, Processor
+from app.processors.html_to_image import HtmlToImageProcessor
+from app.processors.image.basic_background import BasicBackgroundRemovalProcessor
+from app.processors.image.blur_face import BlurFaceProcessor
 from app.processors.image.generic import ImageProcessor
 from app.processors.image.ops import JPEG_TOOLS, PNG_TOOLS, WEBP_TOOLS
 from app.processors.media import MEDIA_TOOLS, MediaProcessor
@@ -32,6 +35,8 @@ IMAGE_TOOLS = (
         "image-enhancement",
         "thumbnail-generator",
         "favicon-generator",
+        "blur-face",
+        "basic-background-removal",
     }
     | JPEG_TOOLS
     | PNG_TOOLS
@@ -77,11 +82,14 @@ processor_registry: dict[str, Factory] = {
     **{tool_id: _image(tool_id) for tool_id in IMAGE_TOOLS},
     **{tool_id: _pdf(tool_id) for tool_id in PDF_TOOLS},
     **{tool_id: _media(tool_id) for tool_id in MEDIA_TOOLS},
+    "blur-face": BlurFaceProcessor,
+    "basic-background-removal": BasicBackgroundRemovalProcessor,
     "remove-background": BackgroundRemovalProcessor,
     "upscale-image": UpscaleProcessor,
     "speech-to-text": SpeechToTextProcessor,
     "text-to-speech": TextToSpeechProcessor,
     "ocr-pdf": OcrProcessor,
+    "html-to-image": HtmlToImageProcessor,
 }
 
 

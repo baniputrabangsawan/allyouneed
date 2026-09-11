@@ -2,14 +2,13 @@ import {
   assertValidImageSize, normalizeCrop, rotatedSize, watermarkPoint,
   type ImageCrop, type WatermarkPosition,
 } from '@/features/image/image-utils'
+import { photoEditorFilter } from '@/features/image/photo-editor-utils'
 
 export type { ImageCrop, WatermarkPosition } from '@/features/image/image-utils'
 
 export type ImageFormat = 'image/jpeg' | 'image/png' | 'image/webp'
 
-export interface ImageOptions {
-  format: ImageFormat
-  quality: number
+export interface ImageDrawOptions {
   width?: number
   height?: number
   rotation?: number
@@ -18,7 +17,17 @@ export interface ImageOptions {
   backgroundColor?: string
   crop?: ImageCrop
   blur?: number
+  brightness?: number
+  contrast?: number
+  saturation?: number
+  grayscale?: number
   pixelate?: number
+  maxPixels?: number
+}
+
+export interface ImageOptions extends ImageDrawOptions {
+  format: ImageFormat
+  quality: number
   watermark?: string
   watermarkImage?: Blob
   watermarkPosition?: WatermarkPosition
@@ -26,46 +35,66 @@ export interface ImageOptions {
   watermarkSize?: number
   watermarkPadding?: number
   watermarkRotation?: number
-  maxPixels?: number
 }
 
 export async function processImage(file: File, options: ImageOptions): Promise<Blob> {
   const bitmap = await createImageBitmap(file)
   try {
-    assertValidImageSize(bitmap.width, bitmap.height, options.maxPixels)
-    const crop = normalizeCrop(options.crop, bitmap)
-    const targetWidth = Math.round(options.width ?? crop.width)
-    const targetHeight = Math.round(options.height ?? crop.height)
-    assertValidImageSize(targetWidth, targetHeight, options.maxPixels)
-    const output = rotatedSize(targetWidth, targetHeight, options.rotation)
-    assertValidImageSize(output.width, output.height, options.maxPixels)
-    const canvas = makeCanvas(output.width, output.height)
-    const context = getContext(canvas)
-    if (options.backgroundColor) {
-      context.fillStyle = options.backgroundColor
-      context.fillRect(0, 0, canvas.width, canvas.height)
-    }
-    context.translate(canvas.width / 2, canvas.height / 2)
-    context.rotate(((options.rotation ?? 0) * Math.PI) / 180)
-    context.scale(options.flipX ? -1 : 1, options.flipY ? -1 : 1)
-    context.filter = options.blur && options.blur > 0 ? `blur(${options.blur}px)` : 'none'
-    const pixelSize = Math.max(1, Math.round(options.pixelate ?? 1))
-    if (pixelSize > 1) {
-      const pixelCanvas = makeCanvas(Math.max(1, Math.ceil(targetWidth / pixelSize)), Math.max(1, Math.ceil(targetHeight / pixelSize)))
-      const pixelContext = getContext(pixelCanvas)
-      pixelContext.drawImage(bitmap, crop.x, crop.y, crop.width, crop.height, 0, 0, pixelCanvas.width, pixelCanvas.height)
-      context.imageSmoothingEnabled = false
-      context.drawImage(pixelCanvas, -targetWidth / 2, -targetHeight / 2, targetWidth, targetHeight)
-    } else {
-      context.drawImage(bitmap, crop.x, crop.y, crop.width, crop.height, -targetWidth / 2, -targetHeight / 2, targetWidth, targetHeight)
-    }
-    context.setTransform(1, 0, 0, 1, 0, 0)
-    context.filter = 'none'
-    await drawWatermark(context, canvas, options)
+    const canvas = drawProcessedImage(bitmap, options)
+    await drawWatermark(getContext(canvas), canvas, options)
     return await canvasToBlob(canvas, options.format, options.quality)
   } finally {
     bitmap.close()
   }
+}
+
+export function drawProcessedImage(bitmap: ImageBitmap, options: ImageDrawOptions, canvas?: HTMLCanvasElement): HTMLCanvasElement {
+  assertValidImageSize(bitmap.width, bitmap.height, options.maxPixels)
+  const crop = normalizeCrop(options.crop, bitmap)
+  const targetWidth = Math.round(options.width ?? crop.width)
+  const targetHeight = Math.round(options.height ?? crop.height)
+  assertValidImageSize(targetWidth, targetHeight, options.maxPixels)
+  const output = rotatedSize(targetWidth, targetHeight, options.rotation)
+  assertValidImageSize(output.width, output.height, options.maxPixels)
+  const target = canvas ?? makeCanvas(output.width, output.height)
+  target.width = output.width
+  target.height = output.height
+  const context = getContext(target)
+  if (options.backgroundColor) {
+    context.fillStyle = options.backgroundColor
+    context.fillRect(0, 0, target.width, target.height)
+  }
+  context.translate(target.width / 2, target.height / 2)
+  context.rotate(((options.rotation ?? 0) * Math.PI) / 180)
+  context.scale(options.flipX ? -1 : 1, options.flipY ? -1 : 1)
+  context.filter = photoEditorFilter({
+    brightness: options.brightness ?? 100,
+    contrast: options.contrast ?? 100,
+    saturation: options.saturation ?? 100,
+    grayscale: options.grayscale ?? 0,
+    blur: options.blur ?? 0,
+  })
+  const pixelSize = Math.max(1, Math.round(options.pixelate ?? 1))
+  if (pixelSize > 1) {
+    const pixelCanvas = makeCanvas(Math.max(1, Math.ceil(targetWidth / pixelSize)), Math.max(1, Math.ceil(targetHeight / pixelSize)))
+    const pixelContext = getContext(pixelCanvas)
+    pixelContext.drawImage(bitmap, crop.x, crop.y, crop.width, crop.height, 0, 0, pixelCanvas.width, pixelCanvas.height)
+    context.imageSmoothingEnabled = false
+    context.drawImage(pixelCanvas, -targetWidth / 2, -targetHeight / 2, targetWidth, targetHeight)
+  } else {
+    context.drawImage(bitmap, crop.x, crop.y, crop.width, crop.height, -targetWidth / 2, -targetHeight / 2, targetWidth, targetHeight)
+  }
+  context.setTransform(1, 0, 0, 1, 0, 0)
+  context.filter = 'none'
+  return target
+}
+
+export function canvasToBlob(canvas: HTMLCanvasElement, format: ImageFormat, quality: number): Promise<Blob> {
+  return new Promise((resolve, reject) => canvas.toBlob(
+    (blob) => blob ? resolve(blob) : reject(new Error('Image processing failed.')),
+    format,
+    Math.min(1, Math.max(0, quality)),
+  ))
 }
 
 function makeCanvas(width: number, height: number): HTMLCanvasElement {
@@ -126,12 +155,4 @@ async function drawWatermark(context: CanvasRenderingContext2D, canvas: HTMLCanv
   } finally {
     watermarkBitmap?.close()
   }
-}
-
-function canvasToBlob(canvas: HTMLCanvasElement, format: ImageFormat, quality: number): Promise<Blob> {
-  return new Promise((resolve, reject) => canvas.toBlob(
-    (blob) => blob ? resolve(blob) : reject(new Error('Image processing failed.')),
-    format,
-    Math.min(1, Math.max(0, quality)),
-  ))
 }

@@ -70,6 +70,7 @@ export function AppHeader() {
 
 
 
+
   useEffect(() => {
     const header = headerRef.current
     if (!header) return
@@ -101,7 +102,7 @@ export function AppHeader() {
     <header ref={headerRef} className="site-header">
       <div ref={innerRef} className="header-inner bg-background/70 backdrop-blur-xl border border-border/50 shadow-sm rounded-2xl md:rounded-full px-6 md:px-10">
         <Link to="/" className="brand" onClick={closeMenu}><span className="brand-mark"><Grid2X2 size={18} /></span>Kits</Link>
-        <nav aria-label="Primary">{primaryNav.map((item) => <Link key={item.hash} className="transition-colors duration-200" to="/" search={explorerSearch} hash={item.hash}>{item.label}</Link>)}<Link className="transition-colors duration-200" to="/pricing">Pricing</Link></nav>
+        <nav aria-label="Primary">{primaryNav.map((item) => <Link key={item.hash} className="transition-colors duration-200" to="/" search={explorerSearch} hash={item.hash} resetScroll={false}>{item.label}</Link>)}<Link className="transition-colors duration-200" to="/pricing">Pricing</Link></nav>
         <div className="header-actions">
           <LicenseStatusLink />
           <button className="search-shortcut" type="button" onClick={() => setPaletteOpen(true)} aria-label="Search tools" aria-keyshortcuts="Control+K Meta+K">
@@ -113,7 +114,7 @@ export function AppHeader() {
           <button className="icon-button mobile-menu" type="button" aria-expanded={menuOpen} aria-controls="mobile-navigation" aria-label={menuOpen ? 'Close menu' : 'Open menu'} onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button>
         </div>
       </div>
-      {menuOpen && <><button className="mobile-menu-backdrop" type="button" aria-label="Close menu" onClick={closeMenu} /><nav id="mobile-navigation" className="mobile-navigation" aria-label="Mobile primary">{primaryNav.map((item) => <Link key={item.hash} to="/" search={explorerSearch} hash={item.hash} onClick={closeMenu}>{item.label}</Link>)}<Link to="/pricing" onClick={closeMenu}>Pricing</Link><Link to="/license" onClick={closeMenu}>Pro license</Link><button type="button" onClick={() => { closeMenu(); setPaletteOpen(true) }}><Search size={17} /> Search tools</button></nav></>}
+      {menuOpen && <><button className="mobile-menu-backdrop" type="button" aria-label="Close menu" onClick={closeMenu} /><nav id="mobile-navigation" className="mobile-navigation" aria-label="Mobile primary">{primaryNav.map((item) => <Link key={item.hash} to="/" search={explorerSearch} hash={item.hash} resetScroll={false} onClick={closeMenu}>{item.label}</Link>)}<Link to="/pricing" onClick={closeMenu}>Pricing</Link><Link to="/license" onClick={closeMenu}>Pro license</Link><button type="button" onClick={() => { closeMenu(); setPaletteOpen(true) }}><Search size={17} /> Search tools</button></nav></>}
     </header>
     <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
   </>
@@ -129,6 +130,3 @@ function LicenseStatusLink() {
   )
 }
 
-export function AppFooter() {
-  return <footer><div className="footer-inner"><div><span className="brand"><span className="brand-mark"><Grid2X2 size={16} /></span>Kits</span><p>Small tools. No account. Less waiting.</p></div><div className="footer-status"><span className="status-dot" />Browser processing available</div><p>Files stay on your device whenever the tool supports it.</p></div></footer>
-}

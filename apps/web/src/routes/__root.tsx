@@ -1,7 +1,8 @@
-import { useEffect, type ReactNode } from 'react'
-import { HeadContent, Link, Outlet, Scripts, createRootRouteWithContext } from '@tanstack/react-router'
+import { useEffect, useLayoutEffect, type ReactNode } from 'react'
+import { HeadContent, Link, Outlet, Scripts, createRootRouteWithContext, useRouterState } from '@tanstack/react-router'
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query'
-import { AppFooter, AppHeader } from '@/components/layout/AppShell'
+import { AppHeader } from '@/components/layout/AppShell'
+import { AppFooter } from '@/components/layout/AppFooter'
 import { getPopularTools } from '@/features/tools/tool-registry'
 import { ensureInstallationId } from '@/lib/storage/installation'
 import '@/styles/app.css'
@@ -29,6 +30,11 @@ function NotFound() {
 
 function Root() {
   const { queryClient } = Route.useRouteContext()
+  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  useLayoutEffect(() => {
+    if (pathname === '/') return
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+  }, [pathname])
   useEffect(() => { ensureInstallationId() }, [])
   return <Document><QueryClientProvider client={queryClient}><a className="skip-link" href="#main-content">Skip to main content</a><AppHeader /><div id="main-content" tabIndex={-1}><Outlet /></div><AppFooter /></QueryClientProvider></Document>
 }

@@ -2,6 +2,7 @@ import { getLocalStorage, type StorageLike } from './preferences'
 
 export const FAVORITES_STORAGE_KEY = 'utility:favorites'
 export const RECENT_TOOLS_STORAGE_KEY = 'utility:recent-tools'
+export const RECENT_COOKIE_NAME = 'kits_recent'
 export const MAX_RECENT_TOOLS = 10
 
 const normalizeToolIds = (value: unknown): string[] | undefined => {
@@ -25,7 +26,9 @@ const saveToolIds = (key: string, toolIds: readonly string[], limit: number, sto
   try {
     const normalized = normalizeToolIds(toolIds)
     if (!storage || !normalized) return false
-    storage.setItem(key, JSON.stringify(normalized.slice(0, limit)))
+    const next = normalized.slice(0, limit)
+    storage.setItem(key, JSON.stringify(next))
+    if (key === RECENT_TOOLS_STORAGE_KEY) writeRecentCookie(next)
     return true
   } catch {
     return false
@@ -51,4 +54,21 @@ export const saveRecentTools = (
 export const addRecentTool = (toolId: string, storage: StorageLike | undefined = getLocalStorage()) => {
   if (!toolId.trim()) return false
   return saveRecentTools([toolId, ...getRecentTools(storage).filter((id) => id !== toolId)], storage)
+}
+
+export function parseRecentCookie(header: string): string[] {
+  for (const part of header.split(';')) {
+    const trimmed = part.trim()
+    if (!trimmed.startsWith(`${RECENT_COOKIE_NAME}=`)) continue
+    const value = decodeURIComponent(trimmed.slice(RECENT_COOKIE_NAME.length + 1))
+    const ids = value.split('|').filter((id) => /^[a-z0-9-]+$/i.test(id))
+    return [...new Set(ids)].slice(0, MAX_RECENT_TOOLS)
+  }
+  return []
+}
+
+export function writeRecentCookie(ids: readonly string[]) {
+  if (typeof document === 'undefined') return
+  const value = encodeURIComponent([...new Set(ids)].filter((id) => /^[a-z0-9-]+$/i.test(id)).slice(0, MAX_RECENT_TOOLS).join('|'))
+  document.cookie = `${RECENT_COOKIE_NAME}=${value}; Path=/; Max-Age=31536000; SameSite=Lax`
 }

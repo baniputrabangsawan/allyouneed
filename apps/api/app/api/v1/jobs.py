@@ -42,7 +42,7 @@ async def create_job(
 async def get_job(
     job_id: str, service: Annotated[JobService, Depends(job_service)]
 ) -> DataResponse[Job]:
-    return DataResponse(data=service.get(job_id))
+    return DataResponse(data=await service.get(job_id))
 
 
 @router.delete("/{job_id}", response_model=DataResponse[Job])
@@ -58,7 +58,7 @@ async def get_job_result(
     job_id: str,
     service: Annotated[JobService, Depends(job_service)],
 ) -> DataResponse[JobResult]:
-    job = service.get(job_id)
+    job = await service.get(job_id)
     if job.status != "completed" or job.result is None:
         raise ApiError(status.HTTP_409_CONFLICT, "JOB_NOT_READY", "Job result is not ready.")
     return DataResponse(data=JobResult(job_id=job.job_id, result=job.result))
@@ -68,11 +68,11 @@ async def get_job_result(
 async def job_events(
     job_id: str, service: Annotated[JobService, Depends(job_service)]
 ) -> StreamingResponse:
-    service.get(job_id)
+    await service.get(job_id)
 
     async def events() -> AsyncIterator[str]:
         while True:
-            job = service.get(job_id)
+            job = await service.get(job_id)
             payload = json.dumps({"data": job.model_dump(mode="json", by_alias=True)}, default=str)
             yield f"data: {payload}\n\n"
             if job.status in TERMINAL:

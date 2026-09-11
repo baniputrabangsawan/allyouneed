@@ -68,13 +68,17 @@ class UploadService:
         return UploadedFile(file_key=payload.file_key)
 
     def require_completed(self, file_key: str) -> Path:
+        path = self.path(file_key)
         with self._lock:
             completed = file_key in self._completed
-        if not completed:
-            raise ApiError(
-                status.HTTP_422_UNPROCESSABLE_CONTENT, "INVALID_FILE", "Upload is not complete."
-            )
-        return self.path(file_key)
+            issued = file_key in self._issued
+        if completed:
+            return path
+        if not issued and path.is_file():
+            return path
+        raise ApiError(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, "INVALID_FILE", "Upload is not complete."
+        )
 
     def result_path(self, job_id: str, extension: str) -> tuple[str, Path]:
         key = f"results/{datetime.now(UTC):%Y/%m/%d}/{job_id}/{uuid4().hex}.{extension}"
