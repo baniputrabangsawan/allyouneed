@@ -1,6 +1,7 @@
 import { CheckCircle2, CircleAlert, Upload } from 'lucide-react'
 import { useId, useRef, useState } from 'react'
 import { validateFiles } from '@/features/image/image-utils'
+import { useT } from '@/i18n'
 import { gsap, useGSAP } from '@/lib/motion/gsap'
 import { prefersReducedMotion } from '@/lib/motion/prefers-reduced-motion'
 
@@ -32,6 +33,7 @@ export function FileDropzone({
   status = 'idle', progress, disabled = false,
   onFilesSelected, onFileSelected,
 }: FileDropzoneProps) {
+  const copy = useT()
   const id = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const shellRef = useRef<HTMLDivElement>(null)
@@ -42,7 +44,7 @@ export function FileDropzone({
   const percent = progress?.percent == null ? null : Math.max(0, Math.min(100, Math.round(progress.percent)))
   const showProgress = status !== 'idle' || Boolean(progress?.fileName)
   const statusLabel = progress?.label
-    ?? (status === 'uploading' ? 'Uploading...' : status === 'processing' ? 'Processing...' : status === 'success' ? 'Completed' : status === 'error' ? 'Upload failed' : '')
+    ?? (status === 'uploading' ? copy.dropzone.uploading : status === 'processing' ? copy.dropzone.processing : status === 'success' ? copy.dropzone.completed : status === 'error' ? copy.dropzone.uploadFailed : '')
 
   useGSAP(() => {
     if (prefersReducedMotion()) return
@@ -60,7 +62,11 @@ export function FileDropzone({
       maxFileSize,
       ...(maxFiles === undefined ? {} : { maxFiles }),
     })
-    if (result.error) return setError(result.error)
+    if (result.error) {
+      if (result.error.includes('unsupported')) return setError(copy.errors.unsupportedFormat)
+      if (result.error.includes('exceeds')) return setError(copy.errors.fileTooLarge)
+      return setError(result.error)
+    }
     if (result.files.length === 0) return
     setError('')
     onFilesSelected?.(result.files)
@@ -69,9 +75,9 @@ export function FileDropzone({
 
   const selectionLimit = multiple ? maxFiles : 1
   const detail = [
-    accept.length > 0 ? accept.map((type) => type.startsWith('.') ? type.slice(1).toUpperCase() : type.split('/')[1]?.toUpperCase() ?? type).join(', ') : 'Any file type',
-    `Maximum ${Math.round(maxFileSize / 1024 / 1024)} MB each`,
-    selectionLimit ? `Up to ${selectionLimit} file${selectionLimit === 1 ? '' : 's'}` : undefined,
+    accept.length > 0 ? accept.map((type) => type.startsWith('.') ? type.slice(1).toUpperCase() : type.split('/')[1]?.toUpperCase() ?? type).join(', ') : copy.dropzone.anyType,
+    copy.dropzone.maxMb(Math.round(maxFileSize / 1024 / 1024)),
+    selectionLimit ? copy.dropzone.upToFiles(selectionLimit) : undefined,
   ].filter(Boolean).join(' · ')
   const Icon = visual === 'success' ? CheckCircle2 : visual === 'error' ? CircleAlert : Upload
 
@@ -114,7 +120,7 @@ export function FileDropzone({
                 role="progressbar"
                 aria-valuemin={0}
                 aria-valuemax={100}
-                {...(percent == null ? { 'aria-valuetext': statusLabel || 'In progress' } : { 'aria-valuenow': percent })}
+                {...(percent == null ? { 'aria-valuetext': statusLabel || copy.dropzone.inProgress } : { 'aria-valuenow': percent })}
               >
                 <div className={`dropzone-fill${percent == null ? ' indeterminate' : ''}`} style={percent == null ? undefined : { width: `${percent}%` }} />
               </div>
@@ -122,8 +128,8 @@ export function FileDropzone({
           </div>
         ) : (
           <>
-            <strong>{dragging ? 'Drop your file here' : `Drop or paste your ${multiple ? 'files' : 'file'} here`}</strong>
-            <span>or <u>browse files</u></span>
+            <strong>{dragging ? copy.dropzone.dropHere : (multiple ? copy.dropzone.dropFiles : copy.dropzone.dropFile)}</strong>
+            <span>{copy.dropzone.orBrowse.replace(copy.dropzone.browse, '')}<u>{copy.dropzone.browse}</u></span>
             <small>{detail}</small>
           </>
         )}

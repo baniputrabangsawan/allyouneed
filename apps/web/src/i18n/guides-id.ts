@@ -1,0 +1,262 @@
+import type { ToolGuide } from '@/content/docs/types'
+
+export const toolGuidesId: Record<string, ToolGuide> = {
+  'compress-image': {
+    slug: 'compress-image',
+    overview: 'Kompres Gambar memperkecil ukuran file foto JPEG, PNG, WebP, atau AVIF agar lebih mudah dikirim, disimpan, atau diterbitkan. Kualitas adalah slider, bukan preset bernama.',
+    steps: [
+      'Buka Kompres Gambar.',
+      'Tarik gambar ke area unggah atau pilih file.',
+      'Pilih format output jika ingin JPEG, PNG, atau WebP.',
+      'Atur kualitas (default 80). Nilai lebih rendah biasanya membuat JPEG atau WebP lebih kecil.',
+      'Kompres gambar dan bandingkan ukuran asli dengan yang baru.',
+      'Unduh hasilnya.',
+    ],
+    optionDocs: [
+      { name: 'Kualitas', description: 'Berlaku untuk JPEG dan WebP. PNG lossless di workspace ini, jadi slider disembunyikan untuk output PNG.' },
+      { name: 'Format', description: 'JPEG, PNG, atau WebP. JPEG mengisi area transparan dengan putih.' },
+    ],
+    output: 'File gambar terkompresi dengan pratinjau, ukuran asli vs baru, dan unduhan dari nama file sumber.',
+    example: 'Foto produk yang besar sering bisa jauh lebih kecil, tergantung format sumber dan seberapa banyak kualitas yang Anda izinkan. Penghematan pasti tidak dijamin.',
+    troubleshooting: [
+      { problem: 'Gambar tidak bisa dibuka', solution: 'Pastikan file tidak rusak dan berupa JPEG, PNG, WebP, atau AVIF.' },
+      { problem: 'Output lebih besar dari aslinya', solution: 'Beberapa file sudah sangat terkompresi. Coba kualitas lebih rendah atau format output lain.' },
+    ],
+    keywords: ['kompres', 'optimasi', 'kecilkan', 'kualitas', 'jpeg', 'webp'],
+  },
+  'resize-image': {
+    slug: 'resize-image',
+    overview: 'Ubah Ukuran Gambar mengubah lebar dan tinggi dalam piksel atau persen. Anda bisa mengunci proporsi asli.',
+    steps: [
+      'Buka Ubah Ukuran Gambar.',
+      'Tambahkan file JPEG, PNG, WebP, atau AVIF.',
+      'Pilih piksel atau persen.',
+      'Masukkan lebar dan tinggi. Biarkan rasio aspek terkunci kecuali Anda ingin meregangkan gambar.',
+      'Ubah ukuran dan pratinjau.',
+      'Unduh hasilnya.',
+    ],
+    optionDocs: [
+      { name: 'Satuan', description: 'Piksel untuk ukuran pasti, atau persen dari dimensi asli.' },
+      { name: 'Lebar / Tinggi', description: 'Ukuran target. Jika kunci aktif, mengubah satu sisi menyesuaikan sisi lain.' },
+      { name: 'Kunci rasio aspek', description: 'Menjaga proporsi asli.' },
+    ],
+    output: 'Gambar yang diubah ukurannya dengan pratinjau dan unduhan.',
+    example: 'Foto 4000 piksel bisa diskalakan ke lebar web misalnya 1200px dengan bentuk yang sama.',
+    troubleshooting: [
+      { problem: 'Gambar terlihat meregang', solution: 'Nyalakan kunci rasio aspek, atau sesuaikan rasio lebar-tinggi asli.' },
+      { problem: 'Pemrosesan gagal pada file raksasa', solution: 'Workspace menolak gambar di atas 40 megapiksel atau 16.384px di satu sisi.' },
+    ],
+    keywords: ['ubah ukuran', 'skala', 'dimensi', 'rasio aspek'],
+  },
+  'crop-image': {
+    slug: 'crop-image',
+    overview: 'Pangkas Gambar menyimpan daerah persegi pada foto dan membuang sisanya.',
+    steps: [
+      'Buka Pangkas Gambar.',
+      'Tambahkan gambar.',
+      'Atur titik asal pangkas (X, Y) serta lebar dan tinggi pangkas dalam piksel.',
+      'Pangkas gambar dan periksa pratinjau.',
+      'Unduh file yang dipangkas.',
+    ],
+    optionDocs: [
+      { name: 'X / Y', description: 'Kiri-atas pangkas, dalam piksel dari gambar asli.' },
+      { name: 'Lebar / Tinggi', description: 'Ukuran daerah yang disimpan. Pangkas harus tetap di dalam gambar.' },
+    ],
+    output: 'Gambar terpangkas dengan pratinjau dan unduhan.',
+    example: 'Anda bisa menyimpan produk di tengah foto dan membuang latar yang tidak terpakai.',
+    troubleshooting: [
+      { problem: 'Pangkas gagal', solution: 'Pastikan persegi sepenuhnya di dalam gambar. Pangkas di luar batas ditolak.' },
+    ],
+    keywords: ['pangkas', 'potong', 'trim foto'],
+  },
+  'image-converter': {
+    slug: 'image-converter',
+    overview: 'Konverter Gambar mengubah foto antara JPEG, PNG, dan WebP. Kualitas berlaku jika output JPEG atau WebP.',
+    steps: [
+      'Buka Konverter Gambar.',
+      'Tambahkan file JPEG, PNG, WebP, atau AVIF.',
+      'Pilih format output.',
+      'Atur kualitas jika format mendukungnya.',
+      'Konversi dan unduh.',
+    ],
+    optionDocs: [
+      { name: 'Format', description: 'JPEG, PNG, atau WebP.' },
+      { name: 'Kualitas', description: 'Tampil untuk JPEG dan WebP. PNG tidak memakai slider ini.' },
+    ],
+    output: 'File gambar yang dikonversi, bisa dipratinjau dan diunduh.',
+    example: 'PNG berukuran besar bisa disimpan sebagai JPEG atau WebP untuk gambar web yang lebih kecil.',
+    troubleshooting: [
+      { problem: 'Transparansi hilang', solution: 'JPEG tidak punya alpha. Pakai PNG atau WebP jika butuh latar transparan.' },
+    ],
+    keywords: ['konversi', 'jpeg', 'png', 'webp'],
+  },
+  'merge-pdf': {
+    slug: 'merge-pdf',
+    overview: 'Gabungkan PDF menggabungkan beberapa file PDF menjadi satu. Ini berjalan di server pemrosesan Kits.',
+    steps: [
+      'Buka Gabungkan PDF.',
+      'Tarik dua PDF atau lebih. Urutan di daftar adalah urutan gabungan.',
+      'Biarkan JSON opsi {} kecuali Anda butuh pengaturan ekstra.',
+      'Proses dan tunggu job selesai.',
+      'Unduh PDF gabungan.',
+    ],
+    optionDocs: [
+      { name: 'Opsi lanjutan (JSON)', description: 'Opsi job opsional. Gabungan dasar tidak butuh field ekstra.' },
+    ],
+    output: 'Satu unduhan PDF setelah job selesai.',
+    example: 'Beberapa faktur satu halaman bisa digabung menjadi satu paket untuk dibagikan.',
+    troubleshooting: [
+      { problem: 'Proses tetap nonaktif', solution: 'Tambahkan setidaknya dua PDF. Gabungkan adalah tool multi-file.' },
+      { problem: 'Unggahan ditolak', solution: 'Pakai file application/pdf, hingga 100 MB per file, dan paling banyak 20 file.' },
+    ],
+    keywords: ['gabung', 'gabungkan', 'pdf'],
+  },
+  'split-pdf': {
+    slug: 'split-pdf',
+    overview: 'Pisahkan PDF mengekstrak halaman terpilih dari PDF di server. Halaman ditulis di JSON opsi.',
+    steps: [
+      'Buka Pisahkan PDF.',
+      'Tambahkan satu PDF.',
+      'Atur array pages di Opsi lanjutan, misalnya {"pages":[1]}.',
+      'Proses job.',
+      'Unduh hasilnya.',
+    ],
+    optionDocs: [
+      { name: 'pages', description: 'Array JSON nomor halaman mulai 1, misalnya [1] atau [1,2,5].' },
+    ],
+    output: 'PDF yang hanya berisi halaman yang diminta.',
+    example: 'Anda bisa menyimpan halaman pertama pindaian panjang dan mengunduhnya sendiri.',
+    troubleshooting: [
+      { problem: 'Job gagal', solution: 'Pastikan halaman ada di file dan JSON valid.' },
+    ],
+    keywords: ['pisah', 'ekstrak halaman', 'pdf'],
+  },
+  'compress-pdf': {
+    slug: 'compress-pdf',
+    overview: 'Kompres PDF memperkecil ukuran PDF di server Kits. Unggah PDF, proses, lalu unduh.',
+    steps: [
+      'Buka Kompres PDF.',
+      'Tambahkan satu PDF (hingga 100 MB).',
+      'Proses job.',
+      'Unduh file terkompresi saat job selesai.',
+    ],
+    output: 'Unduhan PDF hasil proses. Pengurangan ukuran tergantung file sumber.',
+    example: 'PDF hasil pindai sering bisa lebih kecil setelah kompresi server, tetapi file yang sudah dioptimalkan mungkin hampir tidak berubah.',
+    troubleshooting: [
+      { problem: 'File tidak diterima', solution: 'Pakai PDF di bawah 100 MB.' },
+      { problem: 'Pemrosesan tidak tersedia', solution: 'API harus berjalan. Tool ini tidak mengompres di browser.' },
+    ],
+    keywords: ['kompres pdf', 'kecilkan pdf'],
+  },
+  'json-formatter': {
+    slug: 'json-formatter',
+    overview: 'Pemformat JSON merapikan JSON di browser. Tidak ada yang diunggah.',
+    steps: [
+      'Buka Pemformat JSON.',
+      'Tempel JSON ke editor.',
+      'Klik Pemformat JSON.',
+      'Perbaiki error sintaks yang tampil di bawah editor.',
+      'Salin hasil atau unduh result.json.',
+    ],
+    output: 'Teks JSON terformat, dengan salin dan unduhan .json.',
+    example: 'Payload API satu baris bisa diperluas dengan indentasi agar kunci dan nilai mudah dibaca.',
+    troubleshooting: [
+      { problem: 'JSON tidak dapat diproses', solution: 'Input bukan JSON valid. Periksa tanda kutip, koma, dan kurung.' },
+    ],
+    keywords: ['json', 'format', 'rapikan'],
+  },
+  'qr-code-generator': {
+    slug: 'qr-code-generator',
+    overview: 'Pembuat Kode QR membuat gambar QR dari teks di browser. Anda bisa mengatur warna, ukuran, margin, dan koreksi error, lalu unduh PNG atau SVG.',
+    steps: [
+      'Buka Pembuat Kode QR.',
+      'Masukkan teks yang akan di-encode.',
+      'Opsional ubah warna, ukuran (128–2048), margin, dan koreksi error.',
+      'Hasilkan kode QR.',
+      'Unduh PNG atau SVG, atau salin gambar jika browser mengizinkan.',
+    ],
+    optionDocs: [
+      { name: 'Teks', description: 'Payload yang di-encode di QR.' },
+      { name: 'Latar depan / Latar', description: 'Warna modul dan latar.' },
+      { name: 'Ukuran', description: 'Lebar piksel PNG, 128 sampai 2048.' },
+      { name: 'Margin', description: 'Zona tenang di sekitar kode, 0–20.' },
+      { name: 'Koreksi error', description: 'L, M, Q, atau H. Level lebih tinggi tahan kerusakan tetapi menampung data lebih sedikit.' },
+    ],
+    output: 'Unduhan PNG dan SVG, plus salin clipboard opsional.',
+    example: 'URL pendek bisa dijadikan PNG untuk poster atau SVG untuk cetak.',
+    troubleshooting: [
+      { problem: 'Generate tetap terblokir', solution: 'Isi kolom teks yang wajib dulu.' },
+      { problem: 'Salin PNG gagal', solution: 'Beberapa browser memblokir tulis clipboard gambar. Pakai Unduh PNG.' },
+    ],
+    keywords: ['qr', 'kode qr'],
+  },
+  'qr-generator': {
+    slug: 'qr-generator',
+    overview: 'Pembuat QR adalah workspace QR browser yang sama dengan Pembuat Kode QR: teks masuk, PNG dan SVG keluar.',
+    steps: [
+      'Buka Pembuat QR.',
+      'Masukkan teks.',
+      'Atur warna, ukuran, margin, dan koreksi error jika perlu.',
+      'Hasilkan, lalu unduh PNG atau SVG.',
+    ],
+    output: 'Gambar QR PNG dan SVG yang dihasilkan secara lokal.',
+    keywords: ['qr', 'buat'],
+  },
+  'audio-converter': {
+    slug: 'audio-converter',
+    overview: 'Konverter Audio mentranskode audio di server dengan FFmpeg. File diunggah, diproses sebagai job, lalu diunduh.',
+    steps: [
+      'Buka Konverter Audio.',
+      'Tambahkan file audio atau video dalam format yang tercantum.',
+      'Sunting JSON Opsi lanjutan jika butuh target tertentu; jika tidak, biarkan default.',
+      'Proses dan tunggu job.',
+      'Unduh file yang dikonversi.',
+    ],
+    optionDocs: [
+      { name: 'Opsi lanjutan (JSON)', description: 'Opsi job ke API. JSON tidak valid ditolak sebelum unggah.' },
+    ],
+    output: 'File audio hasil konversi dari job.',
+    example: 'Rekaman bisa dikonversi untuk diputar di perangkat yang lebih suka kontainer lain.',
+    troubleshooting: [
+      { problem: 'Unggahan ditolak', solution: 'Tetap dalam 100 MB dan pakai jenis audio atau video yang tercantum.' },
+      { problem: 'Pemrosesan tidak tersedia', solution: 'API dan worker harus berjalan. Ini bukan konverter browser.' },
+    ],
+    keywords: ['audio', 'konversi', 'ffmpeg'],
+  },
+  'video-compressor': {
+    slug: 'video-compressor',
+    overview: 'Kompresor Video meng-encode ulang video di server untuk memperkecil ukuran. Perlu unggahan sementara dan job pemrosesan.',
+    steps: [
+      'Buka Kompresor Video.',
+      'Tambahkan file MP4, WebM, atau QuickTime (hingga 100 MB).',
+      'Proses job.',
+      'Unduh saat status selesai.',
+    ],
+    output: 'Unduhan video terkompresi dari job.',
+    example: 'Klip besar bisa di-encode ulang agar lebih mudah dibagikan. Penghematan tergantung sumber.',
+    troubleshooting: [
+      { problem: 'File terlalu besar', solution: 'Batas unggah 100 MB per file di workspace ini.' },
+      { problem: 'Job gagal', solution: 'Pastikan file bisa diputar lokal dan API tersedia.' },
+    ],
+    keywords: ['video', 'kompres', 'ffmpeg'],
+  },
+  'voice-recorder': {
+    slug: 'voice-recorder',
+    overview: 'Perekam Suara merekam audio mikrofon di browser dengan MediaRecorder. Tidak ada yang diunggah.',
+    steps: [
+      'Buka Perekam Suara.',
+      'Klik Mulai merekam dan izinkan mikrofon jika diminta.',
+      'Jeda, lanjutkan, atau berhenti.',
+      'Pratinjau klip, lalu unduh, atau reset untuk merekam lagi.',
+    ],
+    optionDocs: [
+      { name: 'Mulai / Jeda / Lanjut / Stop / Reset', description: 'Kontrol rekaman. Izin hanya diminta saat Anda mulai.' },
+    ],
+    output: 'Rekaman dalam kontainer yang benar-benar dihasilkan browser (sering WebM atau M4A), bukan MP3 kecuali browser meng-encode MP3.',
+    troubleshooting: [
+      { problem: 'Izin ditolak', solution: 'Izinkan mikrofon untuk situs ini di pengaturan browser, lalu mulai lagi.' },
+      { problem: 'Mikrofon tidak ditemukan', solution: 'Hubungkan mic dan coba lagi.' },
+    ],
+    keywords: ['rekam', 'mikrofon', 'audio'],
+  },
+}

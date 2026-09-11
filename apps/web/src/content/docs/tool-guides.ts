@@ -1,0 +1,262 @@
+import type { ToolGuide } from './types'
+
+export const toolGuides: Record<string, ToolGuide> = {
+  'compress-image': {
+    slug: 'compress-image',
+    overview: 'Compress Image reduces the file size of JPEG, PNG, WebP, or AVIF photos so they are easier to send, store, or publish. Quality is a slider, not a named preset.',
+    steps: [
+      'Open Compress Image.',
+      'Drop an image into the upload area or choose a file.',
+      'Pick an output format if you want JPEG, PNG, or WebP.',
+      'Set quality (default 80). Lower values usually make a smaller JPEG or WebP.',
+      'Compress the image and compare the original and new file size.',
+      'Download the result.',
+    ],
+    optionDocs: [
+      { name: 'Quality', description: 'Applies to JPEG and WebP. PNG is lossless in this workspace, so quality is hidden for PNG output.' },
+      { name: 'Format', description: 'JPEG, PNG, or WebP. JPEG fills transparent areas with white.' },
+    ],
+    output: 'A compressed image file with preview, original vs new size, and a download named from the source file.',
+    example: 'A large product photo can often become much smaller, depending on the source format and how much quality you allow. Exact savings are not guaranteed.',
+    troubleshooting: [
+      { problem: 'The image cannot be opened', solution: 'Confirm the file is not corrupted and is JPEG, PNG, WebP, or AVIF.' },
+      { problem: 'The output is larger than the original', solution: 'Some files are already highly compressed. Try a lower quality or a different output format.' },
+    ],
+    keywords: ['compress', 'optimize', 'shrink', 'quality', 'jpeg', 'webp'],
+  },
+  'resize-image': {
+    slug: 'resize-image',
+    overview: 'Resize Image changes width and height in pixels or percent. You can lock the original proportions.',
+    steps: [
+      'Open Resize Image.',
+      'Add a JPEG, PNG, WebP, or AVIF file.',
+      'Choose pixels or percent.',
+      'Enter width and height. Keep aspect ratio locked unless you want to stretch the image.',
+      'Resize and preview.',
+      'Download the result.',
+    ],
+    optionDocs: [
+      { name: 'Unit', description: 'Pixels for exact size, or percent of the original dimensions.' },
+      { name: 'Width / Height', description: 'Target size. With lock on, changing one side updates the other.' },
+      { name: 'Lock aspect ratio', description: 'Keeps the original proportions.' },
+    ],
+    output: 'A resized image with preview and download.',
+    example: 'A 4000-pixel photo can be scaled to a web width such as 1200px while keeping the same shape.',
+    troubleshooting: [
+      { problem: 'The image looks stretched', solution: 'Turn lock aspect ratio on, or match the original width-to-height ratio.' },
+      { problem: 'Processing fails on a huge file', solution: 'The workspace rejects images over 40 megapixels or 16,384px on a side.' },
+    ],
+    keywords: ['resize', 'scale', 'dimensions', 'aspect ratio'],
+  },
+  'crop-image': {
+    slug: 'crop-image',
+    overview: 'Crop Image keeps a rectangular region of a photo and discards the rest.',
+    steps: [
+      'Open Crop Image.',
+      'Add an image.',
+      'Set the crop origin (X, Y) and the crop width and height in pixels.',
+      'Crop the image and check the preview.',
+      'Download the cropped file.',
+    ],
+    optionDocs: [
+      { name: 'X / Y', description: 'Top-left of the crop, in pixels from the original image.' },
+      { name: 'Width / Height', description: 'Size of the kept region. The crop must stay inside the image.' },
+    ],
+    output: 'A cropped image with preview and download.',
+    example: 'You can keep a product in the center of a photo and drop unused background.',
+    troubleshooting: [
+      { problem: 'Crop fails', solution: 'Make sure the rectangle sits fully inside the image. Out-of-bounds crops are rejected.' },
+    ],
+    keywords: ['crop', 'cut', 'trim photo'],
+  },
+  'image-converter': {
+    slug: 'image-converter',
+    overview: 'Image Converter changes a photo between JPEG, PNG, and WebP. Quality applies when the output is JPEG or WebP.',
+    steps: [
+      'Open Image Converter.',
+      'Add a JPEG, PNG, WebP, or AVIF file.',
+      'Choose the output format.',
+      'Adjust quality if the format supports it.',
+      'Convert and download.',
+    ],
+    optionDocs: [
+      { name: 'Format', description: 'JPEG, PNG, or WebP.' },
+      { name: 'Quality', description: 'Shown for JPEG and WebP. PNG does not use this slider.' },
+    ],
+    output: 'A converted image file you can preview and download.',
+    example: 'A PNG with a large file size can be saved as JPEG or WebP for a smaller web image.',
+    troubleshooting: [
+      { problem: 'Transparency disappeared', solution: 'JPEG has no alpha. Use PNG or WebP if you need a transparent background.' },
+    ],
+    keywords: ['convert', 'jpeg', 'png', 'webp'],
+  },
+  'merge-pdf': {
+    slug: 'merge-pdf',
+    overview: 'Merge PDF combines multiple PDF files into one. This runs on the Kits processing server.',
+    steps: [
+      'Open Merge PDF.',
+      'Drop two or more PDF files. Order in the list is the merge order.',
+      'Leave the options JSON as {} unless you need extra settings.',
+      'Process and wait for the job to finish.',
+      'Download the merged PDF.',
+    ],
+    optionDocs: [
+      { name: 'Advanced options (JSON)', description: 'Optional job options. Merge does not require extra fields for a basic combine.' },
+    ],
+    output: 'One PDF download after the job completes.',
+    example: 'Several one-page invoices can be merged into a single packet for sharing.',
+    troubleshooting: [
+      { problem: 'Process stays disabled', solution: 'Add at least two PDFs. Merge is a multi-file tool.' },
+      { problem: 'Upload is rejected', solution: 'Use application/pdf files, up to 100 MB each, and at most 20 files.' },
+    ],
+    keywords: ['merge', 'combine', 'pdf', 'join'],
+  },
+  'split-pdf': {
+    slug: 'split-pdf',
+    overview: 'Split PDF extracts selected pages from a PDF on the server. Pages are listed in the options JSON.',
+    steps: [
+      'Open Split PDF.',
+      'Add one PDF.',
+      'Set the pages array in Advanced options, for example {"pages":[1]}.',
+      'Process the job.',
+      'Download the result.',
+    ],
+    optionDocs: [
+      { name: 'pages', description: 'JSON array of 1-based page numbers to keep, for example [1] or [1,2,5].' },
+    ],
+    output: 'A PDF containing only the requested pages.',
+    example: 'You can keep the first page of a long scan and download it on its own.',
+    troubleshooting: [
+      { problem: 'The job fails', solution: 'Check that pages exist in the file and that the JSON is valid.' },
+    ],
+    keywords: ['split', 'extract pages', 'pdf'],
+  },
+  'compress-pdf': {
+    slug: 'compress-pdf',
+    overview: 'Compress PDF reduces PDF size on the Kits server. Upload a PDF, process, then download.',
+    steps: [
+      'Open Compress PDF.',
+      'Add one PDF (up to 100 MB).',
+      'Process the job.',
+      'Download the compressed file when the job completes.',
+    ],
+    output: 'A processed PDF download. Size reduction depends on the source file.',
+    example: 'A scanned PDF can often become smaller after server compression, but already-optimized files may change little.',
+    troubleshooting: [
+      { problem: 'The file is not accepted', solution: 'Use a PDF under 100 MB.' },
+      { problem: 'Processing is unavailable', solution: 'The API must be running. This tool does not compress in the browser.' },
+    ],
+    keywords: ['compress pdf', 'shrink pdf', 'optimize pdf'],
+  },
+  'json-formatter': {
+    slug: 'json-formatter',
+    overview: 'JSON Formatter pretty-prints JSON in your browser. Nothing is uploaded.',
+    steps: [
+      'Open JSON Formatter.',
+      'Paste JSON into the editor.',
+      'Click JSON Formatter.',
+      'Fix any syntax error shown under the editor.',
+      'Copy the result or download result.json.',
+    ],
+    output: 'Formatted JSON text, with copy and .json download.',
+    example: 'A single-line API payload can be expanded with indentation so you can read keys and values.',
+    troubleshooting: [
+      { problem: 'The JSON could not be processed', solution: 'The input is not valid JSON. Check quotes, commas, and brackets.' },
+    ],
+    keywords: ['json', 'pretty print', 'format', 'beautify'],
+  },
+  'qr-code-generator': {
+    slug: 'qr-code-generator',
+    overview: 'QR Code Generator builds a QR image from text in the browser. You can set colors, size, margin, and error correction, then download PNG or SVG.',
+    steps: [
+      'Open QR Code Generator.',
+      'Enter the text to encode.',
+      'Optionally change colors, size (128–2048), margin, and error correction.',
+      'Generate the QR code.',
+      'Download PNG or SVG, or copy the image if the browser allows it.',
+    ],
+    optionDocs: [
+      { name: 'Text', description: 'Payload encoded in the QR.' },
+      { name: 'Foreground / Background', description: 'Module and background colors.' },
+      { name: 'Size', description: 'Pixel width of the PNG, from 128 to 2048.' },
+      { name: 'Margin', description: 'Quiet zone around the code, 0–20.' },
+      { name: 'Error correction', description: 'L, M, Q, or H. Higher levels survive more damage but hold less data.' },
+    ],
+    output: 'PNG and SVG downloads, plus optional clipboard copy.',
+    example: 'A short URL can be turned into a PNG for a poster or an SVG for print.',
+    troubleshooting: [
+      { problem: 'Generate stays blocked', solution: 'Enter the required text field first.' },
+      { problem: 'PNG copy fails', solution: 'Some browsers block image clipboard writes. Use Download PNG instead.' },
+    ],
+    keywords: ['qr', 'barcode', 'generate qr'],
+  },
+  'qr-generator': {
+    slug: 'qr-generator',
+    overview: 'QR Generator is the same browser QR workspace as QR Code Generator: text in, PNG and SVG out.',
+    steps: [
+      'Open QR Generator.',
+      'Enter text.',
+      'Adjust colors, size, margin, and error correction if needed.',
+      'Generate, then download PNG or SVG.',
+    ],
+    output: 'PNG and SVG QR images generated locally.',
+    keywords: ['qr', 'generate'],
+  },
+  'audio-converter': {
+    slug: 'audio-converter',
+    overview: 'Audio Converter transcodes audio on the server with FFmpeg. The file is uploaded, processed as a job, then downloaded.',
+    steps: [
+      'Open Audio Converter.',
+      'Add an audio or video file in a listed format.',
+      'Edit Advanced options JSON if you need a specific target; otherwise leave the default.',
+      'Process and wait for the job.',
+      'Download the converted file.',
+    ],
+    optionDocs: [
+      { name: 'Advanced options (JSON)', description: 'Job options sent to the API. Invalid JSON is rejected before upload.' },
+    ],
+    output: 'A converted audio file from the job result.',
+    example: 'A recording can be converted for playback on a device that prefers another container.',
+    troubleshooting: [
+      { problem: 'Upload is rejected', solution: 'Stay within 100 MB and use a listed audio or video type.' },
+      { problem: 'Processing is unavailable', solution: 'The API and job worker must be running. This is not a browser converter.' },
+    ],
+    keywords: ['audio', 'convert', 'ffmpeg', 'mp3', 'wav'],
+  },
+  'video-compressor': {
+    slug: 'video-compressor',
+    overview: 'Video Compressor re-encodes video on the server to reduce size. It needs a temporary upload and a processing job.',
+    steps: [
+      'Open Video Compressor.',
+      'Add an MP4, WebM, or QuickTime file (up to 100 MB).',
+      'Process the job.',
+      'Download when status is complete.',
+    ],
+    output: 'A compressed video download from the job.',
+    example: 'A large clip can be re-encoded for easier sharing. Savings depend on the source.',
+    troubleshooting: [
+      { problem: 'The file is too large', solution: 'The upload cap is 100 MB per file in this workspace.' },
+      { problem: 'The job fails', solution: 'Confirm the file plays locally and that the API is available.' },
+    ],
+    keywords: ['video', 'compress', 'ffmpeg', 'mp4'],
+  },
+  'voice-recorder': {
+    slug: 'voice-recorder',
+    overview: 'Voice Recorder captures microphone audio in the browser with MediaRecorder. Nothing is uploaded.',
+    steps: [
+      'Open Voice Recorder.',
+      'Click Start recording and allow the microphone if asked.',
+      'Pause, resume, or stop.',
+      'Preview the clip, then download it, or reset to record again.',
+    ],
+    optionDocs: [
+      { name: 'Start / Pause / Resume / Stop / Reset', description: 'Recording controls. Permission is requested only when you start.' },
+    ],
+    output: 'A recording in the container the browser actually produced (often WebM or M4A), not MP3 unless the browser encodes MP3.',
+    troubleshooting: [
+      { problem: 'Permission was denied', solution: 'Allow microphone access for this site in the browser settings, then start again.' },
+      { problem: 'No microphone was found', solution: 'Connect a mic and retry.' },
+    ],
+    keywords: ['record', 'microphone', 'audio', 'mediarecorder'],
+  },
+}

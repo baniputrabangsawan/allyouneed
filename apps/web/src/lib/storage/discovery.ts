@@ -12,12 +12,17 @@ function subscribe(callback: () => void) {
   }
 }
 
-function getFavoritesSnapshot() {
-  try { return localStorage.getItem(FAVORITES_STORAGE_KEY) ?? '[]' } catch { return '[]' }
+function getFavoritesSnapshot(fallback: string) {
+  try {
+    const stored = localStorage.getItem(FAVORITES_STORAGE_KEY)
+    if (stored && stored !== '[]') return stored
+  } catch { /* private mode */ }
+  return fallback
 }
 
-export function useFavoriteIds() {
-  const snapshot = useSyncExternalStore(subscribe, getFavoritesSnapshot, () => '[]')
+export function useFavoriteIds(ssrIds: readonly string[] = []) {
+  const fallback = JSON.stringify(ssrIds)
+  const snapshot = useSyncExternalStore(subscribe, () => getFavoritesSnapshot(fallback), () => fallback)
   try {
     const parsed = JSON.parse(snapshot) as unknown
     return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : []

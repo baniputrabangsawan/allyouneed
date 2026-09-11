@@ -11,10 +11,30 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ToolRouteImport } from './routes/$tool'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as LicenseRouteImport } from './routes/license'
 import { Route as PricingRouteImport } from './routes/pricing'
+import { Route as AdminAuditRouteImport } from './routes/admin.audit'
+import { Route as AdminLicensesRouteImport } from './routes/admin.licenses'
+import { Route as AdminSystemRouteImport } from './routes/admin.system'
+import { Route as DocsIndexRouteImport } from './routes/docs.index'
+import { Route as DocsGettingStartedRouteImport } from './routes/docs.getting-started'
+import { Route as DocsPrivacyAndProcessingRouteImport } from './routes/docs.privacy-and-processing'
+import { Route as DocsTroubleshootingRouteImport } from './routes/docs.troubleshooting'
+import { Route as IdIndexRouteImport } from './routes/id.index'
+import { Route as IdToolRouteImport } from './routes/id.$tool'
+import { Route as IdLicenseRouteImport } from './routes/id.license'
+import { Route as IdPricingRouteImport } from './routes/id.pricing'
 import { Route as ToolsIndexRouteImport } from './routes/tools.index'
 import { Route as ToolsCategoryRouteImport } from './routes/tools.$category'
+import { Route as DocsToolsSlugRouteImport } from './routes/docs.tools.$slug'
+import { Route as IdDocsIndexRouteImport } from './routes/id.docs.index'
+import { Route as IdDocsGettingStartedRouteImport } from './routes/id.docs.getting-started'
+import { Route as IdDocsPrivacyAndProcessingRouteImport } from './routes/id.docs.privacy-and-processing'
+import { Route as IdDocsTroubleshootingRouteImport } from './routes/id.docs.troubleshooting'
+import { Route as IdToolsIndexRouteImport } from './routes/id.tools.index'
+import { Route as IdToolsCategoryRouteImport } from './routes/id.tools.$category'
+import { Route as IdDocsToolsSlugRouteImport } from './routes/id.docs.tools.$slug'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -24,6 +44,11 @@ const IndexRoute = IndexRouteImport.update({
 const ToolRoute = ToolRouteImport.update({
   id: '/$tool',
   path: '/$tool',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LicenseRoute = LicenseRouteImport.update({
@@ -36,6 +61,62 @@ const PricingRoute = PricingRouteImport.update({
   path: '/pricing',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminAuditRoute = AdminAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminLicensesRoute = AdminLicensesRouteImport.update({
+  id: '/licenses',
+  path: '/licenses',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSystemRoute = AdminSystemRouteImport.update({
+  id: '/system',
+  path: '/system',
+  getParentRoute: () => AdminRoute,
+} as any)
+const DocsIndexRoute = DocsIndexRouteImport.update({
+  id: '/docs/',
+  path: '/docs/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocsGettingStartedRoute = DocsGettingStartedRouteImport.update({
+  id: '/docs/getting-started',
+  path: '/docs/getting-started',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocsPrivacyAndProcessingRoute =
+  DocsPrivacyAndProcessingRouteImport.update({
+    id: '/docs/privacy-and-processing',
+    path: '/docs/privacy-and-processing',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DocsTroubleshootingRoute = DocsTroubleshootingRouteImport.update({
+  id: '/docs/troubleshooting',
+  path: '/docs/troubleshooting',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IdIndexRoute = IdIndexRouteImport.update({
+  id: '/id/',
+  path: '/id/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IdToolRoute = IdToolRouteImport.update({
+  id: '/id/$tool',
+  path: '/id/$tool',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IdLicenseRoute = IdLicenseRouteImport.update({
+  id: '/id/license',
+  path: '/id/license',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IdPricingRoute = IdPricingRouteImport.update({
+  id: '/id/pricing',
+  path: '/id/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ToolsIndexRoute = ToolsIndexRouteImport.update({
   id: '/tools/',
   path: '/tools/',
@@ -46,55 +127,244 @@ const ToolsCategoryRoute = ToolsCategoryRouteImport.update({
   path: '/tools/$category',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DocsToolsSlugRoute = DocsToolsSlugRouteImport.update({
+  id: '/docs/tools/$slug',
+  path: '/docs/tools/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IdDocsIndexRoute = IdDocsIndexRouteImport.update({
+  id: '/id/docs/',
+  path: '/id/docs/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IdDocsGettingStartedRoute = IdDocsGettingStartedRouteImport.update({
+  id: '/id/docs/getting-started',
+  path: '/id/docs/getting-started',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IdDocsPrivacyAndProcessingRoute =
+  IdDocsPrivacyAndProcessingRouteImport.update({
+    id: '/id/docs/privacy-and-processing',
+    path: '/id/docs/privacy-and-processing',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const IdDocsTroubleshootingRoute = IdDocsTroubleshootingRouteImport.update({
+  id: '/id/docs/troubleshooting',
+  path: '/id/docs/troubleshooting',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IdToolsIndexRoute = IdToolsIndexRouteImport.update({
+  id: '/id/tools/',
+  path: '/id/tools/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IdToolsCategoryRoute = IdToolsCategoryRouteImport.update({
+  id: '/id/tools/$category',
+  path: '/id/tools/$category',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IdDocsToolsSlugRoute = IdDocsToolsSlugRouteImport.update({
+  id: '/id/docs/tools/$slug',
+  path: '/id/docs/tools/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$tool': typeof ToolRoute
+  '/admin': typeof AdminRouteWithChildren
   '/license': typeof LicenseRoute
   '/pricing': typeof PricingRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/licenses': typeof AdminLicensesRoute
+  '/admin/system': typeof AdminSystemRoute
+  '/docs/getting-started': typeof DocsGettingStartedRoute
+  '/docs/privacy-and-processing': typeof DocsPrivacyAndProcessingRoute
+  '/docs/troubleshooting': typeof DocsTroubleshootingRoute
+  '/id/$tool': typeof IdToolRoute
+  '/id/license': typeof IdLicenseRoute
+  '/id/pricing': typeof IdPricingRoute
   '/tools/$category': typeof ToolsCategoryRoute
+  '/docs/': typeof DocsIndexRoute
+  '/id/': typeof IdIndexRoute
   '/tools/': typeof ToolsIndexRoute
+  '/docs/tools/$slug': typeof DocsToolsSlugRoute
+  '/id/docs/getting-started': typeof IdDocsGettingStartedRoute
+  '/id/docs/privacy-and-processing': typeof IdDocsPrivacyAndProcessingRoute
+  '/id/docs/troubleshooting': typeof IdDocsTroubleshootingRoute
+  '/id/tools/$category': typeof IdToolsCategoryRoute
+  '/id/docs/': typeof IdDocsIndexRoute
+  '/id/tools/': typeof IdToolsIndexRoute
+  '/id/docs/tools/$slug': typeof IdDocsToolsSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$tool': typeof ToolRoute
+  '/admin': typeof AdminRouteWithChildren
   '/license': typeof LicenseRoute
   '/pricing': typeof PricingRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/licenses': typeof AdminLicensesRoute
+  '/admin/system': typeof AdminSystemRoute
+  '/docs/getting-started': typeof DocsGettingStartedRoute
+  '/docs/privacy-and-processing': typeof DocsPrivacyAndProcessingRoute
+  '/docs/troubleshooting': typeof DocsTroubleshootingRoute
+  '/id/$tool': typeof IdToolRoute
+  '/id/license': typeof IdLicenseRoute
+  '/id/pricing': typeof IdPricingRoute
   '/tools/$category': typeof ToolsCategoryRoute
+  '/docs': typeof DocsIndexRoute
+  '/id': typeof IdIndexRoute
   '/tools': typeof ToolsIndexRoute
+  '/docs/tools/$slug': typeof DocsToolsSlugRoute
+  '/id/docs/getting-started': typeof IdDocsGettingStartedRoute
+  '/id/docs/privacy-and-processing': typeof IdDocsPrivacyAndProcessingRoute
+  '/id/docs/troubleshooting': typeof IdDocsTroubleshootingRoute
+  '/id/tools/$category': typeof IdToolsCategoryRoute
+  '/id/docs': typeof IdDocsIndexRoute
+  '/id/tools': typeof IdToolsIndexRoute
+  '/id/docs/tools/$slug': typeof IdDocsToolsSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$tool': typeof ToolRoute
+  '/admin': typeof AdminRouteWithChildren
   '/license': typeof LicenseRoute
   '/pricing': typeof PricingRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/licenses': typeof AdminLicensesRoute
+  '/admin/system': typeof AdminSystemRoute
+  '/docs/getting-started': typeof DocsGettingStartedRoute
+  '/docs/privacy-and-processing': typeof DocsPrivacyAndProcessingRoute
+  '/docs/troubleshooting': typeof DocsTroubleshootingRoute
+  '/id/$tool': typeof IdToolRoute
+  '/id/license': typeof IdLicenseRoute
+  '/id/pricing': typeof IdPricingRoute
   '/tools/$category': typeof ToolsCategoryRoute
+  '/docs/': typeof DocsIndexRoute
+  '/id/': typeof IdIndexRoute
   '/tools/': typeof ToolsIndexRoute
+  '/docs/tools/$slug': typeof DocsToolsSlugRoute
+  '/id/docs/getting-started': typeof IdDocsGettingStartedRoute
+  '/id/docs/privacy-and-processing': typeof IdDocsPrivacyAndProcessingRoute
+  '/id/docs/troubleshooting': typeof IdDocsTroubleshootingRoute
+  '/id/tools/$category': typeof IdToolsCategoryRoute
+  '/id/docs/': typeof IdDocsIndexRoute
+  '/id/tools/': typeof IdToolsIndexRoute
+  '/id/docs/tools/$slug': typeof IdDocsToolsSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/$tool' | '/license' | '/pricing' | '/tools/$category' | '/tools/'
+    | '/'
+    | '/$tool'
+    | '/admin'
+    | '/license'
+    | '/pricing'
+    | '/admin/audit'
+    | '/admin/licenses'
+    | '/admin/system'
+    | '/docs/getting-started'
+    | '/docs/privacy-and-processing'
+    | '/docs/troubleshooting'
+    | '/id/$tool'
+    | '/id/license'
+    | '/id/pricing'
+    | '/tools/$category'
+    | '/docs/'
+    | '/id/'
+    | '/tools/'
+    | '/docs/tools/$slug'
+    | '/id/docs/getting-started'
+    | '/id/docs/privacy-and-processing'
+    | '/id/docs/troubleshooting'
+    | '/id/tools/$category'
+    | '/id/docs/'
+    | '/id/tools/'
+    | '/id/docs/tools/$slug'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/$tool' | '/license' | '/pricing' | '/tools/$category' | '/tools'
+  to:
+    | '/'
+    | '/$tool'
+    | '/admin'
+    | '/license'
+    | '/pricing'
+    | '/admin/audit'
+    | '/admin/licenses'
+    | '/admin/system'
+    | '/docs/getting-started'
+    | '/docs/privacy-and-processing'
+    | '/docs/troubleshooting'
+    | '/id/$tool'
+    | '/id/license'
+    | '/id/pricing'
+    | '/tools/$category'
+    | '/docs'
+    | '/id'
+    | '/tools'
+    | '/docs/tools/$slug'
+    | '/id/docs/getting-started'
+    | '/id/docs/privacy-and-processing'
+    | '/id/docs/troubleshooting'
+    | '/id/tools/$category'
+    | '/id/docs'
+    | '/id/tools'
+    | '/id/docs/tools/$slug'
   id:
     | '__root__'
     | '/'
     | '/$tool'
+    | '/admin'
     | '/license'
     | '/pricing'
+    | '/admin/audit'
+    | '/admin/licenses'
+    | '/admin/system'
+    | '/docs/getting-started'
+    | '/docs/privacy-and-processing'
+    | '/docs/troubleshooting'
+    | '/id/$tool'
+    | '/id/license'
+    | '/id/pricing'
     | '/tools/$category'
+    | '/docs/'
+    | '/id/'
     | '/tools/'
+    | '/docs/tools/$slug'
+    | '/id/docs/getting-started'
+    | '/id/docs/privacy-and-processing'
+    | '/id/docs/troubleshooting'
+    | '/id/tools/$category'
+    | '/id/docs/'
+    | '/id/tools/'
+    | '/id/docs/tools/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ToolRoute: typeof ToolRoute
+  AdminRoute: typeof AdminRouteWithChildren
   LicenseRoute: typeof LicenseRoute
   PricingRoute: typeof PricingRoute
+  DocsGettingStartedRoute: typeof DocsGettingStartedRoute
+  DocsPrivacyAndProcessingRoute: typeof DocsPrivacyAndProcessingRoute
+  DocsTroubleshootingRoute: typeof DocsTroubleshootingRoute
+  IdToolRoute: typeof IdToolRoute
+  IdLicenseRoute: typeof IdLicenseRoute
+  IdPricingRoute: typeof IdPricingRoute
   ToolsCategoryRoute: typeof ToolsCategoryRoute
+  DocsIndexRoute: typeof DocsIndexRoute
+  IdIndexRoute: typeof IdIndexRoute
   ToolsIndexRoute: typeof ToolsIndexRoute
+  DocsToolsSlugRoute: typeof DocsToolsSlugRoute
+  IdDocsGettingStartedRoute: typeof IdDocsGettingStartedRoute
+  IdDocsPrivacyAndProcessingRoute: typeof IdDocsPrivacyAndProcessingRoute
+  IdDocsTroubleshootingRoute: typeof IdDocsTroubleshootingRoute
+  IdToolsCategoryRoute: typeof IdToolsCategoryRoute
+  IdDocsIndexRoute: typeof IdDocsIndexRoute
+  IdToolsIndexRoute: typeof IdToolsIndexRoute
+  IdDocsToolsSlugRoute: typeof IdDocsToolsSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -113,6 +383,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ToolRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/license': {
       id: '/license'
       path: '/license'
@@ -125,6 +402,83 @@ declare module '@tanstack/react-router' {
       path: '/pricing'
       fullPath: '/pricing'
       preLoaderRoute: typeof PricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/audit': {
+      id: '/admin/audit'
+      path: '/audit'
+      fullPath: '/admin/audit'
+      preLoaderRoute: typeof AdminAuditRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/licenses': {
+      id: '/admin/licenses'
+      path: '/licenses'
+      fullPath: '/admin/licenses'
+      preLoaderRoute: typeof AdminLicensesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/system': {
+      id: '/admin/system'
+      path: '/system'
+      fullPath: '/admin/system'
+      preLoaderRoute: typeof AdminSystemRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/docs/': {
+      id: '/docs/'
+      path: '/docs'
+      fullPath: '/docs/'
+      preLoaderRoute: typeof DocsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/docs/getting-started': {
+      id: '/docs/getting-started'
+      path: '/docs/getting-started'
+      fullPath: '/docs/getting-started'
+      preLoaderRoute: typeof DocsGettingStartedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/docs/privacy-and-processing': {
+      id: '/docs/privacy-and-processing'
+      path: '/docs/privacy-and-processing'
+      fullPath: '/docs/privacy-and-processing'
+      preLoaderRoute: typeof DocsPrivacyAndProcessingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/docs/troubleshooting': {
+      id: '/docs/troubleshooting'
+      path: '/docs/troubleshooting'
+      fullPath: '/docs/troubleshooting'
+      preLoaderRoute: typeof DocsTroubleshootingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/id/': {
+      id: '/id/'
+      path: '/id'
+      fullPath: '/id/'
+      preLoaderRoute: typeof IdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/id/$tool': {
+      id: '/id/$tool'
+      path: '/id/$tool'
+      fullPath: '/id/$tool'
+      preLoaderRoute: typeof IdToolRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/id/license': {
+      id: '/id/license'
+      path: '/id/license'
+      fullPath: '/id/license'
+      preLoaderRoute: typeof IdLicenseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/id/pricing': {
+      id: '/id/pricing'
+      path: '/id/pricing'
+      fullPath: '/id/pricing'
+      preLoaderRoute: typeof IdPricingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/tools/': {
@@ -141,16 +495,103 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ToolsCategoryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/docs/tools/$slug': {
+      id: '/docs/tools/$slug'
+      path: '/docs/tools/$slug'
+      fullPath: '/docs/tools/$slug'
+      preLoaderRoute: typeof DocsToolsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/id/docs/': {
+      id: '/id/docs/'
+      path: '/id/docs'
+      fullPath: '/id/docs/'
+      preLoaderRoute: typeof IdDocsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/id/docs/getting-started': {
+      id: '/id/docs/getting-started'
+      path: '/id/docs/getting-started'
+      fullPath: '/id/docs/getting-started'
+      preLoaderRoute: typeof IdDocsGettingStartedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/id/docs/privacy-and-processing': {
+      id: '/id/docs/privacy-and-processing'
+      path: '/id/docs/privacy-and-processing'
+      fullPath: '/id/docs/privacy-and-processing'
+      preLoaderRoute: typeof IdDocsPrivacyAndProcessingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/id/docs/troubleshooting': {
+      id: '/id/docs/troubleshooting'
+      path: '/id/docs/troubleshooting'
+      fullPath: '/id/docs/troubleshooting'
+      preLoaderRoute: typeof IdDocsTroubleshootingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/id/tools/': {
+      id: '/id/tools/'
+      path: '/id/tools'
+      fullPath: '/id/tools/'
+      preLoaderRoute: typeof IdToolsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/id/tools/$category': {
+      id: '/id/tools/$category'
+      path: '/id/tools/$category'
+      fullPath: '/id/tools/$category'
+      preLoaderRoute: typeof IdToolsCategoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/id/docs/tools/$slug': {
+      id: '/id/docs/tools/$slug'
+      path: '/id/docs/tools/$slug'
+      fullPath: '/id/docs/tools/$slug'
+      preLoaderRoute: typeof IdDocsToolsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
+
+interface AdminRouteChildren {
+  AdminAuditRoute: typeof AdminAuditRoute
+  AdminLicensesRoute: typeof AdminLicensesRoute
+  AdminSystemRoute: typeof AdminSystemRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminAuditRoute: AdminAuditRoute,
+  AdminLicensesRoute: AdminLicensesRoute,
+  AdminSystemRoute: AdminSystemRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ToolRoute: ToolRoute,
+  AdminRoute: AdminRouteWithChildren,
   LicenseRoute: LicenseRoute,
   PricingRoute: PricingRoute,
+  DocsGettingStartedRoute: DocsGettingStartedRoute,
+  DocsPrivacyAndProcessingRoute: DocsPrivacyAndProcessingRoute,
+  DocsTroubleshootingRoute: DocsTroubleshootingRoute,
+  IdToolRoute: IdToolRoute,
+  IdLicenseRoute: IdLicenseRoute,
+  IdPricingRoute: IdPricingRoute,
   ToolsCategoryRoute: ToolsCategoryRoute,
+  DocsIndexRoute: DocsIndexRoute,
+  IdIndexRoute: IdIndexRoute,
   ToolsIndexRoute: ToolsIndexRoute,
+  DocsToolsSlugRoute: DocsToolsSlugRoute,
+  IdDocsGettingStartedRoute: IdDocsGettingStartedRoute,
+  IdDocsPrivacyAndProcessingRoute: IdDocsPrivacyAndProcessingRoute,
+  IdDocsTroubleshootingRoute: IdDocsTroubleshootingRoute,
+  IdToolsCategoryRoute: IdToolsCategoryRoute,
+  IdDocsIndexRoute: IdDocsIndexRoute,
+  IdToolsIndexRoute: IdToolsIndexRoute,
+  IdDocsToolsSlugRoute: IdDocsToolsSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

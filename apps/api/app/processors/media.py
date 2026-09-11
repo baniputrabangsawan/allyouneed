@@ -4,7 +4,13 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from app.processors.base import ProcessingError, Processor, ProcessorContext, ProcessorResult, integer
+from app.processors.base import (
+    ProcessingError,
+    Processor,
+    ProcessorContext,
+    ProcessorResult,
+    integer,
+)
 from app.utils.media import duration_seconds, probe, validate_media_output
 from app.utils.subprocess import run_command
 
@@ -105,6 +111,7 @@ def materialize_subtitle(subtitle: Path, work_dir: Path) -> Path:
     if dest.resolve() != subtitle.resolve():
         shutil.copy2(subtitle, dest)
     return dest
+
 
 # afftdn presets (ffmpeg-filters.html#afftdn): noise_reduction (nr) 0.01–97 default 12,
 # noise_floor (nf) −80…−20 default −50. Deterministic FFT denoise; not arnndn.
@@ -223,9 +230,7 @@ def _can_copy_video(video: Path, container: str) -> bool:
     return source == container or (container == "mp4" and source in {"mp4", "mov", "m4v"})
 
 
-def subtitle_ffmpeg_args(
-    inputs: list[Path], options: dict[str, Any], output: Path
-) -> list[str]:
+def subtitle_ffmpeg_args(inputs: list[Path], options: dict[str, Any], output: Path) -> list[str]:
     video, subtitle = split_video_and_subtitle(inputs)
     subtitle = materialize_subtitle(subtitle, output.parent)
     mode = subtitle_mode(options)

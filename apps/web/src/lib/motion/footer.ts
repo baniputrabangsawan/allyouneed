@@ -1,9 +1,10 @@
 import { motion } from './config'
 import { gsap, ScrollTrigger } from './gsap'
 import { isCompactMotion, prefersReducedMotion } from './prefers-reduced-motion'
+import { isRestoringNavigation } from './restore'
 
 export function revealFooter(root: Element | null) {
-  if (!root || prefersReducedMotion()) return
+  if (!root || prefersReducedMotion() || isRestoringNavigation()) return
 
   const compact = isCompactMotion()
   const cta = root.querySelector('.footer-cta')

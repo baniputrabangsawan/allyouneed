@@ -155,6 +155,7 @@ test('opens photo editor and exports a PNG', async ({ page }) => {
   await expect(page.getByRole('img', { name: 'Edited preview' })).toBeVisible()
   await page.getByRole('combobox', { name: 'Output format' }).selectOption('image/png')
   await page.getByRole('button', { name: 'Export image' }).click()
+  await expect(page.getByRole('link', { name: 'Download PNG' })).toBeVisible()
   const download = page.waitForEvent('download')
   await page.getByRole('link', { name: 'Download PNG' }).click()
   const file = await download

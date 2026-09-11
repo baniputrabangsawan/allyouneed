@@ -99,7 +99,9 @@ def test_noise_reduction_presets_map_to_afftdn() -> None:
     assert noise_reduction_filter({"strength": "MEDIUM"}) == "afftdn=nr=12:nf=-50:nt=w"
     assert noise_reduction_filter({"strength": "strong"}) == "afftdn=nr=24:nf=-40:nt=w"
     assert NOISE_REDUCTION_PRESETS["medium"] == (12, -50)
-    args = ffmpeg_args("noise-reduction", [Path("tone.wav")], {"strength": "light"}, Path("out.mp3"))
+    args = ffmpeg_args(
+        "noise-reduction", [Path("tone.wav")], {"strength": "light"}, Path("out.mp3")
+    )
     assert args[args.index("-af") + 1] == "afftdn=nr=8:nf=-50:nt=w"
     assert "arnndn" not in " ".join(args)
     try:
@@ -128,9 +130,7 @@ async def test_noise_reduction_produces_ffprobe_valid_audio(tmp_path: Path) -> N
     info = await probe(output)
     validate_media_output(info)
     kinds = [
-        stream.get("codec_type")
-        for stream in info.get("streams", [])
-        if isinstance(stream, dict)
+        stream.get("codec_type") for stream in info.get("streams", []) if isinstance(stream, dict)
     ]
     assert "audio" in kinds
     result_duration = duration_seconds(info)
@@ -169,9 +169,7 @@ async def test_noise_reduction_job(api: AsyncClient, tmp_path: Path) -> None:
     info = await probe(output)
     validate_media_output(info)
     kinds = [
-        stream.get("codec_type")
-        for stream in info.get("streams", [])
-        if isinstance(stream, dict)
+        stream.get("codec_type") for stream in info.get("streams", []) if isinstance(stream, dict)
     ]
     assert "audio" in kinds
     result_duration = duration_seconds(info)

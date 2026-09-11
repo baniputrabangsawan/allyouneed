@@ -3,8 +3,8 @@ import { getLocalStorage, type StorageLike } from './preferences'
 export const FAVORITES_STORAGE_KEY = 'utility:favorites'
 export const RECENT_TOOLS_STORAGE_KEY = 'utility:recent-tools'
 export const RECENT_COOKIE_NAME = 'kits_recent'
+export const FAVORITES_COOKIE_NAME = 'kits_favorites'
 export const MAX_RECENT_TOOLS = 10
-
 const normalizeToolIds = (value: unknown): string[] | undefined => {
   if (!Array.isArray(value) || !value.every((item) => typeof item === 'string' && item.trim().length > 0)) {
     return undefined
@@ -28,7 +28,8 @@ const saveToolIds = (key: string, toolIds: readonly string[], limit: number, sto
     if (!storage || !normalized) return false
     const next = normalized.slice(0, limit)
     storage.setItem(key, JSON.stringify(next))
-    if (key === RECENT_TOOLS_STORAGE_KEY) writeRecentCookie(next)
+    if (key === RECENT_TOOLS_STORAGE_KEY) writeIdCookie(RECENT_COOKIE_NAME, next)
+    if (key === FAVORITES_STORAGE_KEY) writeIdCookie(FAVORITES_COOKIE_NAME, next)
     return true
   } catch {
     return false
@@ -56,19 +57,32 @@ export const addRecentTool = (toolId: string, storage: StorageLike | undefined =
   return saveRecentTools([toolId, ...getRecentTools(storage).filter((id) => id !== toolId)], storage)
 }
 
-export function parseRecentCookie(header: string): string[] {
+export function parseIdCookie(header: string, name: string): string[] {
   for (const part of header.split(';')) {
     const trimmed = part.trim()
-    if (!trimmed.startsWith(`${RECENT_COOKIE_NAME}=`)) continue
-    const value = decodeURIComponent(trimmed.slice(RECENT_COOKIE_NAME.length + 1))
+    if (!trimmed.startsWith(`${name}=`)) continue
+    const value = decodeURIComponent(trimmed.slice(name.length + 1))
     const ids = value.split('|').filter((id) => /^[a-z0-9-]+$/i.test(id))
-    return [...new Set(ids)].slice(0, MAX_RECENT_TOOLS)
+    return [...new Set(ids)].slice(0, name === RECENT_COOKIE_NAME ? MAX_RECENT_TOOLS : ids.length)
   }
   return []
 }
 
+export function parseRecentCookie(header: string): string[] {
+  return parseIdCookie(header, RECENT_COOKIE_NAME)
+}
+
+export function parseFavoritesCookie(header: string): string[] {
+  return parseIdCookie(header, FAVORITES_COOKIE_NAME)
+}
+
 export function writeRecentCookie(ids: readonly string[]) {
+  writeIdCookie(RECENT_COOKIE_NAME, ids)
+}
+
+function writeIdCookie(name: string, ids: readonly string[]) {
   if (typeof document === 'undefined') return
-  const value = encodeURIComponent([...new Set(ids)].filter((id) => /^[a-z0-9-]+$/i.test(id)).slice(0, MAX_RECENT_TOOLS).join('|'))
-  document.cookie = `${RECENT_COOKIE_NAME}=${value}; Path=/; Max-Age=31536000; SameSite=Lax`
+  const limit = name === RECENT_COOKIE_NAME ? MAX_RECENT_TOOLS : ids.length
+  const value = encodeURIComponent([...new Set(ids)].filter((id) => /^[a-z0-9-]+$/i.test(id)).slice(0, limit).join('|'))
+  document.cookie = `${name}=${value}; Path=/; Max-Age=31536000; SameSite=Lax`
 }

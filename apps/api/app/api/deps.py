@@ -1,12 +1,11 @@
 from collections.abc import AsyncIterator
 from typing import Annotated
 
-from fastapi import Depends, Header, status
+from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import get_settings
-from app.core.exceptions import ApiError
 from app.db.session import get_session
+from app.security.admin import AdminIdentity, authenticate_admin
 from app.services.entitlement_service import EntitlementService
 from app.services.job_service import JobService, get_job_service
 from app.services.license_service import LicenseService
@@ -31,9 +30,5 @@ def entitlement_service(
     return EntitlementService(session)
 
 
-def require_admin(
-    admin_key: Annotated[str | None, Header(alias="X-Admin-Key")] = None,
-) -> None:
-    expected = get_settings().admin_api_key
-    if not expected or admin_key != expected:
-        raise ApiError(status.HTTP_401_UNAUTHORIZED, "UNAUTHORIZED", "Admin key is required.")
+def require_admin(request: Request) -> AdminIdentity:
+    return authenticate_admin(request)

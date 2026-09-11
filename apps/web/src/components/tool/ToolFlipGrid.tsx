@@ -1,11 +1,13 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { DiscoveryToolCard } from '@/components/common/DiscoveryToolCard'
 import type { ToolDefinition } from '@/features/tools/tool-registry'
+import { useT } from '@/i18n'
 import { animateEnteringCards, cardExitVars } from '@/lib/motion/cards'
 import { motion } from '@/lib/motion/config'
 import { itemSignature } from '@/lib/motion/flip-grid'
 import { Flip, ScrollTrigger, gsap, registerMotion } from '@/lib/motion/gsap'
 import { prefersReducedMotion } from '@/lib/motion/prefers-reduced-motion'
+import { isRestoringNavigation } from '@/lib/motion/restore'
 import { batchRevealCards } from '@/lib/motion/scroll'
 
 function idOf(tool: ToolDefinition) {
@@ -38,6 +40,7 @@ function useFlipItems(next: readonly ToolDefinition[]) {
     ScrollTrigger.getAll().forEach((trigger) => {
       if (trigger.trigger && root.contains(trigger.trigger)) trigger.kill()
     })
+    gsap.set(cards, { clearProps: 'opacity,visibility,transform,filter' })
     stateRef.current = Flip.getState(cards)
     setRendered([...upcoming])
   }, [signature])
@@ -66,7 +69,7 @@ function useFlipItems(next: readonly ToolDefinition[]) {
     const cards = root.querySelectorAll('[data-flip-id]')
     if (!cards.length) return
     bootedRef.current = true
-    if (root.closest('.discovery-personal')) return
+    if (root.closest('.discovery-personal') || isRestoringNavigation()) return
     batchRevealCards(cards)
   }, [signature])
 
@@ -91,6 +94,7 @@ export function AvailabilityFlipGrids({
   available: readonly ToolDefinition[]
   comingSoon: readonly ToolDefinition[]
 }) {
+  const copy = useT()
   const { scopeRef, rendered } = useFlipItems([...available, ...comingSoon])
   const shownAvailable = rendered.filter((tool) => tool.available)
   const shownSoon = rendered.filter((tool) => !tool.available)
@@ -98,7 +102,7 @@ export function AvailabilityFlipGrids({
     <div ref={scopeRef} className="tool-flip-scope">
       {shownAvailable.length > 0 && (
         <div className="tool-availability-group">
-          <p className="eyebrow">Available</p>
+          <p className="eyebrow">{copy.availability.available}</p>
           <div className="tool-grid">
             {shownAvailable.map((tool) => (
               <DiscoveryToolCard key={tool.id} tool={tool} />
@@ -108,7 +112,7 @@ export function AvailabilityFlipGrids({
       )}
       {shownSoon.length > 0 && (
         <div className="tool-availability-group">
-          <p className="eyebrow">Coming soon</p>
+          <p className="eyebrow">{copy.availability.comingSoon}</p>
           <div className="tool-grid">
             {shownSoon.map((tool) => (
               <DiscoveryToolCard key={tool.id} tool={tool} />
