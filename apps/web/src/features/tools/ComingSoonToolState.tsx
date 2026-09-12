@@ -127,7 +127,7 @@ export function ComingSoonToolState({ tool }: { tool: ToolDefinition }) {
               const RelatedIcon = iconMap[relatedTool.icon] ?? Wrench
               return (
                 <li key={relatedTool.id}>
-                  <LocaleLink to="/$tool" params={{ tool: relatedTool.slug }}>
+                  <LocaleLink to="/tools/$category" params={{ category: relatedTool.slug }}>
                     <span className={`tool-icon ${relatedTool.category}`}>
                       <RelatedIcon size={16} aria-hidden="true" />
                     </span>

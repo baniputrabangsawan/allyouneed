@@ -1,6 +1,7 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { getToolBySlug } from '@/features/tools/tool-registry'
 import { ToolRoute } from '@/features/tools/ToolPage'
+import { toolHead } from '@/features/seo/tool-seo'
 
 export const Route = createFileRoute('/$tool')({
   beforeLoad: ({ params }) => {
@@ -10,19 +11,7 @@ export const Route = createFileRoute('/$tool')({
   },
   head: ({ params }) => {
     const tool = getToolBySlug(params.tool)
-    const title = tool?.seo.title ?? 'Online Tool'
-    const description = tool?.seo.description ?? 'A fast browser utility.'
-    const canonical = tool ? `/${tool.slug}` : `/${params.tool}`
-    return {
-      meta: [
-        { title },
-        { name: 'description', content: description },
-        { property: 'og:title', content: title },
-        { property: 'og:description', content: description },
-        { property: 'og:url', content: canonical },
-      ],
-      links: [{ rel: 'canonical', href: canonical }],
-    }
+    return tool ? toolHead(tool, 'en') : { meta: [{ title: 'Online Tool | Kits' }] }
   },
   component: ToolRoute,
 })

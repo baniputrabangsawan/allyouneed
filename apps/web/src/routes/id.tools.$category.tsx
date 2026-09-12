@@ -1,19 +1,35 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { CategoryCatalog } from '@/features/catalog/CategoryCatalog'
 import { validCategories } from '@/features/catalog/categories'
-import { type ToolCategory } from '@/features/tools/tool-registry'
-import { getMessages } from '@/i18n'
-import { pageSeo } from '@/i18n/seo'
+import { getToolBySlug, type ToolCategory } from '@/features/tools/tool-registry'
+import { categoryLabel, categorySeoPath, toolHead } from '@/features/seo/tool-seo'
+import { absoluteUrl } from '@/features/seo/site'
+import { ToolRoute } from '@/features/tools/ToolPage'
 
 export const Route = createFileRoute('/id/tools/$category')({
   beforeLoad: ({ params }) => {
+    const tool = getToolBySlug(params.category)
+    if (tool) return { tool }
     if (!validCategories.includes(params.category as ToolCategory)) throw notFound()
     return { category: params.category as ToolCategory }
   },
   head: ({ params }) => {
-    const copy = getMessages('id')
-    const label = copy.category[params.category as ToolCategory] ?? params.category
-    return pageSeo('id', `/tools/${params.category}`, copy.home.categoryTools(label), copy.catalog.description)
+    const tool = getToolBySlug(params.category)
+    if (tool) return toolHead(tool, 'id')
+    const label = categoryLabel(params.category, 'id')
+    const path = categorySeoPath('id', params.category)
+    return {
+      meta: [
+        { title: `${label} Online | Kits` },
+        { name: 'description', content: `Jelajahi ${label.toLowerCase()} di Kits untuk konversi, edit, optimasi, dan utilitas online.` },
+      ],
+      links: [{ rel: 'canonical', href: absoluteUrl(path) }],
+    }
   },
-  component: CategoryCatalog,
+  component: CategoryOrTool,
 })
+
+function CategoryOrTool() {
+  const params = Route.useParams()
+  return getToolBySlug(params.category) ? <ToolRoute /> : <CategoryCatalog />
+}
