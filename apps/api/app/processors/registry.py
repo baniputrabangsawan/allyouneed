@@ -1,20 +1,11 @@
 from collections.abc import Callable
 
-from app.processors.ai.generic import (
-    BackgroundRemovalProcessor,
-    SpeechToTextProcessor,
-    TextToSpeechProcessor,
-    UpscaleProcessor,
-)
 from app.processors.base import ProcessingError, Processor
-from app.processors.html_to_image import HtmlToImageProcessor
-from app.processors.image.basic_background import BasicBackgroundRemovalProcessor
-from app.processors.image.blur_face import BlurFaceProcessor
-from app.processors.image.generic import ImageProcessor
-from app.processors.image.ops import JPEG_TOOLS, PNG_TOOLS, WEBP_TOOLS
 from app.processors.media import MEDIA_TOOLS, MediaProcessor
-from app.processors.ocr.generic import OcrProcessor
-from app.processors.pdf.generic import PdfProcessor
+
+JPEG_TOOLS = {"convert-to-jpg", "png-to-jpg", "webp-to-jpg"}
+PNG_TOOLS = {"jpg-to-png"}
+WEBP_TOOLS = {"jpg-to-webp", "png-to-webp"}
 
 IMAGE_TOOLS = (
     {
@@ -67,29 +58,87 @@ Factory = Callable[[], Processor]
 
 
 def _image(tool_id: str) -> Factory:
-    return lambda: ImageProcessor(tool_id)
+    def create() -> Processor:
+        from app.processors.image.generic import ImageProcessor
+
+        return ImageProcessor(tool_id)
+
+    return create
 
 
 def _pdf(tool_id: str) -> Factory:
-    return lambda: PdfProcessor(tool_id)
+    def create() -> Processor:
+        from app.processors.pdf.generic import PdfProcessor
+
+        return PdfProcessor(tool_id)
+
+    return create
 
 
 def _media(tool_id: str) -> Factory:
     return lambda: MediaProcessor(tool_id)
 
 
+def _blur_face() -> Processor:
+    from app.processors.image.blur_face import BlurFaceProcessor
+
+    return BlurFaceProcessor()
+
+
+def _basic_background() -> Processor:
+    from app.processors.image.basic_background import BasicBackgroundRemovalProcessor
+
+    return BasicBackgroundRemovalProcessor()
+
+
+def _background_removal() -> Processor:
+    from app.processors.ai.generic import BackgroundRemovalProcessor
+
+    return BackgroundRemovalProcessor()
+
+
+def _upscale() -> Processor:
+    from app.processors.ai.generic import UpscaleProcessor
+
+    return UpscaleProcessor()
+
+
+def _speech_to_text() -> Processor:
+    from app.processors.ai.generic import SpeechToTextProcessor
+
+    return SpeechToTextProcessor()
+
+
+def _text_to_speech() -> Processor:
+    from app.processors.ai.generic import TextToSpeechProcessor
+
+    return TextToSpeechProcessor()
+
+
+def _ocr() -> Processor:
+    from app.processors.ocr.generic import OcrProcessor
+
+    return OcrProcessor()
+
+
+def _html_to_image() -> Processor:
+    from app.processors.html_to_image import HtmlToImageProcessor
+
+    return HtmlToImageProcessor()
+
+
 processor_registry: dict[str, Factory] = {
     **{tool_id: _image(tool_id) for tool_id in IMAGE_TOOLS},
     **{tool_id: _pdf(tool_id) for tool_id in PDF_TOOLS},
     **{tool_id: _media(tool_id) for tool_id in MEDIA_TOOLS},
-    "blur-face": BlurFaceProcessor,
-    "basic-background-removal": BasicBackgroundRemovalProcessor,
-    "remove-background": BackgroundRemovalProcessor,
-    "upscale-image": UpscaleProcessor,
-    "speech-to-text": SpeechToTextProcessor,
-    "text-to-speech": TextToSpeechProcessor,
-    "ocr-pdf": OcrProcessor,
-    "html-to-image": HtmlToImageProcessor,
+    "blur-face": _blur_face,
+    "basic-background-removal": _basic_background,
+    "remove-background": _background_removal,
+    "upscale-image": _upscale,
+    "speech-to-text": _speech_to_text,
+    "text-to-speech": _text_to_speech,
+    "ocr-pdf": _ocr,
+    "html-to-image": _html_to_image,
 }
 
 

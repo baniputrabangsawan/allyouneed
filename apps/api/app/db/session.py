@@ -50,7 +50,8 @@ def get_engine() -> AsyncEngine:
         url = settings.license_database_url
         ensure_sqlite_parent(url)
         _engine = create_async_engine(url)
-        event.listen(_engine.sync_engine, "connect", _apply_sqlite_pragmas)
+        if sqlite_path_from_url(url) is not None:
+            event.listen(_engine.sync_engine, "connect", _apply_sqlite_pragmas)
         _session_factory = async_sessionmaker(_engine, expire_on_commit=False)
     return _engine
 
@@ -72,7 +73,8 @@ async def create_schema() -> None:
     engine = get_engine()
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
-        await connection.execute(text("PRAGMA foreign_keys=ON"))
+        if sqlite_path_from_url(str(engine.url)) is not None:
+            await connection.execute(text("PRAGMA foreign_keys=ON"))
 
 
 async def dispose_engine() -> None:

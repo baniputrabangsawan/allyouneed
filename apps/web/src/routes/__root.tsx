@@ -9,7 +9,7 @@ import { LocaleLink } from '@/i18n/link'
 import { localeFromPathname, useLocale, useT } from '@/i18n'
 import { localizeTool } from '@/i18n/tools'
 import { refreshScroll } from '@/lib/motion/scroll'
-import { restoreKeepScroll, clearKeepScroll, saveKeepScroll } from '@/lib/motion/restore'
+import { restoreKeepScroll, clearKeepScroll } from '@/lib/motion/restore'
 import { ensureInstallationId } from '@/lib/storage/installation'
 import '@/styles/app.css'
 import '@/styles/docs.css'
@@ -82,20 +82,6 @@ function Root() {
     const id = window.setTimeout(() => clearKeepScroll(), 400)
     return () => window.clearTimeout(id)
   }, [pathname, hash])
-
-  useEffect(() => {
-    const onPointerDown = (event: Event) => {
-      const target = event.target
-      if (!(target instanceof Element)) return
-      if (target.closest('.language-switcher-button, .language-choices a')) saveKeepScroll()
-    }
-    document.addEventListener('pointerdown', onPointerDown, true)
-    document.addEventListener('mousedown', onPointerDown, true)
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown, true)
-      document.removeEventListener('mousedown', onPointerDown, true)
-    }
-  }, [])
 
   useEffect(() => { ensureInstallationId() }, [])
   const admin = pathname === '/admin' || pathname.startsWith('/admin/')

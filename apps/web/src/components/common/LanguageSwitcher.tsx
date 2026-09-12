@@ -36,7 +36,6 @@ export function LanguageSwitcher({ compact = true }: { compact?: boolean }) {
       aria-label={`${copy.language.label}: ${localeLabels[next]}`}
       title={localeLabels[next]}
       onPointerDown={() => saveKeepScroll()}
-      onMouseDown={() => saveKeepScroll()}
       onClickCapture={(event) => {
         if (isModifiedClick(event)) return
         event.preventDefault()
@@ -66,7 +65,6 @@ export function LanguageChoices({ onChoose }: { onChoose?: () => void }) {
         hrefLang={next}
         aria-label={`${copy.language.label}: ${localeLabels[next]}`}
         onPointerDown={() => saveKeepScroll()}
-        onMouseDown={() => saveKeepScroll()}
         onClickCapture={(event) => {
           if (isModifiedClick(event)) return
           event.preventDefault()

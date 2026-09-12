@@ -1,5 +1,6 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
-import { CategoryCatalog, validCategories } from '@/features/catalog/CategoryCatalog'
+import { CategoryCatalog } from '@/features/catalog/CategoryCatalog'
+import { validCategories } from '@/features/catalog/categories'
 import { type ToolCategory } from '@/features/tools/tool-registry'
 import { getMessages } from '@/i18n'
 import { pageSeo } from '@/i18n/seo'

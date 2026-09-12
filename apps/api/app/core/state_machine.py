@@ -1,7 +1,7 @@
 from app.core.enums import JobStatus
 
 TRANSITIONS: dict[JobStatus, frozenset[JobStatus]] = {
-    JobStatus.QUEUED: frozenset({JobStatus.PROCESSING, JobStatus.CANCELLED}),
+    JobStatus.QUEUED: frozenset({JobStatus.PROCESSING, JobStatus.FAILED, JobStatus.CANCELLED}),
     JobStatus.PROCESSING: frozenset({JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED}),
     JobStatus.COMPLETED: frozenset({JobStatus.EXPIRED}),
     JobStatus.FAILED: frozenset({JobStatus.EXPIRED}),

@@ -80,6 +80,16 @@ class UploadService:
             status.HTTP_422_UNPROCESSABLE_CONTENT, "INVALID_FILE", "Upload is not complete."
         )
 
+    def describe(self, file_key: str) -> UploadedFile:
+        path = self.require_completed(file_key)
+        issued = self.issued(file_key)
+        return UploadedFile(
+            file_key=file_key,
+            filename=issued.filename if issued else None,
+            content_type=issued.content_type if issued else None,
+            size=issued.size if issued else path.stat().st_size,
+        )
+
     def result_path(self, job_id: str, extension: str) -> tuple[str, Path]:
         key = f"results/{datetime.now(UTC):%Y/%m/%d}/{job_id}/{uuid4().hex}.{extension}"
         path = self.path(key)

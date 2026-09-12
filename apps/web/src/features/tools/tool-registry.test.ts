@@ -40,7 +40,7 @@ describe('tool registry', () => {
   })
 
   it('includes every documented section and conversion grouping', () => {
-    expect(tools.length).toBe(160)
+    expect(tools.length).toBe(161)
     expect(getToolBySlug('social-media-image-resizer')).toBeDefined()
     expect(getToolBySlug('certificate-generator')).toBeDefined()
     expect(getToolsByGroup('convert').length).toBeGreaterThan(0)

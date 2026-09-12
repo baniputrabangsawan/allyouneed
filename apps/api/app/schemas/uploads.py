@@ -23,3 +23,6 @@ class CompleteUploadRequest(ApiModel):
 
 class UploadedFile(ApiModel):
     file_key: str
+    filename: str | None = None
+    content_type: str | None = None
+    size: int | None = None

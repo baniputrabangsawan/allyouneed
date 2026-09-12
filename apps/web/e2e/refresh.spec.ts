@@ -1,7 +1,10 @@
 import { expect, test, type Page } from '@playwright/test'
 
 async function waitForClient(page: Page) {
-  await page.waitForSelector('footer.site-footer')
+  await page.waitForFunction(() => {
+    const root = document.querySelector('#main-content')
+    return root ? Object.keys(root).some((key) => key.startsWith('__react')) : false
+  })
 }
 
 test('homepage query state survives reload', async ({ page }) => {

@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { Home, homeSearchSchema } from '@/features/home/HomePage'
+import { Home } from '@/features/home/HomePage'
+import { homeSearchSchema } from '@/features/home/home-search'
 import { getMessages } from '@/i18n'
 import { pageSeo } from '@/i18n/seo'
 import { loadDiscovery } from '@/lib/storage/recent-ssr'

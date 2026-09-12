@@ -3,6 +3,7 @@ import hashlib
 import json
 import mimetypes
 import shutil
+from functools import partial
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -115,11 +116,31 @@ class JobService:
                 return found
             self._cancel[job.job_id] = asyncio.Event()
             if get_settings().inline_jobs:
-                self._tasks[job.job_id] = asyncio.create_task(self.execute(job.job_id))
+                task = asyncio.create_task(self.execute(job.job_id))
+                self._tasks[job.job_id] = task
+                task.add_done_callback(partial(self._discard_task, job.job_id))
             else:
                 from app.workers.tasks import enqueue
 
-                enqueue(tool.queue, job.job_id)
+                try:
+                    enqueue(tool.queue, job.job_id)
+                except Exception as exc:
+                    await self._limiter.release(job.job_id)
+                    await self._update(
+                        job.job_id,
+                        status=JobStatus.FAILED.value,
+                        stage=None,
+                        progress=None,
+                        error={
+                            "code": "PROCESSING_QUEUE_UNAVAILABLE",
+                            "message": "The processing queue is unavailable.",
+                        },
+                    )
+                    raise ApiError(
+                        status.HTTP_503_SERVICE_UNAVAILABLE,
+                        "PROCESSING_QUEUE_UNAVAILABLE",
+                        "The processing queue is unavailable.",
+                    ) from exc
             return job
 
     async def get(self, job_id: str) -> Job:
@@ -292,6 +313,11 @@ class JobService:
         finally:
             cleanup_work_dir(job_id)
             await self._limiter.release(job_id)
+            self._cancel.pop(job_id, None)
+
+    def _discard_task(self, job_id: str, completed: asyncio.Task[None]) -> None:
+        if self._tasks.get(job_id) is completed:
+            self._tasks.pop(job_id, None)
 
     async def _update(self, job_id: str, **updates: Any) -> Job:
         current = await self.get(job_id)

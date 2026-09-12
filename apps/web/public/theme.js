@@ -14,7 +14,7 @@
     globalThis.history.scrollRestoration = 'manual'
     var nav = globalThis.performance && globalThis.performance.getEntriesByType('navigation')[0]
     var keep = false
-    try { keep = !!globalThis.sessionStorage.getItem('kits:keep-scroll') } catch {}
+    try { keep = !!globalThis.sessionStorage.getItem('kits:keep-scroll') } catch { /* private mode */ }
     if (keep || globalThis.location.hash || (nav && (nav.type === 'reload' || nav.type === 'back_forward'))) {
       html.setAttribute('data-kits-restore', '1')
       html.style.visibility = 'hidden'

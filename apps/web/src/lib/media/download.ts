@@ -8,6 +8,5 @@ export function triggerDownload(href: string, filename: string): void {
 export function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob)
   triggerDownload(url, filename)
-  // Keep the URL alive through the browser's download dispatch.
-  window.requestAnimationFrame(() => URL.revokeObjectURL(url))
+  setTimeout(() => URL.revokeObjectURL(url), 1_000)
 }

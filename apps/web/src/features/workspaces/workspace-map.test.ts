@@ -4,7 +4,7 @@ import {
   AudioConverterWorkspace,
   browserMediaWorkspaceSlugs, colorWorkspaceSlugs, cryptoWorkspaceSlugs, cssWorkspaceSlugs,
   dateTimeWorkspaceSlugs, encodingWorkspaceSlugs, genericTextWorkspaceSlugs, getSpecialWorkspace,
-  getWorkspaceComponent, HtmlWorkspace, JavaScriptWorkspace, QrisParserWorkspace, QrWorkspace, randomWorkspaceSlugs, WordCounterWorkspace,
+  getWorkspaceComponent, HtmlWorkspace, JavaScriptWorkspace, MergePngWorkspace, QrisParserWorkspace, QrWorkspace, randomWorkspaceSlugs, RemoteFileWorkspace, WordCounterWorkspace,
   workspaceComponents, YamlWorkspace,
 } from './index'
 
@@ -43,5 +43,8 @@ describe('workspace component mapping', () => {
     expect(getSpecialWorkspace(get('basic-background-removal')!)).toBeTypeOf('function')
     expect(getSpecialWorkspace(get('audio-converter')!)).toBe(AudioConverterWorkspace)
     expect(getWorkspaceComponent(get('audio-converter')!)).toBe(AudioConverterWorkspace)
+    expect(getSpecialWorkspace(get('merge-png')!)).toBe(MergePngWorkspace)
+    expect(getWorkspaceComponent(get('merge-png')!)).toBe(MergePngWorkspace)
+    expect(getWorkspaceComponent(get('noise-reduction')!)).toBe(RemoteFileWorkspace)
   })
 })

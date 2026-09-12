@@ -1,11 +1,14 @@
 import { Download, LoaderCircle, Square } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { FileDropzone, type DropzoneProgress, type DropzoneStatus } from '@/components/file/FileDropzone'
+import { useT } from '@/i18n'
 import { API_BASE_URL } from '@/lib/api/client'
 import { completeUpload, createUpload, uploadFile } from '@/lib/api/files'
 import { cancelJob, createJob, getJob, getJobResult } from '@/lib/api/jobs'
 import type { Job } from '@/lib/api/types'
 import { formatBytes, outputFilename } from '@/lib/format'
+import { remoteJobPhase } from '@/lib/media/job-phase'
+import { errorFromJob, workflowErrorCode, workflowMessage, type WorkflowErrorCode } from '@/lib/media/workflow-error'
 import type { ToolDefinition } from '../tools/tool-registry'
 
 const accept = ['image/jpeg', 'image/png', 'image/webp'] as const
@@ -31,6 +34,7 @@ function defaultBounds(width: number, height: number): Bounds {
 }
 
 export function BasicBackgroundWorkspace({ tool }: { tool: ToolDefinition }) {
+  const copy = useT()
   const sourceUrlRef = useRef('')
   const [file, setFile] = useState<File | null>(null)
   const [sourceUrl, setSourceUrl] = useState('')
@@ -40,6 +44,7 @@ export function BasicBackgroundWorkspace({ tool }: { tool: ToolDefinition }) {
   const [job, setJob] = useState<Job | null>(null)
   const [download, setDownload] = useState<{ url: string; filename: string } | null>(null)
   const [error, setError] = useState('')
+  const [errorCode, setErrorCode] = useState<WorkflowErrorCode | null>(null)
   const [transfer, setTransfer] = useState<Transfer>(idleTransfer)
 
   useEffect(() => () => {
@@ -55,6 +60,7 @@ export function BasicBackgroundWorkspace({ tool }: { tool: ToolDefinition }) {
     setJob(null)
     setDownload(null)
     setError('')
+    setErrorCode(null)
     setTransfer(idleTransfer)
     try {
       const bitmap = await createImageBitmap(next)
@@ -76,6 +82,7 @@ export function BasicBackgroundWorkspace({ tool }: { tool: ToolDefinition }) {
   async function run() {
     if (!file) return
     setError('')
+    setErrorCode(null)
     setDownload(null)
     try {
       setTransfer({ status: 'uploading', progress: { fileName: file.name, percent: 0, label: 'Uploading...' } })
@@ -105,14 +112,17 @@ export function BasicBackgroundWorkspace({ tool }: { tool: ToolDefinition }) {
         setDownload({ url: `${API_BASE_URL}${result.result.downloadUrl}`, filename: result.result.filename || outputFilename(file.name, 'cutout', 'png') })
         setTransfer({ status: 'success', progress: { fileName: file.name, percent: 100, label: 'Completed' } })
       } else if (current.status === 'failed') {
-        const message = current.error?.message ?? 'Processing failed.'
+        const failed = errorFromJob(current.error)
+        const message = workflowMessage(failed, copy.errors)
+        setErrorCode(workflowErrorCode(failed))
         setError(message)
         setTransfer({ status: 'error', progress: { fileName: file.name, label: message } })
       } else {
         setTransfer(idleTransfer)
       }
     } catch (reason) {
-      const message = reason instanceof Error ? reason.message : 'Processing failed.'
+      const message = workflowMessage(reason, copy.errors)
+      setErrorCode(workflowErrorCode(reason))
       setError(message)
       setTransfer({ status: 'error', progress: { fileName: file.name, label: message } })
     }
@@ -124,6 +134,17 @@ export function BasicBackgroundWorkspace({ tool }: { tool: ToolDefinition }) {
   }
 
   const busy = transfer.status === 'uploading' || job?.status === 'queued' || job?.status === 'processing'
+  const phase = remoteJobPhase(transfer.status, job, errorCode)
+  const phaseLabel = {
+    ready: copy.workspace.ready,
+    uploading: copy.jobs.uploading,
+    queued: copy.jobs.queued,
+    processing: copy.jobs.processing,
+    completed: copy.jobs.completed,
+    failed: copy.jobs.failed,
+    cancelled: copy.jobs.cancelled,
+    unavailable: copy.jobs.unavailable,
+  }[phase]
   const maxLeft = Math.max(0, naturalWidth - 2)
   const maxTop = Math.max(0, naturalHeight - 2)
   const overlay = naturalWidth > 0 ? {
@@ -154,7 +175,8 @@ export function BasicBackgroundWorkspace({ tool }: { tool: ToolDefinition }) {
       {error && transfer.status !== 'error' && <p className="field-error" role="alert">{error}</p>}
     </div>
     <div className="result-card">
-      <div className="panel-label"><span>Foreground box</span><span className="badge">{job?.status ?? 'Ready'}</span></div>
+      <div className="panel-label"><span>Foreground box</span><span className={`badge badge-${phase}`}>{phaseLabel}</span></div>
+      {phase === 'unavailable' && <p className="field-error" role="alert">{copy.errors.apiUnreachable}</p>}
       {sourceUrl ? <div className="image-stage" style={{ position: 'relative' }}>
         <img src={download?.url ?? sourceUrl} alt={download ? 'Transparent PNG result' : 'Selected input'}/>
         {!download && overlay && <span aria-hidden="true" style={{ position: 'absolute', border: '2px dashed color-mix(in srgb, var(--foreground) 70%, transparent)', boxShadow: '0 0 0 9999px color-mix(in srgb, #111114 35%, transparent)', ...overlay }}/>}

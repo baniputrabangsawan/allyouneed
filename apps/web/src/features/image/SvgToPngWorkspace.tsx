@@ -1,7 +1,6 @@
 import { Download, FileImage, RefreshCcw, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { FileDropzone } from '@/components/file/FileDropzone'
-import type { ToolDefinition } from '@/features/tools/tool-registry'
 import { formatBytes, outputFilename } from '@/lib/format'
 import { parseSvgMarkup, svgToPng } from '@/processing/client/svg'
 
@@ -15,7 +14,7 @@ interface PngResult {
 
 const accept = ['image/svg+xml', '.svg'] as const
 
-export function SvgToPngWorkspace(_props: { tool: ToolDefinition }) {
+export function SvgToPngWorkspace() {
   const sourceUrlRef = useRef('')
   const resultUrlRef = useRef('')
   const selectionRef = useRef(0)

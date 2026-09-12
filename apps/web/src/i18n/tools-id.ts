@@ -34,6 +34,7 @@ export const toolsId: Record<string, ToolCopy> = {
   'upscale-image': { name: 'Perbesar Gambar', shortDescription: 'Perbesar resolusi foto dengan AI.' },
   'image-enhancement': { name: 'Perbaiki Gambar', shortDescription: 'Tingkatkan kualitas foto dengan AI.' },
   'meme-generator': { name: 'Pembuat Meme', shortDescription: 'Tambahkan teks meme pada gambar.' },
+  'merge-png': { name: 'Gabungkan PNG', shortDescription: 'Gabungkan beberapa PNG menjadi satu file di browser.', aliases: ['gabung png', 'satukan png'] },
   'html-to-image': { name: 'HTML ke Gambar', shortDescription: 'Render HTML menjadi PNG atau JPEG.' },
   'website-screenshot': { name: 'Screenshot Situs', shortDescription: 'Ambil tangkapan layar halaman web.' },
   'image-to-base64': { name: 'Gambar ke Base64', shortDescription: 'Encode gambar menjadi Base64.' },

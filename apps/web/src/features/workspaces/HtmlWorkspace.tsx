@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import type { ToolDefinition } from '../tools/tool-registry'
 import {
   DEFAULT_HTML_FORMAT_OPTIONS,
   HTML_YIELD_THRESHOLD,
@@ -10,7 +9,7 @@ import {
 } from './html-utils'
 import { CopyButton, TextPanels } from './workspace-ui'
 
-export function HtmlWorkspace(_props: { tool: ToolDefinition }) {
+export function HtmlWorkspace() {
   const [input, setInput] = useState('')
   const [output, setOutput] = useState('')
   const [error, setError] = useState('')

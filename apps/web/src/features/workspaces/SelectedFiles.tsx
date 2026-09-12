@@ -13,6 +13,7 @@ interface SelectedFilesProps {
   maxFiles?: number
   maxFileSize?: number
   disabled?: boolean
+  restored?: boolean
   onReplace: (files: File[]) => void
   onRemove: () => void
 }
@@ -31,6 +32,7 @@ export function SelectedFiles({
   maxFiles,
   maxFileSize = 100 * 1024 * 1024,
   disabled = false,
+  restored = false,
   onReplace,
   onRemove,
 }: SelectedFilesProps) {
@@ -53,7 +55,7 @@ export function SelectedFiles({
     <div className="selected-files">
       <p className="selected-files-status">
         <CheckCircle2 size={16} aria-hidden="true" />
-        {copy.workspace.fileReady}
+        {restored ? copy.workspace.previousFileRestored : copy.workspace.fileReady}
       </p>
       <ul className="selected-files-list">
         {files.map((file, index) => (

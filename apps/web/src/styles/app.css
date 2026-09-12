@@ -418,3 +418,30 @@ html.kits-scrolled .header-inner,.site-header.is-scrolled .header-inner{backgrou
 .extracted-text{margin:0;max-height:420px;overflow:auto;padding:14px;border:1px solid var(--border);border-radius:10px;background:var(--surface);white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:14px;line-height:1.55}
 .badge-failed{color:var(--danger)}
 .badge-completed{color:var(--success)}
+.merge-workspace .segmented{margin:0}
+.merge-segmented-4{grid-template-columns:repeat(4,1fr)}
+.merge-file-list{margin:0;padding:0;list-style:none;display:grid;gap:8px}
+.merge-file-card{display:grid;grid-template-columns:auto 48px minmax(0,1fr) auto;gap:10px;align-items:center;min-width:0;padding:8px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
+.merge-file-card img,.merge-thumb-fallback{width:48px;height:48px;object-fit:contain;border-radius:6px;background:var(--surface-2)}
+.merge-file-meta{min-width:0;display:flex;flex-direction:column}
+.merge-file-meta strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.merge-file-meta small{color:var(--muted);font-size:11px}
+.merge-file-actions{display:flex;align-items:center;gap:2px}
+.merge-file-actions .text-button{min-height:36px;padding:0 6px}
+.merge-drag{width:32px;height:32px;display:grid;place-items:center;border:0;background:transparent;color:var(--muted);cursor:grab}
+.merge-preview-stage{position:relative;margin:0 auto;max-width:100%;overflow:hidden;border-radius:8px}
+.merge-preview-stage img{position:absolute;max-width:none;object-fit:fill;box-shadow:none;border-radius:0}
+.merge-checker{background-color:var(--surface);background-image:linear-gradient(45deg,var(--surface-2) 25%,transparent 25%),linear-gradient(-45deg,var(--surface-2) 25%,transparent 25%),linear-gradient(45deg,transparent 75%,var(--surface-2) 75%),linear-gradient(-45deg,transparent 75%,var(--surface-2) 75%);background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0}
+.merge-workspace .result-stats{margin:0}
+@media(max-width:767px){
+  .merge-file-card{grid-template-columns:48px minmax(0,1fr) auto}
+  .merge-drag{display:none}
+  .merge-segmented-4{grid-template-columns:repeat(2,1fr)}
+}
+
+.compress-result{margin:12px 16px 0;display:grid;gap:8px}
+.compress-result strong{font-size:22px;letter-spacing:-.03em;line-height:1.15}
+.compress-result>p{margin:0;color:var(--muted);font-size:14px}
+.compress-result .result-stats{margin:4px 0 0}
+.compress-result .option-help{margin:0}
+.compress-result a{text-decoration:underline;text-underline-offset:2px}

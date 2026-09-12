@@ -17,6 +17,7 @@ describe('image workspace modes', () => {
     expect(getImageWorkspaceMode('favicon-generator')).toBe('favicon')
     expect(getImageWorkspaceMode('meme-generator')).toBe('meme')
     expect(getImageWorkspaceMode('photo-editor')).toBe('photo-editor')
+    expect(getImageWorkspaceMode('merge-png')).toBe('merge-png')
   })
 })
 

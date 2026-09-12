@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import cast
 
 import cv2
 import numpy as np
@@ -81,7 +82,7 @@ def apply_face_obscure(
 
 def image_to_bgr(image: Image.Image) -> BgrImage:
     rgb = np.asarray(image.convert("RGB"), dtype=np.uint8)
-    return cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+    return cast(BgrImage, cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR))
 
 
 def bgr_to_image(bgr: BgrImage) -> Image.Image:
@@ -94,7 +95,8 @@ def blur_faces(source: Path, output: Path, options: dict[str, object]) -> dict[s
     image = load_oriented_image(source)
     try:
         bgr = image_to_bgr(image)
-        boxes = detect_frontal_faces(cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY))
+        gray = cast(BgrImage, cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY))
+        boxes = detect_frontal_faces(gray)
         if not boxes:
             raise ProcessingError("No faces detected.", code="NO_FACES_DETECTED")
         obscured = apply_face_obscure(bgr, boxes, mode=mode, strength=strength)
@@ -110,7 +112,7 @@ def _pixelate(roi: BgrImage, strength: int) -> BgrImage:
     small_width = max(1, width // block)
     small_height = max(1, height // block)
     small = cv2.resize(roi, (small_width, small_height), interpolation=cv2.INTER_LINEAR)
-    return cv2.resize(small, (width, height), interpolation=cv2.INTER_NEAREST)
+    return cast(BgrImage, cv2.resize(small, (width, height), interpolation=cv2.INTER_NEAREST))
 
 
 def _cascade_path() -> str:

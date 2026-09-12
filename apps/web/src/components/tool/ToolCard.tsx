@@ -1,22 +1,37 @@
-import * as Icons from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import {
+  AudioLines,
+  Braces,
+  FileText,
+  Image,
+  QrCode,
+  RefreshCw,
+  TextCursorInput,
+  Video,
+  WandSparkles,
+  Wrench,
+  type LucideIcon,
+} from 'lucide-react'
 import type { ToolDefinition } from '@/features/tools/tool-registry'
 import { LocaleLink } from '@/i18n/link'
 import { useT } from '@/i18n'
 import { useLocalizedTool } from '@/i18n/tools'
 
 const iconMap: Record<string, LucideIcon> = {
-  ImageDown: Icons.ImageDown, Scaling: Icons.Scaling, RotateCw: Icons.RotateCw,
-  RefreshCw: Icons.RefreshCw, Stamp: Icons.Stamp, ScanLine: Icons.ScanLine,
-  QrCode: Icons.QrCode, Braces: Icons.Braces, Binary: Icons.Binary,
-  Fingerprint: Icons.Fingerprint, KeyRound: Icons.KeyRound, TextCursorInput: Icons.TextCursorInput,
-  Files: Icons.Files, AudioLines: Icons.AudioLines, Video: Icons.Video,
+  Image,
+  QrCode,
+  FileText,
+  AudioLines,
+  Video,
+  TextCursorInput,
+  Braces,
+  WandSparkles,
+  RefreshCw,
 }
 
 export function ToolCard({ tool }: { tool: ToolDefinition }) {
   const copy = useT()
   const item = useLocalizedTool(tool)
-  const Icon = iconMap[tool.icon] ?? Icons.Wrench
+  const Icon = iconMap[tool.icon] ?? Wrench
   const badge = !tool.available
     ? <span className="badge soon">{copy.availability.comingSoonBadge}</span>
     : tool.accessTier === 'pro' || tool.premium

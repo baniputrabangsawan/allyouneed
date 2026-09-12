@@ -6,9 +6,10 @@ import { resolveApiUrl } from '../../lib/api/client'
 import { completeUpload, createUpload, uploadFile } from '../../lib/api/files'
 import { cancelJob, createJob, getJob, getJobResult } from '../../lib/api/jobs'
 import type { Job } from '../../lib/api/types'
+import { remoteJobPhase } from '../../lib/media/job-phase'
 import { previewKind } from '../../lib/media/kind'
 import { useObjectUrl } from '../../lib/media/object-url'
-import { errorFromJob, workflowMessage } from '../../lib/media/workflow-error'
+import { errorFromJob, workflowErrorCode, workflowMessage, type WorkflowErrorCode } from '../../lib/media/workflow-error'
 import type { ToolDefinition } from '../tools/tool-registry'
 import { MediaPreview } from './MediaPreview'
 import { SelectedFiles } from './SelectedFiles'
@@ -51,6 +52,7 @@ export function AudioConverterWorkspace({ tool }: { tool: ToolDefinition }) {
   const [job, setJob] = useState<Job | null>(null)
   const [result, setResult] = useState<ConvertResult | null>(null)
   const [error, setError] = useState('')
+  const [errorCode, setErrorCode] = useState<WorkflowErrorCode | null>(null)
   const [transfer, setTransfer] = useState<Transfer>(idleTransfer)
   const inputPreviewUrl = useObjectUrl(file)
   const lossless = isLosslessAudioFormat(format)
@@ -62,6 +64,7 @@ export function AudioConverterWorkspace({ tool }: { tool: ToolDefinition }) {
   function chooseFiles(next: File[]) {
     setFile(next[0] ?? null)
     setError('')
+    setErrorCode(null)
     setResult(null)
     setJob(null)
     setTransfer(idleTransfer)
@@ -70,6 +73,7 @@ export function AudioConverterWorkspace({ tool }: { tool: ToolDefinition }) {
   async function run() {
     if (!file) return
     setError('')
+    setErrorCode(null)
     setResult(null)
     try {
       setTransfer({ status: 'uploading', progress: { fileName: file.name, percent: 0, label: copy.dropzone.uploading } })
@@ -105,12 +109,15 @@ export function AudioConverterWorkspace({ tool }: { tool: ToolDefinition }) {
         setResult({ ...payload.result, downloadUrl: resolveApiUrl(payload.result.downloadUrl) })
         setTransfer({ status: 'success', progress: { fileName: file.name, percent: 100, label: copy.dropzone.completed } })
       } else if (current.status === 'failed') {
-        setError(workflowMessage(errorFromJob(current.error), copy.errors))
+        const failed = errorFromJob(current.error)
+        setErrorCode(workflowErrorCode(failed))
+        setError(workflowMessage(failed, copy.errors))
         setTransfer(idleTransfer)
       } else {
         setTransfer(idleTransfer)
       }
     } catch (reason) {
+      setErrorCode(workflowErrorCode(reason))
       setError(workflowMessage(reason, copy.errors))
       setTransfer(idleTransfer)
     }
@@ -122,6 +129,17 @@ export function AudioConverterWorkspace({ tool }: { tool: ToolDefinition }) {
   }
 
   const busy = transfer.status === 'uploading' || job?.status === 'queued' || job?.status === 'processing'
+  const phase = remoteJobPhase(transfer.status, job, errorCode)
+  const phaseLabel = {
+    ready: copy.workspace.ready,
+    uploading: copy.jobs.uploading,
+    queued: copy.jobs.queued,
+    processing: copy.jobs.processing,
+    completed: copy.jobs.completed,
+    failed: copy.jobs.failed,
+    cancelled: copy.jobs.cancelled,
+    unavailable: copy.jobs.unavailable,
+  }[phase]
 
   return (
     <section className="workspace split-workspace">
@@ -202,8 +220,9 @@ export function AudioConverterWorkspace({ tool }: { tool: ToolDefinition }) {
         {error && <p className="field-error" role="alert">{error}</p>}
       </div>
       <div className="result-card">
-        <div className="panel-label"><span>Result</span><span className="badge">{job?.status ?? 'Ready'}</span></div>
-        {job && <><p>{job.stage ?? job.status}</p><progress max="100" value={job.progress ?? undefined}/></>}
+        <div className="panel-label"><span>Result</span><span className={`badge badge-${phase}`}>{phaseLabel}</span></div>
+        {phase === 'unavailable' && <p className="field-error" role="alert">{copy.errors.apiUnreachable}</p>}
+        {job && (phase === 'processing' || phase === 'queued' || phase === 'completed') && <><p>{job.stage ?? phaseLabel}</p><progress max="100" value={job.progress ?? (phase === 'completed' ? 100 : undefined)}/></>}
         {result && (
           <dl className="result-stats">
             <div><dt>Source</dt><dd>{result.sourceFormat ?? file?.type ?? '—'} · {formatBytes(result.sourceSize ?? file?.size ?? 0)}</dd></div>

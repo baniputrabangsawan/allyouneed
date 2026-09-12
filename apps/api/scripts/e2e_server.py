@@ -7,8 +7,8 @@ from sqlalchemy import delete
 
 from app.db.models import AdminRecoveryCode, AdminSession, AdminUser
 from app.db.session import create_schema, get_session_factory
-from app.services.admin_auth_service import AdminAuthService
 from app.security.entitlement import generate_keypair
+from app.services.admin_auth_service import AdminAuthService
 
 
 async def prepare() -> None:
@@ -29,4 +29,4 @@ if __name__ == "__main__":
     os.environ["ENTITLEMENT_PRIVATE_KEY"] = private_key
     os.environ["ENTITLEMENT_PUBLIC_KEY"] = public_key
     asyncio.run(prepare())
-    uvicorn.run("app.main:app", host="127.0.0.1", port=8000)
+    uvicorn.run("app.main:app", host="127.0.0.1", port=int(os.getenv("E2E_API_PORT", "8000")))

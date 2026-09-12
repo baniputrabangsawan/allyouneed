@@ -3,8 +3,9 @@ from pathlib import Path
 
 from app.security.entitlement import generate_keypair
 
-TEST_DB = Path("/tmp/utility-api-tests.db")
-TEST_DB.unlink(missing_ok=True)
+TEST_DB = Path(f"/tmp/utility-api-tests-{os.getpid()}.db")
+for sqlite_file in (TEST_DB, Path(f"{TEST_DB}-shm"), Path(f"{TEST_DB}-wal")):
+    sqlite_file.unlink(missing_ok=True)
 private_pem, public_pem = generate_keypair()
 os.environ["LICENSE_DATABASE_URL"] = f"sqlite+aiosqlite:///{TEST_DB}"
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{TEST_DB}"

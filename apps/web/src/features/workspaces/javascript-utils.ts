@@ -49,7 +49,7 @@ export async function loadJavaScriptFormatter(): Promise<PrettierBundle> {
 }
 
 export async function formatJavaScript(input: string, options: JsFormatOptions = DEFAULT_JS_FORMAT_OPTIONS): Promise<string> {
-  const source = input.replace(/^﻿/, '')
+  const source = input.replace(/^\uFEFF/, '')
   if (!source.trim()) throw new JsParseError('Enter JavaScript to format.')
   if (source.length > JS_MAX_CHARS) {
     throw new JsParseError(`JavaScript is too large to process in the browser (max ${JS_MAX_CHARS.toLocaleString()} characters).`)

@@ -19,7 +19,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     configure_logging(settings)
     ensure_sqlite_parent(settings.license_database_url)
-    await create_schema()
+    if settings.app_env != "production":
+        await create_schema()
     yield
     await dispose_engine()
 

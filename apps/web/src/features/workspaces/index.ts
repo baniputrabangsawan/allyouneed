@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react'
 import { BasicBackgroundWorkspace } from '../image/BasicBackgroundWorkspace'
 import { HtmlToImageWorkspace } from '../image/HtmlToImageWorkspace'
+import { MergePngWorkspace } from '../image/MergePngWorkspace'
 import type { ToolDefinition, ToolImplementation } from '../tools/tool-registry'
 import { BrowserMediaWorkspace } from './BrowserMediaWorkspace'
 import { ColorWorkspace } from './ColorWorkspace'
@@ -22,6 +23,7 @@ import { XmlWorkspace } from './XmlWorkspace'
 import { YamlWorkspace } from './YamlWorkspace'
 
 export { BasicBackgroundWorkspace } from '../image/BasicBackgroundWorkspace'
+export { MergePngWorkspace } from '../image/MergePngWorkspace'
 export { BrowserMediaWorkspace } from './BrowserMediaWorkspace'
 export { ColorWorkspace } from './ColorWorkspace'
 export { CryptoWorkspace } from './CryptoWorkspace'
@@ -69,6 +71,7 @@ export function getSpecialWorkspace(tool: ToolDefinition): WorkspaceComponent | 
   if (tool.slug === 'html-to-image') return HtmlToImageWorkspace
   if (tool.slug === 'basic-background-removal') return BasicBackgroundWorkspace
   if (tool.slug === 'audio-converter') return AudioConverterWorkspace
+  if (tool.slug === 'merge-png') return MergePngWorkspace
 }
 
 export function getWorkspaceComponent(tool: ToolDefinition): WorkspaceComponent | undefined {

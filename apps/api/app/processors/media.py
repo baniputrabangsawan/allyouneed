@@ -544,7 +544,7 @@ class MediaProcessor(Processor):
             source = await probe(probed, cancel_event=context.cancel_event)
         except ProcessingError as exc:
             if self.tool_id == "audio-converter":
-                raise ProcessingError("This audio file could not be read.") from exc
+                raise ProcessingError("This audio file could not be read.", code=exc.code) from exc
             raise
         require_input_streams(self.tool_id, source)
         total = duration_seconds(source)
@@ -559,7 +559,9 @@ class MediaProcessor(Processor):
             await run_command(args, cancel_event=context.cancel_event, timeout=600)
         except ProcessingError as exc:
             if self.tool_id == "audio-converter":
-                raise ProcessingError("This audio file could not be converted.") from exc
+                raise ProcessingError(
+                    "This audio file could not be converted.", code=exc.code
+                ) from exc
             raise
         if self.tool_id not in {"generate-thumbnail", "video-screenshot", "video-to-gif"}:
             info = await probe(output, cancel_event=context.cancel_event)
@@ -576,7 +578,8 @@ class MediaProcessor(Processor):
         await context.report(100 if total is not None else None, "encoding")
         if spec is not None:
             audio = first_audio_stream(source) or {}
-            fmt = source.get("format") if isinstance(source.get("format"), dict) else {}
+            raw_format = source.get("format")
+            fmt: dict[str, Any] = raw_format if isinstance(raw_format, dict) else {}
             return ProcessorResult(
                 metadata={
                     "duration": duration_seconds(info) if spec else total,

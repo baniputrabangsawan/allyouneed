@@ -64,7 +64,7 @@ test('previews a local WAV on Audio Converter without calling the API', async ({
   await expect(page.locator('small', { hasText: 'MP3, WAV, M4A' })).toBeVisible()
   const input = page.locator('input[type="file"]')
   await input.setInputFiles({ name: 'recording-20260911-180608.webm', mimeType: 'audio/webm', buffer: wavBytes() })
-  await expect(page.getByText(/recording-20260911-180608\.webm/)).toBeVisible()
+  await expect(page.getByText(/recording-20260911-180608\.webm/).first()).toBeVisible()
   await expect(page.getByText('Failed to fetch')).toHaveCount(0)
   const audio = page.locator('audio[aria-label="Input preview"]')
   await expect(audio).toBeVisible()
@@ -102,7 +102,7 @@ test('accepts MediaRecorder WebM on Noise Reduction', async ({ page }) => {
     mimeType: 'video/webm;codecs=opus',
     buffer: wavBytes(),
   })
-  await expect(page.getByText(/recording-20260911-180608\.webm/)).toBeVisible()
+  await expect(page.getByText(/recording-20260911-180608\.webm/).first()).toBeVisible()
   await expect(page.getByText('Format file tidak didukung.')).toHaveCount(0)
   await expect(page.getByText('Unsupported file format.')).toHaveCount(0)
   await expect(page.getByRole('button', { name: /Process|Proses/ })).toBeEnabled()
@@ -116,7 +116,7 @@ test('accepts empty-MIME WebM on Audio Converter', async ({ page }) => {
     mimeType: '',
     buffer: wavBytes(),
   })
-  await expect(page.getByText(/recording-20260911-180608\.webm/)).toBeVisible()
+  await expect(page.getByText(/recording-20260911-180608\.webm/).first()).toBeVisible()
   await expect(page.getByText('Format file tidak didukung.')).toHaveCount(0)
   await expect(page.getByText('Unsupported file format.')).toHaveCount(0)
 })
@@ -141,7 +141,7 @@ test('processes audio-only WebM through Noise Reduction', async ({ page }) => {
   await page.goto('/noise-reduction')
   await waitForClient(page)
   await page.locator('input[type="file"]').setInputFiles(webm!)
-  await expect(page.getByText(/recording-20260911-180608\.webm/)).toBeVisible()
+  await expect(page.getByText(/recording-20260911-180608\.webm/).first()).toBeVisible()
   await expect(page.getByText('Format file tidak didukung.')).toHaveCount(0)
   await page.getByRole('button', { name: /Process|Proses/ }).click()
   await expect(page.getByText(/Completed|Selesai/)).toBeVisible({ timeout: 30_000 })
