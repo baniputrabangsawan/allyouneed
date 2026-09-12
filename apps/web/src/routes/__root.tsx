@@ -103,5 +103,5 @@ function Root() {
 }
 
 function Document({ children, lang }: Readonly<{ children: ReactNode; lang: string }>) {
-  return <html lang={lang} suppressHydrationWarning><head><HeadContent /><script src="/theme.js" /></head><body>{children}<script src="/restore-scroll.js" /><Scripts /></body></html>
+  return <html lang={lang} suppressHydrationWarning><head><HeadContent /><script src="/theme.js" /></head><body suppressHydrationWarning>{children}<script src="/restore-scroll.js" /><Scripts /></body></html>
 }
