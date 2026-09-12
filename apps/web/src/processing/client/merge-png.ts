@@ -5,6 +5,8 @@ import {
   type MergeOptions,
   type MergeSource,
 } from '@/features/image/merge-png-utils'
+import type { ProcessingProgress } from '@/processing/types/processing'
+import { createProcessCanvas, get2dContext } from './canvas-utils'
 import { exportCanvasImage, type ImageOptimizeMode } from './image-optimize'
 
 export interface MergePngInput {
@@ -32,7 +34,10 @@ async function decodePng(file: File): Promise<ImageBitmap> {
   try {
     if (typeof createImageBitmap === 'function') return await createImageBitmap(file)
   } catch {
-    // Fall through to HTMLImageElement decode.
+    // Fall through to HTMLImageElement decode when the DOM is available.
+  }
+  if (typeof Image === 'undefined' || typeof document === 'undefined' || typeof URL === 'undefined') {
+    throw new Error(MERGE_ERROR.decode)
   }
   const url = URL.createObjectURL(file)
   try {
@@ -51,31 +56,19 @@ async function decodePng(file: File): Promise<ImageBitmap> {
   }
 }
 
-function makeCanvas(width: number, height: number): HTMLCanvasElement {
-  const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
-  return canvas
-}
-
-function getContext(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
-  const context = canvas.getContext('2d')
-  if (!context) throw new Error('Canvas is not available in this browser.')
-  return context
-}
-
 export async function mergePngImages(
   inputs: readonly MergePngInput[],
   options: MergeOptions,
   background: string | null,
   optimize: MergePngOptimize = {},
+  onProgress?: (progress: ProcessingProgress) => void,
 ): Promise<MergePngResult> {
   const sources: MergeSource[] = inputs.map((input) => ({ width: input.width, height: input.height }))
   const layout = computeMergeLayout(sources, options)
   assertSafeMergeSize(layout.width, layout.height)
 
-  const canvas = makeCanvas(layout.width, layout.height)
-  const context = getContext(canvas)
+  const canvas = createProcessCanvas(layout.width, layout.height)
+  const context = get2dContext(canvas)
   if (background) {
     context.fillStyle = background
     context.fillRect(0, 0, canvas.width, canvas.height)
@@ -101,6 +94,7 @@ export async function mergePngImages(
       const output = await exportCanvasImage(canvas, 'image/png', {
         ...(optimize.enabled === undefined ? {} : { enabled: optimize.enabled }),
         ...(optimize.mode === undefined ? {} : { mode: optimize.mode }),
+        ...(onProgress ? { onProgress } : {}),
       })
       return {
         blob: output.blob,

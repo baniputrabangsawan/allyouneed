@@ -174,13 +174,7 @@ export function RemoveBackgroundWorkspace({ tool }: { tool: ToolDefinition }) {
         {result && file && (
           <div className="remove-bg-done">
             <p><CheckCircle2 size={18}/> Background removed</p>
-            <dl className="result-stats">
-              <div><dt>Resolution</dt><dd>{result.width ?? 'Unknown'} × {result.height ?? 'Unknown'}</dd></div>
-              <div><dt>Original file size</dt><dd>{formatBytes(result.originalSize ?? file.size)}</dd></div>
-              <div><dt>Result size</dt><dd>{formatBytes(result.size)}</dd></div>
-              <div><dt>Mode used</dt><dd>{result.mode === 'fast' ? 'Fast' : 'Quality'}</dd></div>
-              <div><dt>Processing time</dt><dd>{typeof result.processingTimeMs === 'number' ? `${Math.round(result.processingTimeMs)} ms` : 'Unknown'}</dd></div>
-            </dl>
+            <p className="option-help">{result.mode === 'fast' ? 'Fast' : 'Quality'} mode</p>
             <div className="button-row">
               <button className="button secondary" type="button" onClick={reset}>Process another image</button>
             </div>

@@ -26,8 +26,8 @@ import { motion } from '@/lib/motion/config'
 import { gsap, useGSAP } from '@/lib/motion/gsap'
 import { prefersReducedMotion } from '@/lib/motion/prefers-reduced-motion'
 import { drawProcessedImage } from '@/processing/client/image'
-import { exportCanvasImage, type ImageOptimizeMode } from '@/processing/client/image-optimize'
-import { withProcessStages, type ProcessStage } from '@/processing/client/process-stage'
+import { type ImageOptimizeMode } from '@/processing/client/image-optimize'
+import { useImageProcessor } from '@/processing/client/use-image-processor'
 import { ProcessingProgressPanel } from '@/features/workspaces/processing-progress'
 
 interface ExportResult {
@@ -70,7 +70,7 @@ export function PhotoEditorWorkspace() {
   const liveRef = useRef<PhotoEditorState | null>(null)
   const stopDragRef = useRef<(() => void) | null>(null)
   const runningRef = useRef(false)
-  const [processStage, setProcessStage] = useState<ProcessStage>('preparing')
+  const processor = useImageProcessor()
   const [file, setFile] = useState<File | null>(null)
   const [source, setSource] = useState<Size>({ width: 0, height: 0 })
   const [history, setHistory] = useState<PhotoEditorHistory>(() => createPhotoEditorHistory(identityPhotoEditorState({ width: 1, height: 1 })))
@@ -291,8 +291,10 @@ export function PhotoEditorWorkspace() {
     const startedAt = performance.now()
     try {
       const spec = photoEditorExportSpec(present, source, format, quality)
-      const output = await withProcessStages(setProcessStage, async () => {
-        const canvas = drawProcessedImage(bitmap, {
+      const output = await processor.run({
+        op: 'exportProcessed',
+        file,
+        draw: {
           crop: present.crop,
           rotation: present.rotation,
           flipX: present.flipX,
@@ -303,13 +305,11 @@ export function PhotoEditorWorkspace() {
           grayscale: present.grayscale,
           blur: present.blur,
           ...(format === 'image/jpeg' ? { backgroundColor: '#fff' } : {}),
-        })
-        return exportCanvasImage(canvas, spec.mime, {
-          ...(autoOptimize ? {} : { enabled: false }),
-          mode: optimizeMode,
-          ...(spec.quality == null ? {} : { quality: spec.quality }),
-        })
-      }, { optimize: autoOptimize && format === 'image/png' })
+        },
+        mime: spec.mime,
+        ...(spec.quality == null ? {} : { quality: spec.quality }),
+        optimize: { ...(autoOptimize ? {} : { enabled: false }), mode: optimizeMode },
+      })
       if (selection !== selectionRef.current) return
       clearResult()
       const url = URL.createObjectURL(output.blob)
@@ -330,7 +330,7 @@ export function PhotoEditorWorkspace() {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Image export failed.')
       setStatus('failed')
-      setProcessStage('failed')
+      processor.setStage('failed')
     } finally {
       runningRef.current = false
     }
@@ -384,8 +384,7 @@ export function PhotoEditorWorkspace() {
               <span>
                 <strong>{file.name}</strong>
                 <small>
-                  {formatBytes(file.size)} · {source.width}×{source.height}px → {output.width}×{output.height}px
-                  {result ? ` · ${formatBytes(result.blob.size)} · ${result.width}×${result.height}px · ${Math.round(result.durationMs)} ms` : ''}
+                  {formatBytes(file.size)} · {source.width}×{source.height} → {output.width}×{output.height}
                 </small>
               </span>
             </div>
@@ -482,7 +481,7 @@ export function PhotoEditorWorkspace() {
                 ))}
               </div>
             )}
-            {status === 'processing' && <ProcessingProgressPanel stage={processStage} title="Processing..." />}
+            {status === 'processing' && <ProcessingProgressPanel stage={processor.stage} title="Processing image..." percent={processor.percent} />}
             {status === 'failed' && <ProcessingProgressPanel stage="failed" title="Processing failed" detail={error || 'Processing failed'} />}
             <button className={`button ${status === 'completed' ? 'success' : 'primary'} action-button`} type="button" disabled={status === 'processing'} onClick={() => void exportImage()}>
               {status === 'processing' ? 'Exporting...' : status === 'completed' ? 'Export again' : status === 'failed' ? 'Try again' : 'Export image'}

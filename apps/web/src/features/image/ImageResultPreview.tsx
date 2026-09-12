@@ -44,6 +44,8 @@ export interface ImageResultPreviewProps {
   children?: ReactNode
 }
 
+type DownloadNote = 'idle' | 'preparing' | 'done'
+
 export function ImageResultPreview({
   originalSrc,
   resultSrc,
@@ -67,6 +69,7 @@ export function ImageResultPreview({
   const copy = useT()
   const [view, setView] = useState<'compare' | 'result'>('compare')
   const [broken, setBroken] = useState(false)
+  const [downloadNote, setDownloadNote] = useState<DownloadNote>('idle')
 
   useEffect(() => {
     setBroken(false)
@@ -95,6 +98,21 @@ export function ImageResultPreview({
     restored: false,
   })
   const typeLabel = mimeLabel(meta?.mime, meta?.filename ?? downloadFilename)
+  const showBar = (meta && state === 'ready') || (canDownload && (state === 'ready' || broken))
+
+  useEffect(() => {
+    if (!autoDownload || restored || state !== 'ready' || !canDownload) {
+      setDownloadNote('idle')
+      return
+    }
+    if (!attempted) {
+      setDownloadNote('preparing')
+      return
+    }
+    setDownloadNote('done')
+    const hide = window.setTimeout(() => setDownloadNote('idle'), 2400)
+    return () => window.clearTimeout(hide)
+  }, [attempted, autoDownload, canDownload, restored, state])
 
   function downloadAgain() {
     if (!downloadSource || !downloadFilename) return
@@ -128,7 +146,7 @@ export function ImageResultPreview({
       )}
 
       {(originalSrc || resultSrc || processing) && (
-        <div className={`image-result-frames${showCompare ? ' compare' : ''}`}>
+        <div className={`image-result-frames${showCompare ? ' compare' : ' result-only'}`}>
           {showCompare && originalSrc ? (
             <PreviewFrame src={originalSrc} title={copy.workspace.original} alt={originalAlt ?? copy.workspace.originalAlt} />
           ) : null}
@@ -167,13 +185,22 @@ export function ImageResultPreview({
         <button type="button" className="button secondary" onClick={onRetry}>{copy.workspace.tryAgain}</button>
       ) : null}
 
+      {showBar ? (
+        <div className="image-result-bar">
+          {meta && state === 'ready' ? <ImageResultSummary meta={meta} {...(typeLabel ? { typeLabel } : {})} /> : <span />}
+          {canDownload && (state === 'ready' || broken) ? (
+            <button type="button" className="button secondary image-result-download" onClick={downloadAgain}>
+              <Download size={17} aria-hidden="true" /> {copy.workspace.downloadAgain}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
-      {attempted ? <p className="option-help" aria-live="polite">{copy.workspace.autoDownloading}</p> : null}
-      {meta && state === 'ready' ? <ResultMeta meta={meta} {...(typeLabel ? { typeLabel } : {})} /> : null}
-      {canDownload && (state === 'ready' || broken) ? (
-        <button type="button" className="button secondary action-button" onClick={downloadAgain}>
-          <Download size={17} aria-hidden="true" /> {copy.workspace.downloadAgain}
-        </button>
+      {downloadNote === 'preparing' ? (
+        <p className="image-result-status" aria-live="polite">{copy.workspace.downloadPreparing}</p>
+      ) : null}
+      {downloadNote === 'done' ? (
+        <p className="image-result-status" aria-live="polite">{copy.workspace.downloadedAutomatically}</p>
       ) : null}
 
       {children}
@@ -209,33 +236,38 @@ function PreviewFrame({
   )
 }
 
-function ResultMeta({ meta, typeLabel }: { meta: ImageResultMeta; typeLabel?: string }) {
+function ImageResultSummary({ meta, typeLabel }: { meta: ImageResultMeta; typeLabel?: string }) {
   const copy = useT()
-  const items: { label: string; value: string }[] = []
-  if (meta.filename) items.push({ label: copy.workspace.filename, value: meta.filename })
-  if (typeLabel) items.push({ label: copy.workspace.fileType, value: typeLabel })
-  if (meta.width && meta.height) items.push({ label: copy.workspace.dimensions, value: `${meta.width}×${meta.height}px` })
-  if (typeof meta.originalSize === 'number' && typeof meta.size === 'number') {
-    items.push({ label: copy.workspace.originalSize, value: formatBytes(meta.originalSize) })
-    items.push({ label: copy.workspace.resultSize, value: formatBytes(meta.size) })
-  } else if (typeof meta.size === 'number') {
-    items.push({ label: copy.workspace.fileSize, value: formatBytes(meta.size) })
-  }
-  if (typeof meta.savedPct === 'number' && meta.savedPct > 0) {
-    items.push({ label: copy.workspace.saved, value: `${meta.savedPct}%` })
-  }
-  if (typeof meta.durationMs === 'number') {
-    items.push({ label: copy.workspace.processingTime, value: `${Math.round(meta.durationMs)} ms` })
-  }
-  if (items.length === 0) return null
+  const facts = [
+    typeLabel,
+    meta.width && meta.height ? `${meta.width}×${meta.height}` : undefined,
+    typeof meta.size === 'number' ? formatBytes(meta.size) : undefined,
+  ].filter((value): value is string => Boolean(value))
+
+  const change = [
+    typeof meta.originalSize === 'number' && typeof meta.size === 'number'
+      ? `${formatBytes(meta.originalSize)} → ${formatBytes(meta.size)}`
+      : undefined,
+    typeof meta.savedPct === 'number' && meta.savedPct > 0 ? copy.workspace.percentSaved(meta.savedPct) : undefined,
+    typeof meta.durationMs === 'number' ? formatDuration(meta.durationMs) : undefined,
+  ].filter((value): value is string => Boolean(value))
+
+  if (!meta.filename && facts.length === 0 && change.length === 0) return null
+
   return (
-    <dl className="result-stats">
-      {items.map((item) => (
-        <div key={item.label}>
-          <dt>{item.label}</dt>
-          <dd>{item.value}</dd>
-        </div>
-      ))}
-    </dl>
+    <div className="image-result-summary">
+      {meta.filename ? <strong title={meta.filename}>{meta.filename}</strong> : null}
+      {facts.length > 0 ? <p className="image-result-line">{facts.join(' · ')}</p> : null}
+      {change.length > 0 ? <p className="image-result-line">{change.join(' · ')}</p> : null}
+    </div>
   )
+}
+
+function formatDuration(ms: number): string {
+  if (ms >= 1000) {
+    const seconds = ms / 1000
+    const text = (seconds >= 10 ? seconds.toFixed(0) : seconds.toFixed(1)).replace(/\.0$/, '')
+    return `${text}s`
+  }
+  return `${Math.round(ms)} ms`
 }

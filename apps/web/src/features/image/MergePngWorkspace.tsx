@@ -9,9 +9,8 @@ import { ImageResultPreview } from '@/features/image/ImageResultPreview'
 import { motion } from '@/lib/motion/config'
 import { Flip, gsap, useGSAP } from '@/lib/motion/gsap'
 import { prefersReducedMotion } from '@/lib/motion/prefers-reduced-motion'
-import { mergePngImages } from '@/processing/client/merge-png'
 import type { ImageOptimizeMode } from '@/processing/client/image-optimize'
-import { withProcessStages, type ProcessStage } from '@/processing/client/process-stage'
+import { useImageProcessor } from '@/processing/client/use-image-processor'
 import {
   assertSafeMergeSize,
   computeMergeLayout,
@@ -67,7 +66,7 @@ export function MergePngWorkspace() {
   const dragIndexRef = useRef<number | null>(null)
   const selectionRef = useRef(0)
   const runningRef = useRef(false)
-  const [processStage, setProcessStage] = useState<ProcessStage>('preparing')
+  const processor = useImageProcessor()
   const [items, setItems] = useState<MergeItem[]>([])
   const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({})
   const [options, setOptions] = useState<MergeOptions>(defaultMergeOptions)
@@ -262,12 +261,13 @@ export function MergePngWorkspace() {
     setError('')
     const startedAt = performance.now()
     try {
-      const output = await withProcessStages(setProcessStage, () => mergePngImages(
-        items.map((item) => ({ file: item.file, width: item.width, height: item.height })),
+      const output = await processor.run({
+        op: 'mergePng',
+        inputs: items.map((item) => ({ file: item.file, width: item.width, height: item.height })),
         options,
-        fill,
-        { enabled: autoOptimize, mode: optimizeMode },
-      ), { optimize: autoOptimize })
+        background: fill,
+        optimize: { enabled: autoOptimize, mode: optimizeMode },
+      })
       if (selection !== selectionRef.current) return
       clearResult()
       const url = URL.createObjectURL(output.blob)
@@ -292,7 +292,7 @@ export function MergePngWorkspace() {
       const code = reason instanceof Error ? reason.message : MERGE_ERROR.export
       setError(localizeError(code))
       setStatus('failed')
-      setProcessStage('failed')
+      processor.setStage('failed')
     } finally {
       runningRef.current = false
     }
@@ -508,7 +508,7 @@ export function MergePngWorkspace() {
             </div>
           )}
         </details>
-        {status === 'processing' && <ProcessingProgressPanel stage={processStage} title="Processing..." />}
+        {status === 'processing' && <ProcessingProgressPanel stage={processor.stage} title="Processing image..." percent={processor.percent} />}
         {status === 'failed' && <ProcessingProgressPanel stage="failed" title="Processing failed" detail={error || 'Processing failed'} />}
         <button className={`button ${status === 'completed' ? 'success' : 'primary'} action-button`} type="button" disabled={!canMerge} onClick={() => void run()}>
           {status === 'processing' ? copy.mergePng.processing : status === 'completed' ? copy.mergePng.mergeAgain : status === 'failed' ? 'Try again' : copy.mergePng.merge}
@@ -571,15 +571,6 @@ export function MergePngWorkspace() {
             <div><dt>{copy.mergePng.images}</dt><dd>{items.length}</dd></div>
             <div><dt>{copy.mergePng.dimensions}</dt><dd>{displayWidth}×{displayHeight}px</dd></div>
             <div><dt>{copy.mergePng.layoutMode}</dt><dd>{layoutLabel}</dd></div>
-            {result ? (
-              <>
-                <div><dt>{copy.workspace.generatedSize}</dt><dd>{formatBytes(result.originalSize)}</dd></div>
-                <div><dt>{copy.workspace.optimizedSize}</dt><dd>{formatBytes(result.optimizedSize)}</dd></div>
-                {savedPercent > 0 && <div><dt>{copy.workspace.saved}</dt><dd>{savedPercent}%</dd></div>}
-              </>
-            ) : (
-              <div><dt>{copy.mergePng.fileSize}</dt><dd>—</dd></div>
-            )}
           </dl>
         )}
         {result?.recommendWebp && (

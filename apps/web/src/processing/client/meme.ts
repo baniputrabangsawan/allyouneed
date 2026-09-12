@@ -1,5 +1,7 @@
 import { assertValidImageSize } from '@/features/image/image-utils'
 import { drawMemeLayers, type MemeFormat, type MemeTextLayer } from '@/features/image/meme-utils'
+import type { ProcessingProgress } from '@/processing/types/processing'
+import { createProcessCanvas, get2dContext } from './canvas-utils'
 import { exportCanvasImage, type ImageOptimizeMode } from './image-optimize'
 
 export interface MemeRenderOptions {
@@ -23,15 +25,13 @@ export async function renderMeme(
   file: File,
   layers: readonly MemeTextLayer[],
   options: MemeRenderOptions,
+  onProgress?: (progress: ProcessingProgress) => void,
 ): Promise<MemeRenderResult> {
   const bitmap = await createImageBitmap(file)
   try {
     assertValidImageSize(bitmap.width, bitmap.height)
-    const canvas = document.createElement('canvas')
-    canvas.width = bitmap.width
-    canvas.height = bitmap.height
-    const context = canvas.getContext('2d')
-    if (!context) throw new Error('Canvas is not available in this browser.')
+    const canvas = createProcessCanvas(bitmap.width, bitmap.height)
+    const context = get2dContext(canvas)
     if (options.format === 'image/jpeg') {
       context.fillStyle = '#ffffff'
       context.fillRect(0, 0, canvas.width, canvas.height)
@@ -42,6 +42,7 @@ export async function renderMeme(
       ...(options.optimize === undefined ? {} : { enabled: options.optimize }),
       ...(options.optimizeMode === undefined ? {} : { mode: options.optimizeMode }),
       ...(options.quality === undefined ? {} : { quality: options.quality }),
+      ...(onProgress ? { onProgress } : {}),
     })
     return {
       blob: output.blob,

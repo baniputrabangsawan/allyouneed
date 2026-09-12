@@ -53,7 +53,7 @@ function pngBuffer(width: number, height: number) {
 
 async function readDownloadPng(page: Page) {
   const download = page.waitForEvent('download')
-  await page.getByRole('link', { name: 'Download PNG' }).click()
+  await page.getByRole('button', { name: 'Download again' }).click()
   const file = await download
   const stream = await file.createReadStream()
   expect(stream, 'download stream').not.toBeNull()
@@ -97,7 +97,7 @@ test('merges two PNGs locally with reorder, vertical, and horizontal layouts', a
   await page.getByRole('button', { name: 'Vertical' }).click()
   await page.getByRole('button', { name: 'Merge PNG' }).click()
   await expect(page.getByRole('img', { name: 'Merged PNG result' })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Download PNG' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Download again' })).toBeVisible()
   await expect(page.getByText('32×40px')).toBeVisible()
 
   const vertical = await readDownloadPng(page)

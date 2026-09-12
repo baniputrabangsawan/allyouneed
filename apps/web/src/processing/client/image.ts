@@ -4,8 +4,10 @@ import {
 } from '@/features/image/image-utils'
 import { photoEditorFilter } from '@/features/image/photo-editor-utils'
 import type { ProcessingProgress } from '@/processing/types/processing'
+import { canvasToBlob, createProcessCanvas, get2dContext, type AnyCanvas, type Canvas2DContext } from './canvas-utils'
 import { reportProcessStage, reportProcessTask } from './process-stage'
 export type { ImageCrop, WatermarkPosition } from '@/features/image/image-utils'
+export { canvasToBlob } from './canvas-utils'
 
 export type ImageFormat = 'image/jpeg' | 'image/png' | 'image/webp'
 
@@ -45,7 +47,7 @@ export async function processImage(file: File, options: ImageOptions, onProgress
     await reportProcessStage(onProgress, 'preparing', 1)
     await reportProcessStage(onProgress, 'compressing', 0)
     const canvas = drawProcessedImage(bitmap, options)
-    await drawWatermark(getContext(canvas), canvas, options)
+    await drawWatermark(get2dContext(canvas), canvas, options)
     await reportProcessTask(onProgress, 'compressing', 1, 2)
     const blob = await canvasToBlob(canvas, options.format, options.quality)
     await reportProcessTask(onProgress, 'compressing', 2, 2)
@@ -55,7 +57,7 @@ export async function processImage(file: File, options: ImageOptions, onProgress
   }
 }
 
-export function drawProcessedImage(bitmap: ImageBitmap, options: ImageDrawOptions, canvas?: HTMLCanvasElement): HTMLCanvasElement {
+export function drawProcessedImage(bitmap: ImageBitmap, options: ImageDrawOptions, canvas?: AnyCanvas): AnyCanvas {
   assertValidImageSize(bitmap.width, bitmap.height, options.maxPixels)
   const crop = normalizeCrop(options.crop, bitmap)
   const targetWidth = Math.round(options.width ?? crop.width)
@@ -63,10 +65,10 @@ export function drawProcessedImage(bitmap: ImageBitmap, options: ImageDrawOption
   assertValidImageSize(targetWidth, targetHeight, options.maxPixels)
   const output = rotatedSize(targetWidth, targetHeight, options.rotation)
   assertValidImageSize(output.width, output.height, options.maxPixels)
-  const target = canvas ?? makeCanvas(output.width, output.height)
+  const target = canvas ?? createProcessCanvas(output.width, output.height)
   target.width = output.width
   target.height = output.height
-  const context = getContext(target)
+  const context = get2dContext(target)
   if (options.backgroundColor) {
     context.fillStyle = options.backgroundColor
     context.fillRect(0, 0, target.width, target.height)
@@ -83,8 +85,8 @@ export function drawProcessedImage(bitmap: ImageBitmap, options: ImageDrawOption
   })
   const pixelSize = Math.max(1, Math.round(options.pixelate ?? 1))
   if (pixelSize > 1) {
-    const pixelCanvas = makeCanvas(Math.max(1, Math.ceil(targetWidth / pixelSize)), Math.max(1, Math.ceil(targetHeight / pixelSize)))
-    const pixelContext = getContext(pixelCanvas)
+    const pixelCanvas = createProcessCanvas(Math.max(1, Math.ceil(targetWidth / pixelSize)), Math.max(1, Math.ceil(targetHeight / pixelSize)))
+    const pixelContext = get2dContext(pixelCanvas)
     pixelContext.drawImage(bitmap, crop.x, crop.y, crop.width, crop.height, 0, 0, pixelCanvas.width, pixelCanvas.height)
     context.imageSmoothingEnabled = false
     context.drawImage(pixelCanvas, -targetWidth / 2, -targetHeight / 2, targetWidth, targetHeight)
@@ -96,28 +98,7 @@ export function drawProcessedImage(bitmap: ImageBitmap, options: ImageDrawOption
   return target
 }
 
-export function canvasToBlob(canvas: HTMLCanvasElement, format: ImageFormat, quality: number): Promise<Blob> {
-  return new Promise((resolve, reject) => canvas.toBlob(
-    (blob) => blob ? resolve(blob) : reject(new Error('Image processing failed.')),
-    format,
-    Math.min(1, Math.max(0, quality)),
-  ))
-}
-
-function makeCanvas(width: number, height: number): HTMLCanvasElement {
-  const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
-  return canvas
-}
-
-function getContext(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
-  const context = canvas.getContext('2d')
-  if (!context) throw new Error('Canvas is not available in this browser.')
-  return context
-}
-
-async function drawWatermark(context: CanvasRenderingContext2D, canvas: HTMLCanvasElement, options: ImageOptions): Promise<void> {
+async function drawWatermark(context: Canvas2DContext, canvas: AnyCanvas, options: ImageOptions): Promise<void> {
   if (!options.watermark && !options.watermarkImage) return
   const opacity = Math.min(1, Math.max(0, options.watermarkOpacity ?? 0.75))
   const padding = Math.max(0, options.watermarkPadding ?? Math.round(canvas.width * 0.025))
