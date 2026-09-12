@@ -14,6 +14,8 @@ import { Route as ToolRouteImport } from './routes/$tool'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as LicenseRouteImport } from './routes/license'
 import { Route as PricingRouteImport } from './routes/pricing'
+import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AdminAuditRouteImport } from './routes/admin.audit'
 import { Route as AdminLicensesRouteImport } from './routes/admin.licenses'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
@@ -60,6 +62,16 @@ const LicenseRoute = LicenseRouteImport.update({
 const PricingRoute = PricingRouteImport.update({
   id: '/pricing',
   path: '/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
+  id: '/robots.txt',
+  path: '/robots.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminAuditRoute = AdminAuditRouteImport.update({
@@ -181,6 +193,8 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/license': typeof LicenseRoute
   '/pricing': typeof PricingRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/licenses': typeof AdminLicensesRoute
   '/admin/login': typeof AdminLoginRoute
@@ -210,6 +224,8 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRouteWithChildren
   '/license': typeof LicenseRoute
   '/pricing': typeof PricingRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/licenses': typeof AdminLicensesRoute
   '/admin/login': typeof AdminLoginRoute
@@ -240,6 +256,8 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/license': typeof LicenseRoute
   '/pricing': typeof PricingRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/licenses': typeof AdminLicensesRoute
   '/admin/login': typeof AdminLoginRoute
@@ -271,6 +289,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/license'
     | '/pricing'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/admin/audit'
     | '/admin/licenses'
     | '/admin/login'
@@ -300,6 +320,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/license'
     | '/pricing'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/admin/audit'
     | '/admin/licenses'
     | '/admin/login'
@@ -329,6 +351,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/license'
     | '/pricing'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/admin/audit'
     | '/admin/licenses'
     | '/admin/login'
@@ -359,6 +383,8 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   LicenseRoute: typeof LicenseRoute
   PricingRoute: typeof PricingRoute
+  RobotsDottxtRoute: typeof RobotsDottxtRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   DocsGettingStartedRoute: typeof DocsGettingStartedRoute
   DocsPrivacyAndProcessingRoute: typeof DocsPrivacyAndProcessingRoute
   DocsTroubleshootingRoute: typeof DocsTroubleshootingRoute
@@ -414,6 +440,20 @@ declare module '@tanstack/react-router' {
       path: '/pricing'
       fullPath: '/pricing'
       preLoaderRoute: typeof PricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/robots.txt': {
+      id: '/robots.txt'
+      path: '/robots.txt'
+      fullPath: '/robots.txt'
+      preLoaderRoute: typeof RobotsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/audit': {
@@ -595,6 +635,8 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   LicenseRoute: LicenseRoute,
   PricingRoute: PricingRoute,
+  RobotsDottxtRoute: RobotsDottxtRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   DocsGettingStartedRoute: DocsGettingStartedRoute,
   DocsPrivacyAndProcessingRoute: DocsPrivacyAndProcessingRoute,
   DocsTroubleshootingRoute: DocsTroubleshootingRoute,
