@@ -4,7 +4,7 @@ import {
   AudioConverterWorkspace,
   browserMediaWorkspaceSlugs, colorWorkspaceSlugs, cryptoWorkspaceSlugs, cssWorkspaceSlugs,
   dateTimeWorkspaceSlugs, encodingWorkspaceSlugs, genericTextWorkspaceSlugs, getSpecialWorkspace,
-  getWorkspaceComponent, HtmlWorkspace, JavaScriptWorkspace, MergePngWorkspace, QrisParserWorkspace, QrWorkspace, randomWorkspaceSlugs, RemoteFileWorkspace, WordCounterWorkspace,
+  getWorkspaceComponent, HtmlWorkspace, JavaScriptWorkspace, MergePngWorkspace, QrisParserWorkspace, QrWorkspace, randomWorkspaceSlugs, RemoteFileWorkspace, SpeechToTextWorkspace, TextToSpeechWorkspace, WordCounterWorkspace,
   workspaceComponents, YamlWorkspace,
 } from './index'
 
@@ -46,5 +46,9 @@ describe('workspace component mapping', () => {
     expect(getSpecialWorkspace(get('merge-png')!)).toBe(MergePngWorkspace)
     expect(getWorkspaceComponent(get('merge-png')!)).toBe(MergePngWorkspace)
     expect(getWorkspaceComponent(get('noise-reduction')!)).toBe(RemoteFileWorkspace)
+    expect(getSpecialWorkspace(get('speech-to-text')!)).toBe(SpeechToTextWorkspace)
+    expect(getWorkspaceComponent(get('speech-to-text')!)).toBe(SpeechToTextWorkspace)
+    expect(getSpecialWorkspace(get('text-to-speech')!)).toBe(TextToSpeechWorkspace)
+    expect(getWorkspaceComponent(get('text-to-speech')!)).toBe(TextToSpeechWorkspace)
   })
 })

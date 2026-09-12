@@ -113,6 +113,14 @@ test('merges two PNGs locally with reorder, vertical, and horizontal layouts', a
   expect(horizontal.readUInt32BE(16)).toBe(56)
   expect(horizontal.readUInt32BE(20)).toBe(24)
 
+  await page.getByRole('button', { name: 'Grid' }).click()
+  await page.getByRole('button', { name: 'Merge PNG' }).click()
+  await expect(page.getByText('56×24px')).toBeVisible()
+  const grid = await readDownloadPng(page)
+  expect([...grid.subarray(0, 8)]).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+  expect(grid.readUInt32BE(16)).toBe(56)
+  expect(grid.readUInt32BE(20)).toBe(24)
+
   expect(requests).toEqual([])
   expect(errors).toEqual([])
 })

@@ -12,6 +12,7 @@ async def upload_bytes(
     filename: str,
     content_type: str,
     tool_id: str,
+    headers: dict[str, str] | None = None,
 ) -> str:
     presigned = await api.post(
         "/api/v1/uploads/presign",
@@ -21,6 +22,7 @@ async def upload_bytes(
             "size": len(data),
             "toolId": tool_id,
         },
+        headers=headers or {},
     )
     upload = presigned.json()["data"]
     put = await api.put(upload["uploadUrl"], content=data, headers=upload["headers"])

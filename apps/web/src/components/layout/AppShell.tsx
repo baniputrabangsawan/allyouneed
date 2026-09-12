@@ -1,17 +1,18 @@
-import { Grid2X2, Menu, Monitor, Moon, Search, Sun, X } from 'lucide-react'
+import { Grid2X2, Menu, Monitor, Moon, Search, Sun } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useRouterState } from '@tanstack/react-router'
 import { CommandPalette } from '@/components/common/CommandPalette'
-import { LanguageChoices, LanguageSwitcher } from '@/components/common/LanguageSwitcher'
+import { LanguageSwitcher } from '@/components/common/LanguageSwitcher'
 import { isPro, useEntitlement } from '@/features/licensing/entitlement'
 import { LocaleLink } from '@/i18n/link'
 import { useT } from '@/i18n'
+import { MobileNav } from '@/components/layout/MobileNav'
 import {
   getThemePreference,
   saveThemePreference,
   type ThemePreference,
 } from '@/lib/storage/preferences'
 import { applyThemePreference, themeIsDark } from '@/lib/theme'
-
 const themes: readonly ThemePreference[] = ['light', 'dark', 'system']
 const explorerSearch = { q: '', category: 'all', group: 'all' } as const
 const primaryNav = [
@@ -30,6 +31,9 @@ export function AppHeader() {
   const [shortcutLabel, setShortcutLabel] = useState('Ctrl K')
   const headerRef = useRef<HTMLElement>(null)
   const innerRef = useRef<HTMLDivElement>(null)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
+  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const hash = useRouterState({ select: (state) => state.location.hash })
 
   useLayoutEffect(() => {
     const preference = getThemePreference()
@@ -63,6 +67,11 @@ export function AppHeader() {
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
+
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [pathname, hash])
+
 
   useLayoutEffect(() => {
     const header = headerRef.current
@@ -115,11 +124,19 @@ export function AppHeader() {
               <Monitor className="theme-icon-system" size={19} />
             </span>
           </button>
-          <button className="icon-button mobile-menu" type="button" aria-expanded={menuOpen} aria-controls="mobile-navigation" aria-label={menuOpen ? copy.nav.closeMenu : copy.nav.openMenu} onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? <X size={20} /> : <Menu size={20} />}</button>
+          <button ref={menuButtonRef} className="icon-button mobile-menu" type="button" aria-expanded={menuOpen} aria-controls="mobile-navigation" aria-label={menuOpen ? copy.nav.closeMenu : copy.nav.openMenu} onClick={() => setMenuOpen((open) => !open)}><Menu size={20} /></button>
         </div>
       </div>
-      {menuOpen && <><button className="mobile-menu-backdrop" type="button" aria-label={copy.nav.closeMenu} onClick={closeMenu} /><nav id="mobile-navigation" className="mobile-navigation" aria-label="Mobile primary">{primaryNav.map((item) => <LocaleLink key={item.hash} to="/" search={explorerSearch} hash={item.hash} resetScroll={false} onClick={closeMenu}>{navLabel(item.key)}</LocaleLink>)}<LocaleLink to="/docs" onClick={closeMenu}>{copy.nav.docs}</LocaleLink><LocaleLink to="/pricing" onClick={closeMenu}>{copy.nav.pricing}</LocaleLink><LocaleLink to="/license" onClick={closeMenu}>{copy.nav.proLicense}</LocaleLink><LanguageChoices onChoose={closeMenu} /><button type="button" onClick={() => { closeMenu(); setPaletteOpen(true) }}><Search size={17} /> {copy.nav.searchAria}</button></nav></>}
     </header>
+    {menuOpen && (
+      <MobileNav
+        theme={theme}
+        shortcutLabel={shortcutLabel}
+        onClose={() => { setMenuOpen(false); menuButtonRef.current?.focus() }}
+        onSearch={() => setPaletteOpen(true)}
+        onCycleTheme={cycleTheme}
+      />
+    )}
     <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
   </>
 }

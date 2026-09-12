@@ -10,6 +10,7 @@ import { localeFromPathname, useLocale, useT } from '@/i18n'
 import { localizeTool } from '@/i18n/tools'
 import { refreshScroll } from '@/lib/motion/scroll'
 import { restoreKeepScroll, clearKeepScroll } from '@/lib/motion/restore'
+import { cleanupExpiredFiles } from '@/lib/storage/file-persistence'
 import { ensureInstallationId } from '@/lib/storage/installation'
 import '@/styles/app.css'
 import '@/styles/docs.css'
@@ -84,6 +85,7 @@ function Root() {
   }, [pathname, hash])
 
   useEffect(() => { ensureInstallationId() }, [])
+  useEffect(() => { void cleanupExpiredFiles() }, [])
   const admin = pathname === '/admin' || pathname.startsWith('/admin/')
   return <Document lang={documentLang(locale)}><QueryClientProvider client={queryClient}><a className="skip-link" href="#main-content">{copy.nav.skip}</a>{!admin && <AppHeader />}<div id="main-content" tabIndex={-1}><Outlet /></div>{!admin && <AppFooter />}</QueryClientProvider></Document>
 }

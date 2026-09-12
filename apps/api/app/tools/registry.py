@@ -87,8 +87,8 @@ tool_registry: dict[str, Tool] = {
     **tools(VIDEO_TOOLS - {"add-subtitle"}, "video", AUDIO | VIDEO, max_files=20, timeout=600),
     **tools({"add-subtitle"}, "video", VIDEO | SUBTITLES, max_files=2, timeout=600),
     **tools({"ocr-pdf"}, "ocr", PDF | IMAGES, timeout=300),
-    **tools({"speech-to-text"}, "stt", AUDIO | VIDEO, timeout=900),
-    **tools({"text-to-speech"}, "tts", TEXT, timeout=180),
+    **tools({"speech-to-text"}, "stt", AUDIO | VIDEO, timeout=900, premium=True),
+    **tools({"text-to-speech"}, "tts", TEXT, timeout=180, premium=True),
     **tools({"remove-background", "upscale-image"}, "ai-image", IMAGES, timeout=300, premium=True),
     "basic-background-removal": Tool(
         id="basic-background-removal",

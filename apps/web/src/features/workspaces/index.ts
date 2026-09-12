@@ -18,6 +18,8 @@ import { QrWorkspace } from './QrWorkspace'
 import { RandomWorkspace } from './RandomWorkspace'
 import { AudioConverterWorkspace } from './AudioConverterWorkspace'
 import { RemoteFileWorkspace } from './RemoteFileWorkspace'
+import { SpeechToTextWorkspace } from './SpeechToTextWorkspace'
+import { TextToSpeechWorkspace } from './TextToSpeechWorkspace'
 import { WordCounterWorkspace } from './WordCounterWorkspace'
 import { XmlWorkspace } from './XmlWorkspace'
 import { YamlWorkspace } from './YamlWorkspace'
@@ -39,6 +41,8 @@ export { QrWorkspace } from './QrWorkspace'
 export { RandomWorkspace } from './RandomWorkspace'
 export { AudioConverterWorkspace } from './AudioConverterWorkspace'
 export { RemoteFileWorkspace } from './RemoteFileWorkspace'
+export { SpeechToTextWorkspace } from './SpeechToTextWorkspace'
+export { TextToSpeechWorkspace } from './TextToSpeechWorkspace'
 export { WordCounterWorkspace } from './WordCounterWorkspace'
 export { XmlWorkspace } from './XmlWorkspace'
 export { YamlWorkspace } from './YamlWorkspace'
@@ -71,6 +75,8 @@ export function getSpecialWorkspace(tool: ToolDefinition): WorkspaceComponent | 
   if (tool.slug === 'html-to-image') return HtmlToImageWorkspace
   if (tool.slug === 'basic-background-removal') return BasicBackgroundWorkspace
   if (tool.slug === 'audio-converter') return AudioConverterWorkspace
+  if (tool.slug === 'speech-to-text') return SpeechToTextWorkspace
+  if (tool.slug === 'text-to-speech') return TextToSpeechWorkspace
   if (tool.slug === 'merge-png') return MergePngWorkspace
 }
 

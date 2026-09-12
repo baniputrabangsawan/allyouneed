@@ -37,4 +37,11 @@ describe('workflow errors', () => {
       code: 'AUDIO_STREAM_NOT_FOUND',
     }), copy)).toBe('This file has no audio stream.')
   })
+
+  it('maps speech codes without collapsing them', () => {
+    expect(workflowErrorCode(errorFromJob({ code: 'NO_AUDIO_STREAM', message: 'no audio' }))).toBe('NO_AUDIO_STREAM')
+    expect(workflowErrorCode(errorFromJob({ code: 'MODEL_UNAVAILABLE', message: 'missing' }))).toBe('MODEL_UNAVAILABLE')
+    expect(workflowErrorCode(errorFromJob({ code: 'TEXT_TOO_LONG', message: 'long' }))).toBe('TEXT_TOO_LONG')
+    expect(workflowMessage(errorFromJob({ code: 'TTS_FAILED', message: 'Speech could not be generated.' }), copy)).toBe('Speech could not be generated.')
+  })
 })

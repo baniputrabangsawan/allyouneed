@@ -5,16 +5,11 @@ import { getLazyWorkspace } from '../workspaces/lazy-workspaces'
 import { getToolBySlug, tools } from './tool-registry'
 
 const unavailableAi = [
-  'remove-background',
   'upscale-image',
-  'speech-to-text',
-  'text-to-speech',
   'ocr-pdf',
   'background-blur',
   'replace-background',
 ] as const
-
-const incompleteBrowserMedia = ['text-to-speech'] as const
 
 const remoteProcessors = new Set([
   'compress-pdf', 'merge-pdf', 'split-pdf', 'jpg-to-pdf', 'png-to-pdf', 'pdf-to-jpg', 'pdf-to-png',
@@ -25,6 +20,7 @@ const remoteProcessors = new Set([
   'video-converter', 'video-to-gif', 'gif-to-video', 'video-cutter', 'video-trimmer', 'video-merger',
   'resize-video', 'crop-video', 'rotate-video', 'remove-audio', 'extract-audio', 'add-audio',
   'change-video-speed', 'add-watermark', 'blur-face', 'html-to-image', 'basic-background-removal',
+  'speech-to-text', 'text-to-speech', 'remove-background',
 ])
 
 describe('available-tool contract', () => {
@@ -48,7 +44,7 @@ describe('available-tool contract', () => {
   })
 
   it('keeps incomplete, AI, and dependency-required tools Coming Soon', () => {
-    for (const slug of [...unavailableAi, ...incompleteBrowserMedia, 'add-subtitle']) {
+    for (const slug of [...unavailableAi, 'add-subtitle']) {
       expect(getToolBySlug(slug)?.available, slug).toBe(false)
     }
     for (const tool of tools.filter((item) => item.implementation === 'dependency-required')) {

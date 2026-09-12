@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     enable_external_ai: bool = False
     stt_provider: str = "selfhosted"
     tts_provider: str = "selfhosted"
+    whisper_model: str = "small"
+    stt_max_duration_seconds: int = 1800
+    tts_max_chars: int = 5000
     background_removal_provider: str = "selfhosted"
     upscale_provider: str = "selfhosted"
     ocr_provider: str = "selfhosted"
