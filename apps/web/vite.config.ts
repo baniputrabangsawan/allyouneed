@@ -7,7 +7,7 @@ import { defineConfig } from 'vite'
 import { fileURLToPath, URL } from 'node:url'
 
 const onVercel = process.env.VERCEL === '1'
-const onCloudflare = process.env.CF_PAGES === '1' || Boolean(process.env.CLOUDFLARE_ACCOUNT_ID)
+const onCloudflare = process.env.CF_PAGES === '1' || process.env.WORKERS_CI === '1' || Boolean(process.env.CLOUDFLARE_ACCOUNT_ID)
 
 export default defineConfig({
   server: { port: 3000 },

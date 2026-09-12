@@ -110,7 +110,7 @@ Do not set Output Directory to `apps/web/dist` or `apps/web/dist/client`.
 
 ## Deploy on Cloudflare
 
-Workers Builds runs `npx wrangler versions upload` from the repository root. A root `wrangler.jsonc` points at the Vite SSR worker (`apps/web/dist/server/server.js`) and client assets.
+Workers Builds runs `npx wrangler versions upload` from the repository root. A root `wrangler.jsonc` points at the Cloudflare Vite worker (`apps/web/dist/server/index.js`) and client assets.
 
 In the Cloudflare Worker **Settings → Build**:
 
