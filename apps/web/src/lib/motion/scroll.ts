@@ -9,6 +9,7 @@ export function revealSectionOnce(section: Element | null, children?: string) {
   const compact = isCompactMotion()
   const targets = children ? section.querySelectorAll(children) : [section]
   if (!targets.length) return
+  if (compact) gsap.set(targets, { autoAlpha: 0, y: 16, filter: 'blur(8px)' })
   gsap.fromTo(
     targets,
     { autoAlpha: 0, y: compact ? 16 : 28, filter: `blur(${compact ? 8 : 14}px)` },
@@ -23,7 +24,7 @@ export function revealSectionOnce(section: Element | null, children?: string) {
       immediateRender: false,
       scrollTrigger: {
         trigger: section,
-        start: 'top 82%',
+        start: compact ? 'top 62%' : 'top 82%',
         once: true,
       },
     },

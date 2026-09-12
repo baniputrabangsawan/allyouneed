@@ -1,7 +1,8 @@
 import { useLoaderData, useNavigate, useSearch } from '@tanstack/react-router'
 import { ArrowRight, Clock3, LockKeyhole, Search, ShieldCheck, Sparkles, Star, Zap } from 'lucide-react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
-import { AvailabilityFlipGrids, ToolFlipGrid } from '@/components/tool/ToolFlipGrid'
+import { AvailabilityFlipGrids } from '@/components/tool/ToolFlipGrid'
+import { HorizontalToolList } from '@/components/tool/HorizontalToolList'
 import { partitionByAvailability } from '@/features/tools/tool-availability'
 import {
   homeCategories as categories,
@@ -21,7 +22,7 @@ import { useT } from '@/i18n'
 import { useLocaleNavigate } from '@/i18n/navigate'
 import { searchToolsLocalized } from '@/i18n/tools'
 import { useGSAP } from '@/lib/motion/gsap'
-import { prefersReducedMotion } from '@/lib/motion/prefers-reduced-motion'
+import { isCompactMotion, prefersReducedMotion } from '@/lib/motion/prefers-reduced-motion'
 import { refreshScroll, revealSectionOnce } from '@/lib/motion/scroll'
 import { DISCOVERY_STORAGE_EVENT, useFavoriteIds } from '@/lib/storage/discovery'
 import { RECENT_TOOLS_STORAGE_KEY, writeRecentCookie } from '@/lib/storage/tools'
@@ -89,7 +90,14 @@ export function Home() {
     const root = homeRef.current
     if (!root || prefersReducedMotion()) return
     revealSectionOnce(root.querySelector('.privacy-section'), '.privacy-mark, h2, p, .privacy-points span')
-  }, { scope: homeRef })
+    if (!isCompactMotion()) return
+    for (const selector of ['#recent', '#favorites', '#new', '.popular', '#all-tools']) {
+      revealSectionOnce(
+        root.querySelector(selector),
+        '.section-heading, .tool-rail, .tool-grid, .tool-availability-group',
+      )
+    }
+  }, { scope: homeRef, dependencies: [showDiscovery] })
   useEffect(() => {
     if (recent.length) writeRecentCookie(recent.map((tool) => tool.id))
   }, [recent])
@@ -147,7 +155,7 @@ export function Home() {
           <ToolSection id="recent" eyebrow={copy.home.backToWork} title={copy.home.recentlyUsed} icon={<Clock3 size={14}/>} items={recent} empty={copy.home.recentEmpty}/>
           <ToolSection id="favorites" eyebrow={copy.home.savedByYou} title={copy.home.favorites} icon={<Star size={14}/>} items={favorites} empty={copy.home.favoritesEmpty}/>
           <ToolSection id="new" eyebrow={copy.home.justAdded} title={copy.nav.new} icon={<Sparkles size={14}/>} items={newest} empty={copy.home.newEmpty}/>
-          <section className="page-section popular"><div className="section-heading"><div><p className="eyebrow">{copy.home.startHere}</p><h2>{copy.home.popular}</h2></div><LocaleLink to="/" hash="all-tools" search={{ q, category, group }}>{copy.home.browseAll} <ArrowRight size={16}/></LocaleLink></div><ToolFlipGrid items={getPopularTools()}/></section>
+          <section className="page-section popular"><div className="section-heading"><div><p className="eyebrow">{copy.home.startHere}</p><h2>{copy.home.popular}</h2></div><LocaleLink to="/" hash="all-tools" search={{ q, category, group }}>{copy.home.browseAll} <ArrowRight size={16}/></LocaleLink></div><HorizontalToolList items={getPopularTools()} label={copy.home.popular}/></section>
         </div>
       )}
 
@@ -166,7 +174,6 @@ export function Home() {
 function FilterPills<T extends string>({ items, value, label, secondary = false, onChange, getLabel }: { items: readonly T[]; value: T; label: string; secondary?: boolean; onChange: (value: T) => void; getLabel?: (item: T) => string }) {
   return <div className={`category-tabs${secondary ? ' group-tabs' : ''}`} aria-label={label}>{items.map((item) => <button type="button" className={value === item ? 'active' : ''} data-active={value === item ? 'true' : 'false'} aria-pressed={value === item} key={item} onClick={() => onChange(item)}>{getLabel ? getLabel(item) : item}</button>)}</div>
 }
-
 function ToolSection({ id, eyebrow, title, icon, items, empty }: { id: string; eyebrow: string; title: string; icon: ReactNode; items: readonly ToolDefinition[]; empty: string }) {
-  return <section id={id} className="page-section discovery-personal"><div className="section-heading"><div><p className="eyebrow">{icon}{eyebrow}</p><h2>{title}</h2></div></div>{items.length ? <ToolFlipGrid items={items}/> : <p>{empty}</p>}</section>
+  return <section id={id} className="page-section discovery-personal"><div className="section-heading"><div><p className="eyebrow">{icon}{eyebrow}</p><h2>{title}</h2></div></div>{items.length ? <HorizontalToolList items={items} label={title}/> : <p>{empty}</p>}</section>
 }
