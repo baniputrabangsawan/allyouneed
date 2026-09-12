@@ -1,15 +1,19 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useT } from '@/i18n'
+import { downloadBlob } from '@/lib/media/download'
 
 export function CopyButton({ value }: { value: string }) {
   const copy = useT()
   const [status, setStatus] = useState<string>(copy.workspace.copy)
+  const resetTimer = useRef<number | undefined>(undefined)
+  useEffect(() => () => window.clearTimeout(resetTimer.current), [])
   async function onCopy() {
     if (!value) return
     try {
       await navigator.clipboard.writeText(value)
       setStatus(copy.workspace.copied)
-      window.setTimeout(() => setStatus(copy.workspace.copy), 1500)
+      window.clearTimeout(resetTimer.current)
+      resetTimer.current = window.setTimeout(() => setStatus(copy.workspace.copy), 1500)
     } catch {
       setStatus(copy.workspace.copyFailed)
     }
@@ -17,13 +21,12 @@ export function CopyButton({ value }: { value: string }) {
   return <button className="button secondary" type="button" disabled={!value} onClick={onCopy}>{status}</button>
 }
 
-export function DownloadButton({ value, filename, type = 'text/plain' }: { value: string; filename: string; type?: string }) {
+export function DownloadButton({ value, filename, type = 'text/plain', label }: { value: string; filename: string; type?: string; label?: string }) {
   const copy = useT()
   function download() {
-    const url = URL.createObjectURL(new Blob([value], { type }))
-    const anchor = document.createElement('a'); anchor.href = url; anchor.download = filename; anchor.click(); URL.revokeObjectURL(url)
+    downloadBlob(new Blob([value], { type }), filename)
   }
-  return <button className="button secondary" type="button" disabled={!value} onClick={download}>{copy.workspace.download}</button>
+  return <button className="button secondary" type="button" disabled={!value} onClick={download}>{label ?? copy.workspace.download}</button>
 }
 
 export function TextPanels({ input, output, onInput, second, onSecond, inputLabel, outputLabel, error, children }: { input: string; output: string; onInput: (value: string) => void; second?: string; onSecond?: (value: string) => void; inputLabel?: string; outputLabel?: string; error?: string; children: ReactNode }) {
