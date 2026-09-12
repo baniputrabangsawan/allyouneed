@@ -7,7 +7,7 @@ import numpy as np
 from numpy.typing import NDArray
 from PIL import Image, ImageOps
 
-from app.processors.base import ProcessingError, integer
+from app.processors.base import ProcessingError
 from app.processors.image.ops import open_image, save_image
 
 FaceBox = tuple[int, int, int, int]
@@ -15,6 +15,8 @@ BgrImage = NDArray[np.uint8]
 
 _VENDORED_CASCADE = Path(__file__).with_name("data") / "haarcascade_frontalface_default.xml"
 _MODES = {"blur", "pixelate"}
+_MAX_BLUR_STRENGTH = 20
+_MAX_PIXELATE_BLOCK = 20
 
 
 def load_oriented_image(source: Path) -> Image.Image:
@@ -35,11 +37,11 @@ def clamp_box(
     return left, top, right - left, bottom - top
 
 
-def parse_face_options(options: dict[str, object]) -> tuple[str, int]:
+def parse_face_options(options: dict[str, object]) -> str:
     mode = str(options.get("mode", "blur")).strip().lower() or "blur"
     if mode not in _MODES:
         raise ProcessingError("Invalid mode.")
-    return mode, integer(options, "strength", 8, minimum=1, maximum=20)
+    return mode
 
 
 @lru_cache(maxsize=1)
@@ -64,18 +66,16 @@ def detect_frontal_faces(gray: NDArray[np.uint8]) -> list[FaceBox]:
     return [box for box in boxes if box[2] > 0 and box[3] > 0]
 
 
-def apply_face_obscure(
-    bgr: BgrImage, boxes: list[FaceBox], *, mode: str, strength: int
-) -> BgrImage:
+def apply_face_obscure(bgr: BgrImage, boxes: list[FaceBox], *, mode: str) -> BgrImage:
     result = bgr.copy()
     for x, y, width, height in boxes:
         roi = result[y : y + height, x : x + width]
         if roi.size == 0:
             continue
         if mode == "pixelate":
-            result[y : y + height, x : x + width] = _pixelate(roi, strength)
+            result[y : y + height, x : x + width] = _pixelate(roi, _MAX_PIXELATE_BLOCK)
         else:
-            kernel = 2 * strength + 1
+            kernel = 2 * _MAX_BLUR_STRENGTH + 1
             result[y : y + height, x : x + width] = cv2.GaussianBlur(roi, (kernel, kernel), 0)
     return result
 
@@ -91,15 +91,15 @@ def bgr_to_image(bgr: BgrImage) -> Image.Image:
 
 
 def blur_faces(source: Path, output: Path, options: dict[str, object]) -> dict[str, int | str]:
-    mode, strength = parse_face_options(options)
+    mode = parse_face_options(options)
     image = load_oriented_image(source)
     try:
         bgr = image_to_bgr(image)
         gray = cast(BgrImage, cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY))
         boxes = detect_frontal_faces(gray)
         if not boxes:
-            raise ProcessingError("No faces detected.", code="NO_FACES_DETECTED")
-        obscured = apply_face_obscure(bgr, boxes, mode=mode, strength=strength)
+            raise ProcessingError("No face detected", code="NO_FACES_DETECTED")
+        obscured = apply_face_obscure(bgr, boxes, mode=mode)
         saved = save_image(bgr_to_image(obscured), output, options)
         return {**saved, "faces": len(boxes), "mode": mode}
     finally:

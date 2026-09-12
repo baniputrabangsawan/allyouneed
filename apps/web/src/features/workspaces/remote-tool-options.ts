@@ -19,9 +19,17 @@ const defaultOptions: Record<string, Record<string, unknown>> = {
   'change-audio-speed': { speed: 1 },
   'change-video-speed': { speed: 1 },
   'add-watermark': { text: 'Watermark' },
-  'blur-face': { mode: 'blur', strength: 8 },
-  'noise-reduction': { strength: 'medium' },
-  'add-subtitle': { mode: 'burn', format: 'mp4' },
+  'blur-face': { mode: 'blur' },
+  'noise-reduction': { mode: 'smart', strength: 'medium' },
+  'add-subtitle': {
+    mode: 'burn',
+    format: 'mp4',
+    fontSize: 24,
+    fontColor: '#ffffff',
+    outline: 'outline',
+    position: 'bottom',
+    marginV: 24,
+  },
   'audio-cutter': { start: 0, duration: 10 },
   'audio-trimmer': { start: 0, duration: 10 },
   'video-cutter': { start: 0, duration: 10 },
@@ -31,7 +39,17 @@ const defaultOptions: Record<string, Record<string, unknown>> = {
 }
 
 export function defaultRemoteOptions(toolId: string): Record<string, unknown> {
-  return { ...(defaultOptions[toolId] ?? {}) }
+  return sanitizeRemoteOptions(toolId, { ...(defaultOptions[toolId] ?? {}) })
+}
+
+export function sanitizeRemoteOptions(
+  toolId: string,
+  options: Record<string, unknown>,
+): Record<string, unknown> {
+  if (toolId === 'blur-face') {
+    return { mode: options.mode === 'pixelate' ? 'pixelate' : 'blur' }
+  }
+  return { ...options }
 }
 
 export function parsePageList(raw: string): number[] {

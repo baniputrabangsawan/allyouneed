@@ -46,6 +46,7 @@ describe('workspace component mapping', () => {
     expect(getSpecialWorkspace(get('merge-png')!)).toBe(MergePngWorkspace)
     expect(getWorkspaceComponent(get('merge-png')!)).toBe(MergePngWorkspace)
     expect(getWorkspaceComponent(get('noise-reduction')!)).toBe(RemoteFileWorkspace)
+    expect(getWorkspaceComponent(get('add-subtitle')!)).toBe(RemoteFileWorkspace)
     expect(getSpecialWorkspace(get('speech-to-text')!)).toBe(SpeechToTextWorkspace)
     expect(getWorkspaceComponent(get('speech-to-text')!)).toBe(SpeechToTextWorkspace)
     expect(getSpecialWorkspace(get('text-to-speech')!)).toBe(TextToSpeechWorkspace)

@@ -95,11 +95,49 @@ function CreateDialog({ open, issued, onIssued, onClose }: { open: boolean; issu
   const dialog = useRef<HTMLDialogElement>(null)
   const [duration, setDuration] = useState<DurationMonths>(1)
   const [note, setNote] = useState('')
+  const [copied, setCopied] = useState(false)
+  const [copyError, setCopyError] = useState('')
   const create = useMutation({ mutationFn: () => createAdminLicense(duration, note), onSuccess: onIssued })
   useEffect(() => { if (open && !dialog.current?.open) dialog.current?.showModal(); if (!open && dialog.current?.open) dialog.current.close() }, [open])
-  const close = () => { create.reset(); setNote(''); onClose() }
+  useEffect(() => {
+    if (!open) return
+    const original = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = original }
+  }, [open])
+  useEffect(() => {
+    if (!copied) return
+    const id = window.setTimeout(() => setCopied(false), 1800)
+    return () => window.clearTimeout(id)
+  }, [copied])
+  const close = () => { create.reset(); setNote(''); setCopied(false); setCopyError(''); onClose() }
   const submit = (event: FormEvent) => { event.preventDefault(); create.mutate() }
-  return <dialog ref={dialog} className="admin-dialog" aria-labelledby="create-title" onCancel={(event) => { event.preventDefault(); close() }}><div>{issued ? <><button className="admin-dialog-close" aria-label="Close" onClick={close}><X size={18} /></button><p className="eyebrow">License created</p><h2 id="create-title">Copy this key now.</h2><p>This key is shown once. Store or send it safely before closing.</p><code className="admin-license-key">{issued.licenseKey}</code><button className="button primary" onClick={() => navigator.clipboard.writeText(issued.licenseKey)}><Clipboard size={16} />Copy license key</button></> : <form onSubmit={submit}><button className="admin-dialog-close" type="button" aria-label="Close" onClick={close}><X size={18} /></button><p className="eyebrow">New entitlement</p><h2 id="create-title">Create license</h2><label>Duration<select value={duration} onChange={(event) => setDuration(Number(event.target.value) as DurationMonths)}><option value={1}>1 month</option><option value={6}>6 months</option><option value={12}>12 months</option></select></label><label>Internal note <span>Optional</span><input maxLength={200} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Order reference" /></label>{create.isError && <p className="admin-error" role="alert">{errorMessage(create.error)}</p>}<div className="button-row"><button className="button ghost" type="button" onClick={close}>Cancel</button><button className="button primary" disabled={create.isPending}>{create.isPending ? 'Creating...' : 'Create license'}</button></div></form>}</div></dialog>
+  async function copyKey() {
+    const key = issued?.licenseKey
+    if (!key) return
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(key)
+      } else {
+        const textarea = document.createElement('textarea')
+        textarea.value = key
+        textarea.setAttribute('readonly', '')
+        textarea.style.position = 'fixed'
+        textarea.style.opacity = '0'
+        document.body.append(textarea)
+        textarea.select()
+        const ok = document.execCommand('copy')
+        textarea.remove()
+        if (!ok) throw new Error('Copy failed')
+      }
+      setCopied(true)
+      setCopyError('')
+    } catch {
+      setCopied(false)
+      setCopyError('Could not copy the license key. Select and copy it manually.')
+    }
+  }
+  return <dialog ref={dialog} className="admin-dialog" aria-labelledby="create-title" onCancel={close} onClose={close}><div>{issued ? <><button className="admin-dialog-close" aria-label="Close" onClick={close}><X size={18} /></button><p className="eyebrow">License created</p><h2 id="create-title">Copy this key now.</h2><p>This key is shown once. Store or send it safely before closing.</p><code className="admin-license-key">{issued.licenseKey}</code>{copied && <p className="admin-success" role="status">License key copied</p>}{copyError && <p className="admin-error" role="alert">{copyError}</p>}<button className="button primary" onClick={() => void copyKey()} disabled={!issued.licenseKey}><Clipboard size={16} />{copied ? 'Copied' : 'Copy license key'}</button></> : <form onSubmit={submit}><button className="admin-dialog-close" type="button" aria-label="Close" onClick={close}><X size={18} /></button><p className="eyebrow">New entitlement</p><h2 id="create-title">Create license</h2><label>Duration<select value={duration} onChange={(event) => setDuration(Number(event.target.value) as DurationMonths)}><option value={1}>1 month</option><option value={6}>6 months</option><option value={12}>12 months</option></select></label><label>Internal note <span>Optional</span><input maxLength={200} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Order reference" /></label>{create.isError && <p className="admin-error" role="alert">{errorMessage(create.error)}</p>}<div className="button-row"><button className="button ghost" type="button" onClick={close}>Cancel</button><button className="button primary" disabled={create.isPending}>{create.isPending ? 'Creating...' : 'Create license'}</button></div></form>}</div></dialog>
 }
 
 function ConfirmDialog({ value, pending, error, onClose, onConfirm }: { value: { license: AdminLicense; action: string } | null; pending: boolean; error: unknown; onClose: () => void; onConfirm: (duration?: DurationMonths) => void }) {

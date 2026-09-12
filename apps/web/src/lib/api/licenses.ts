@@ -1,4 +1,4 @@
-import { apiClient, type ApiClient, type ApiRequestOptions } from './client'
+import { ApiError, apiClient, type ApiClient, type ApiRequestOptions } from './client'
 import type { ApiResponse } from './types'
 
 export type LicensePlan = 'pro_1_month' | 'pro_6_months' | 'pro_12_months'
@@ -25,12 +25,17 @@ export const activateLicense = async (
   installationId: string,
   options?: ApiRequestOptions,
   client: ApiClient = apiClient,
-): Promise<EntitlementPayload> =>
-  (await client.post<ApiResponse<EntitlementPayload>>(
-    '/api/v1/licenses/activate',
-    { licenseKey, installationId },
-    options,
-  )).data
+): Promise<EntitlementPayload> => {
+  try {
+    return (await client.post<ApiResponse<EntitlementPayload>>(
+      '/api/v1/licenses/activate',
+      { licenseKey, installationId },
+      options,
+    )).data
+  } catch (reason) {
+    throw licenseError(reason)
+  }
+}
 
 export const refreshLicense = async (
   options?: ApiRequestOptions,
@@ -49,3 +54,14 @@ export const getLicenseStatus = async (
   client: ApiClient = apiClient,
 ): Promise<LicenseStatusView> =>
   (await client.get<ApiResponse<LicenseStatusView>>('/api/v1/licenses/status', options)).data
+
+function licenseError(reason: unknown): unknown {
+  if (reason instanceof ApiError && (reason.code === 'API_UNREACHABLE' || reason.code === 'TIMEOUT')) {
+    return new ApiError('Could not reach the license server.', {
+      status: reason.status,
+      code: 'LICENSE_API_UNREACHABLE',
+      cause: reason,
+    })
+  }
+  return reason
+}

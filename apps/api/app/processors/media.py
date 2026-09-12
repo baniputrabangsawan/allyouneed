@@ -63,6 +63,13 @@ _NAMED_RGB = {
 _SUBTITLE_TIMESTAMP = re.compile(
     r"\d{2}:\d{2}:\d{2}[,.]\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}",
 )
+_SUBTITLE_ALIGNMENTS = {"bottom": 2, "middle": 5, "top": 8}
+_SUBTITLE_OUTLINES = {"none", "outline", "background"}
+BURN_STAGE = "Burning subtitles..."
+SUBTITLE_RENDER_FAILED_MESSAGE = "Subtitles could not be burned into this video."
+NO_VIDEO_STREAM_MESSAGE = "This file has no video stream."
+INVALID_SUBTITLE_MESSAGE = "That subtitle file could not be read."
+UNSUPPORTED_SUBTITLE_MESSAGE = "Use an .srt, .vtt, or .ass subtitle file."
 
 
 def looks_like_subtitle_text(text: str) -> bool:
@@ -84,15 +91,50 @@ def looks_like_subtitle_file(path: Path) -> bool:
     return looks_like_subtitle_text(sample.decode("utf-8", errors="ignore"))
 
 
+def _read_subtitle_text(path: Path) -> str | None:
+    try:
+        data = path.read_bytes()
+    except OSError:
+        return None
+    if not data or b"\x00" in data[:512]:
+        return None
+    return data.decode("utf-8", errors="ignore")
+
+
+def subtitle_cues_valid(text: str) -> bool:
+    sample = text.lstrip("﻿").lstrip()
+    if not sample.strip():
+        return False
+    if sample.startswith("WEBVTT"):
+        return _SUBTITLE_TIMESTAMP.search(sample) is not None or bool(
+            re.search(r"\d{2}:\d{2}\.\d{3}\s*-->\s*\d{2}:\d{2}", sample)
+        )
+    if "[Script Info]" in sample or "Dialogue:" in sample:
+        return "Dialogue:" in sample
+    return _SUBTITLE_TIMESTAMP.search(sample) is not None
+
+
 def classify_media_input(path: Path) -> str:
     extension = path.suffix.lower()
-    if extension in SUBTITLE_EXTENSIONS:
+    if extension in SUBTITLE_EXTENSIONS or looks_like_subtitle_file(path):
         return "subtitle"
     if extension in VIDEO_EXTENSIONS:
         return "video"
-    if looks_like_subtitle_file(path):
-        return "subtitle"
-    return "video"
+    return "other"
+
+
+def require_subtitle_file(path: Path) -> None:
+    extension = path.suffix.lower()
+    text = _read_subtitle_text(path)
+    recognized = extension in SUBTITLE_EXTENSIONS or (
+        text is not None and looks_like_subtitle_text(text)
+    )
+    if not recognized:
+        raise ProcessingError(
+            UNSUPPORTED_SUBTITLE_MESSAGE, code="UNSUPPORTED_SUBTITLE_FORMAT"
+        )
+    if text is None or not subtitle_cues_valid(text):
+        raise ProcessingError(INVALID_SUBTITLE_MESSAGE, code="INVALID_SUBTITLE_FILE")
 
 
 def subtitle_extension_from_content(path: Path) -> str:
@@ -114,22 +156,41 @@ def materialize_subtitle(subtitle: Path, work_dir: Path) -> Path:
     return dest
 
 
-# afftdn presets (ffmpeg-filters.html#afftdn): noise_reduction (nr) 0.01–97 default 12,
-# noise_floor (nf) −80…−20 default −50. Deterministic FFT denoise; not arnndn.
-NOISE_REDUCTION_PRESETS: dict[str, tuple[float, float]] = {
-    "light": (8, -50),
-    "medium": (12, -50),
-    "strong": (24, -40),
+# Standard afftdn presets. nr 0.01–97, nf −80…−20, rf −80…−20.
+# tn/tr on so the floor tracks real recordings instead of a static −50 dB white floor.
+NOISE_REDUCTION_PRESETS: dict[str, tuple[float, float, float | None]] = {
+    "light": (18, -55, None),
+    "medium": (28, -60, -42),
+    "strong": (42, -65, -35),
 }
+SMART_NOISE_REDUCTION_MIX: dict[str, float] = {
+    "light": 0.55,
+    "medium": 0.85,
+    "strong": 1.0,
+}
+NOISE_REDUCTION_MODES = frozenset({"standard", "smart"})
+NOISE_REDUCTION_STRENGTHS = frozenset({"light", "medium", "strong"})
+MISSING_RNNOISE_MODEL = (
+    "Smart noise reduction is unavailable because the RNNoise model file is missing."
+)
+DEFAULT_RNNOISE_MODEL = Path(__file__).resolve().parents[1] / "assets" / "rnnoise" / "cb.rnnn"
 
 
 def split_video_and_subtitle(inputs: list[Path]) -> tuple[Path, Path]:
     videos = [path for path in inputs if classify_media_input(path) == "video"]
     subtitles = [path for path in inputs if classify_media_input(path) == "subtitle"]
+    others = [path for path in inputs if classify_media_input(path) == "other"]
+    if len(videos) == 1 and not subtitles and len(others) == 1:
+        require_subtitle_file(others[0])
+    if len(subtitles) == 1 and not videos and len(others) == 1:
+        require_subtitle_file(subtitles[0])
+        return others[0], subtitles[0]
     if len(videos) != 1 or len(subtitles) != 1:
         raise ProcessingError(
-            "Add Subtitle needs one video file and one subtitle file (.srt, .vtt, or .ass)."
+            "Add Subtitle needs one video file and one subtitle file (.srt, .vtt, or .ass).",
+            code="INVALID_SUBTITLE_FILE",
         )
+    require_subtitle_file(subtitles[0])
     return videos[0], subtitles[0]
 
 
@@ -179,11 +240,31 @@ def burn_force_style(options: dict[str, Any], subtitle: Path) -> str | None:
         if not re.fullmatch(r"[A-Za-z0-9 _-]+", font):
             raise ProcessingError("Invalid subtitle font name.")
         parts.append(f"FontName={font}")
-    if "fontSize" in options:
-        parts.append(f"FontSize={integer(options, 'fontSize', 24, minimum=8, maximum=96)}")
-    if "fontColor" in options:
-        parts.append(f"PrimaryColour={css_to_ass_color(str(options.get('fontColor', '')))}")
-    return ",".join(parts) or None
+    parts.append(f"FontSize={integer(options, 'fontSize', 24, minimum=8, maximum=96)}")
+    color = str(options.get("fontColor", "white"))
+    parts.append(f"PrimaryColour={css_to_ass_color(color)}")
+    outline = str(options.get("outline", "outline")).strip().lower()
+    if outline not in _SUBTITLE_OUTLINES:
+        raise ProcessingError("Choose none, outline, or background for subtitle outline.")
+    if outline == "none":
+        parts.append("BorderStyle=1")
+        parts.append("Outline=0")
+        parts.append("Shadow=0")
+    elif outline == "background":
+        parts.append("BorderStyle=3")
+        parts.append("Outline=4")
+        parts.append(f"BackColour={css_to_ass_color('black')}")
+    else:
+        parts.append("BorderStyle=1")
+        parts.append("Outline=2")
+        parts.append("Shadow=0")
+    position = str(options.get("position", "bottom")).strip().lower()
+    alignment = _SUBTITLE_ALIGNMENTS.get(position)
+    if alignment is None:
+        raise ProcessingError("Choose bottom, middle, or top for subtitle position.")
+    parts.append(f"Alignment={alignment}")
+    parts.append(f"MarginV={integer(options, 'marginV', 24, minimum=0, maximum=200)}")
+    return ",".join(parts)
 
 
 def css_to_ass_color(color: str) -> str:
@@ -287,13 +368,57 @@ def validate_subtitle_output(info: dict[str, Any], *, mode: str, audio: bool) ->
         raise ProcessingError("Output file is missing a subtitle track.")
 
 
-def noise_reduction_filter(options: dict[str, Any]) -> str:
+def rnnoise_model_file() -> Path:
+    from app.core.config import API_ROOT, get_settings
+
+    raw = str(get_settings().rnnoise_model_path or "").strip()
+    path = Path(raw).expanduser() if raw else DEFAULT_RNNOISE_MODEL
+    if not path.is_absolute():
+        path = API_ROOT / path
+    return path
+
+
+def require_rnnoise_model() -> Path:
+    path = rnnoise_model_file()
+    if not path.is_file():
+        raise ProcessingError(MISSING_RNNOISE_MODEL)
+    return path.resolve()
+
+
+def warn_if_rnnoise_model_missing() -> None:
+    import structlog
+
+    path = rnnoise_model_file()
+    if not path.is_file():
+        structlog.get_logger().warning("rnnoise_model_missing", path=str(path))
+
+
+def noise_reduction_mode(options: dict[str, Any]) -> str:
+    mode = str(options.get("mode", "standard")).strip().lower()
+    if mode not in NOISE_REDUCTION_MODES:
+        raise ProcessingError("Noise reduction mode must be standard or smart.")
+    return mode
+
+
+def noise_reduction_strength(options: dict[str, Any]) -> str:
     strength = str(options.get("strength", "medium")).strip().lower()
-    preset = NOISE_REDUCTION_PRESETS.get(strength)
-    if preset is None:
+    if strength not in NOISE_REDUCTION_STRENGTHS:
         raise ProcessingError("Noise reduction strength must be light, medium, or strong.")
-    nr, nf = preset
-    return f"afftdn=nr={nr}:nf={nf}:nt=w"
+    return strength
+
+
+def noise_reduction_filter(options: dict[str, Any]) -> str:
+    mode = noise_reduction_mode(options)
+    strength = noise_reduction_strength(options)
+    if mode == "smart":
+        escaped = escape_subtitles_path(require_rnnoise_model())
+        mix = SMART_NOISE_REDUCTION_MIX[strength]
+        return f"aformat=sample_rates=48000,arnndn=m='{escaped}':mix={mix}"
+    nr, nf, rf = NOISE_REDUCTION_PRESETS[strength]
+    graph = f"afftdn=nr={nr}:nf={nf}:tn=1:tr=1:om=o"
+    if rf is not None:
+        graph += f":rf={rf}"
+    return graph
 
 
 AUDIO_CONVERT_BITRATES = ("64k", "96k", "128k", "192k", "256k", "320k")
@@ -351,7 +476,8 @@ def require_input_streams(tool_id: str, info: dict[str, Any]) -> None:
     if tool_id == "video-metadata-viewer":
         return
     if tool_id in VIDEO_TOOLS and first_video_stream(info) is None:
-        raise ProcessingError("This file has no video stream.", code="VIDEO_STREAM_NOT_FOUND")
+        code = "NO_VIDEO_STREAM" if tool_id == "add-subtitle" else "VIDEO_STREAM_NOT_FOUND"
+        raise ProcessingError(NO_VIDEO_STREAM_MESSAGE, code=code)
 
 
 def resolve_audio_convert_format(options: dict[str, Any]) -> AudioConvertSpec:
@@ -554,24 +680,42 @@ class MediaProcessor(Processor):
             else None
         )
         args = ffmpeg_args(self.tool_id, inputs, context.options, output)
-        await context.report(None if total is None else 10, "processing")
+        burning = self.tool_id == "add-subtitle" and subtitle_mode(context.options) == "burn"
+        stage = BURN_STAGE if burning else "processing"
+        await context.report(None if total is None else 0, stage)
+
+        async def report_encode(fraction: float) -> None:
+            percent = max(0, min(100, int(fraction * 100)))
+            await context.report(percent, stage)
+
         try:
-            await run_command(args, cancel_event=context.cancel_event, timeout=600)
+            await run_command(
+                args,
+                cancel_event=context.cancel_event,
+                timeout=600,
+                on_progress=report_encode if total is not None else None,
+                duration=total,
+            )
         except ProcessingError as exc:
             if self.tool_id == "audio-converter":
                 raise ProcessingError(
                     "This audio file could not be converted.", code=exc.code
                 ) from exc
+            if burning:
+                raise ProcessingError(
+                    SUBTITLE_RENDER_FAILED_MESSAGE, code="SUBTITLE_RENDER_FAILED"
+                ) from exc
             raise
+        output_info: dict[str, Any] | None = None
         if self.tool_id not in {"generate-thumbnail", "video-screenshot", "video-to-gif"}:
-            info = await probe(output, cancel_event=context.cancel_event)
+            output_info = await probe(output, cancel_event=context.cancel_event)
             if spec is not None:
-                validate_audio_convert_output(info, spec, source_duration=total)
+                validate_audio_convert_output(output_info, spec, source_duration=total)
             else:
-                validate_media_output(info)
+                validate_media_output(output_info)
             if self.tool_id == "add-subtitle":
                 validate_subtitle_output(
-                    info,
+                    output_info,
                     mode=subtitle_mode(context.options),
                     audio=keep_audio(context.options),
                 )
@@ -582,7 +726,7 @@ class MediaProcessor(Processor):
             fmt: dict[str, Any] = raw_format if isinstance(raw_format, dict) else {}
             return ProcessorResult(
                 metadata={
-                    "duration": duration_seconds(info) if spec else total,
+                    "duration": duration_seconds(output_info) if output_info else total,
                     "sourceFormat": str(
                         audio.get("codec_name") or fmt.get("format_name") or "unknown"
                     ),
@@ -593,4 +737,17 @@ class MediaProcessor(Processor):
                 extension=spec.ext,
                 content_type=spec.mime,
             )
-        return ProcessorResult(metadata={"duration": total})
+        metadata: dict[str, Any] = {"duration": total}
+        if self.tool_id == "add-subtitle" and output.is_file():
+            video_stream = first_video_stream(output_info or {}) or {}
+            width = video_stream.get("width")
+            height = video_stream.get("height")
+            metadata = {
+                "duration": duration_seconds(output_info) if output_info else total,
+                "outputSize": output.stat().st_size,
+            }
+            if isinstance(width, int) and isinstance(height, int) and width > 0 and height > 0:
+                metadata["width"] = width
+                metadata["height"] = height
+                metadata["resolution"] = f"{width}x{height}"
+        return ProcessorResult(metadata=metadata)

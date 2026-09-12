@@ -21,6 +21,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     ensure_sqlite_parent(settings.license_database_url)
     if settings.app_env != "production":
         await create_schema()
+    from app.processors.media import warn_if_rnnoise_model_missing
+
+    warn_if_rnnoise_model_missing()
     yield
     await dispose_engine()
 

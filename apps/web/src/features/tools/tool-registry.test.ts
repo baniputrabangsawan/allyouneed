@@ -66,6 +66,8 @@ describe('tool registry', () => {
     expect(getToolBySlug('remove-background')?.ai).toBe(true)
     expect(getToolBySlug('noise-reduction')?.available).toBe(true)
     expect(getToolBySlug('noise-reduction')?.ai).toBeUndefined()
+    expect(getToolBySlug('add-subtitle')?.available).toBe(true)
+    expect(getToolBySlug('add-subtitle')?.implementation).toBe('remote-api')
     expect(getPopularTools().every((tool) => tool.available && tool.popular)).toBe(true)
   })
 

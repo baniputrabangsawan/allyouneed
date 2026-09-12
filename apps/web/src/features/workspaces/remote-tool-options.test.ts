@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { defaultRemoteOptions, formatPageList, parsePageList } from './remote-tool-options'
+import { defaultRemoteOptions, formatPageList, parsePageList, sanitizeRemoteOptions } from './remote-tool-options'
 
 describe('parsePageList', () => {
   it('parses comma-separated pages and ranges', () => {
@@ -24,5 +24,29 @@ describe('defaultRemoteOptions', () => {
 
   it('returns an empty object for tools without options', () => {
     expect(defaultRemoteOptions('merge-pdf')).toEqual({})
+  })
+
+  it('defaults add-subtitle to burn-in with style options', () => {
+    expect(defaultRemoteOptions('add-subtitle')).toEqual({
+      mode: 'burn',
+      format: 'mp4',
+      fontSize: 24,
+      fontColor: '#ffffff',
+      outline: 'outline',
+      position: 'bottom',
+      marginV: 24,
+    })
+  })
+
+  it('defaults blur-face to blur without strength', () => {
+    expect(defaultRemoteOptions('blur-face')).toEqual({ mode: 'blur' })
+  })
+})
+
+describe('sanitizeRemoteOptions', () => {
+  it('keeps blur-face mode-only and ignores leftover strength', () => {
+    expect(sanitizeRemoteOptions('blur-face', { mode: 'pixelate', strength: 32 })).toEqual({ mode: 'pixelate' })
+    expect(sanitizeRemoteOptions('blur-face', { strength: 0 })).toEqual({ mode: 'blur' })
+    expect(sanitizeRemoteOptions('blur-face', { mode: 'wipe' })).toEqual({ mode: 'blur' })
   })
 })

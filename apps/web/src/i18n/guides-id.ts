@@ -1,6 +1,30 @@
 import type { ToolGuide } from '@/content/docs/types'
 
 export const toolGuidesId: Record<string, ToolGuide> = {
+  'add-subtitle': {
+    slug: 'add-subtitle',
+    overview: 'Tambah Subtitle membakar file .srt, .vtt, atau .ass yang sudah ada ke video di server Kits. Tool ini tidak membuat subtitle atau waktu otomatis dari teks biasa.',
+    steps: [
+      'Buka Tambah Subtitle.',
+      'Unggah satu video (MP4, WebM, MOV, atau MKV) dan satu file subtitle.',
+      'Pilih burn-in atau mux, lalu atur ukuran font, warna, outline, posisi, dan margin bawah untuk burn-in.',
+      'Proses video. Progres memakai waktu yang sudah diproses dibanding durasi jika FFmpeg melaporkannya.',
+      'Pratinjau hasil. Diunduh otomatis sekali. Gunakan Unduh lagi untuk salinan lain.',
+    ],
+    optionDocs: [
+      { name: 'Mode', description: 'Burn-in menggambar caption ke gambar. Mux menempelkan trek subtitle tanpa membakar.' },
+      { name: 'Ukuran font / Warna teks', description: 'Hanya burn-in. Diterapkan lewat gaya subtitle FFmpeg, bukan string filter kustom.' },
+      { name: 'Latar / outline', description: 'Tidak ada, outline, atau kotak caption.' },
+      { name: 'Posisi / Margin bawah', description: 'Bawah, tengah, atau atas, plus margin vertikal dalam piksel.' },
+    ],
+    output: 'Video dengan subtitle terbakar atau mux, pratinjau, durasi, ukuran, resolusi, dan unduhan otomatis.',
+    example: 'Klip MP4 plus file .srt bisa dibakar dengan caption putih 24px di bagian bawah.',
+    troubleshooting: [
+      { problem: 'File subtitle ditolak', solution: 'Gunakan .srt, .vtt, atau .ass dengan waktu cue. Teks biasa tanpa timestamp tidak didukung.' },
+      { problem: 'Video tidak punya gambar', solution: 'Sumber harus punya aliran video. File audio saja tidak bisa diberi subtitle di sini.' },
+    ],
+    keywords: ['subtitle', 'caption', 'srt', 'vtt', 'ass', 'bakar'],
+  },
   'compress-image': {
     slug: 'compress-image',
     overview: 'Kompres Gambar memperkecil ukuran file foto JPEG, PNG, WebP, atau AVIF. PNG memakai mode Lossless, Balanced (default), atau Strong, bukan slider kualitas.',
@@ -226,6 +250,30 @@ export const toolGuidesId: Record<string, ToolGuide> = {
       { problem: 'Pemrosesan tidak tersedia', solution: 'API dan worker harus berjalan. Ini bukan konverter browser.' },
     ],
     keywords: ['audio', 'konversi', 'ffmpeg'],
+  },
+  'noise-reduction': {
+    slug: 'noise-reduction',
+    overview: 'Reduksi Noise menghilangkan desis, kipas, kebisingan ruangan, dan keyboard dari rekaman suara di server Kits. Standar memakai filter FFmpeg cepat. Cerdas memakai RNNoise lokal untuk supresi yang lebih kuat pada suara.',
+    steps: [
+      'Buka Reduksi Noise.',
+      'Tambahkan file audio (MP3, WAV, M4A, OGG, WebM, FLAC, atau AAC).',
+      'Pilih Standar untuk desis konstan, atau Cerdas untuk suara dengan noise latar.',
+      'Atur kekuatan ke Ringan, Sedang, atau Kuat.',
+      'Proses job, lalu bandingkan Asli dan Hasil di pemutar pratinjau.',
+      'Unduh audio yang sudah dibersihkan.',
+    ],
+    optionDocs: [
+      { name: 'Mode', description: 'Standar adalah filter FFmpeg cepat untuk desis konstan. Cerdas lebih kuat pada suara, dengan model RNNoise lokal. Tidak ada API berbayar.' },
+      { name: 'Kekuatan', description: 'Ringan, Sedang (default), atau Kuat. Parameter FFmpeg tidak ditampilkan.' },
+    ],
+    output: 'File audio hasil proses, dengan pemutar asli dan hasil agar bisa dibandingkan langsung.',
+    example: 'Memo suara dengan noise kipas laptop bisa dibersihkan di Cerdas Sedang, lalu dibandingkan dengan aslinya sebelum diunduh.',
+    troubleshooting: [
+      { problem: 'Hasil masih berisik', solution: 'Ganti ke Cerdas dan coba Kuat. Standar untuk desis konstan, bukan noise ruangan atau keyboard.' },
+      { problem: 'Suara terdengar tipis atau metalik', solution: 'Pakai Ringan atau Sedang. Kuat bisa terlalu agresif pada sebagian suara.' },
+      { problem: 'Pemrosesan tidak tersedia', solution: 'API dan worker harus berjalan. Mode Cerdas juga butuh file model RNNoise lokal.' },
+    ],
+    keywords: ['noise', 'denoise', 'desis', 'rnnoise', 'afftdn'],
   },
   'video-compressor': {
     slug: 'video-compressor',

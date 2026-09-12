@@ -180,50 +180,66 @@ export function RemoteToolFields({ toolId, options, onChange }: RemoteToolFields
   }
 
   if (toolId === 'noise-reduction') {
+    const mode = stringValue(options.mode, 'smart')
+    const strength = stringValue(options.strength, 'medium')
     return (
       <>
-        <p className="option-help" role="note">{copy.workspace.noiseReductionNote}</p>
+        <label className="field">
+          <span>{copy.workspace.noiseMode}</span>
+        </label>
+        <div className="segmented segmented-2" role="group" aria-label={copy.workspace.noiseMode}>
+          {(['standard', 'smart'] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              className={mode === value ? 'active' : ''}
+              aria-pressed={mode === value}
+              onClick={() => onChange({ mode: value })}
+            >
+              {value === 'standard' ? copy.workspace.noiseModeStandard : copy.workspace.noiseModeSmart}
+            </button>
+          ))}
+        </div>
+        <p className="option-help" role="note">
+          {mode === 'smart' ? copy.workspace.noiseModeSmartHelp : copy.workspace.noiseModeStandardHelp}
+        </p>
         <label className="field">
           <span>{copy.workspace.noiseStrength}</span>
-          <select
-            aria-label={copy.workspace.noiseStrength}
-            value={stringValue(options.strength, 'medium')}
-            onChange={(event) => onChange({ strength: event.target.value })}
-          >
-            <option value="light">{copy.workspace.strengthLight}</option>
-            <option value="medium">{copy.workspace.strengthMedium}</option>
-            <option value="strong">{copy.workspace.strengthStrong}</option>
-          </select>
         </label>
+        <div className="segmented" role="group" aria-label={copy.workspace.noiseStrength}>
+          {(['light', 'medium', 'strong'] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              className={strength === value ? 'active' : ''}
+              aria-pressed={strength === value}
+              onClick={() => onChange({ strength: value })}
+            >
+              {value === 'light' ? copy.workspace.strengthLight : value === 'medium' ? copy.workspace.strengthMedium : copy.workspace.strengthStrong}
+            </button>
+          ))}
+        </div>
       </>
     )
   }
 
   if (toolId === 'blur-face') {
+    const mode = stringValue(options.mode, 'blur') === 'pixelate' ? 'pixelate' : 'blur'
     return (
       <>
-        <p className="option-help" role="note">Basic Haar frontal-face detection, not high-accuracy AI. Profile, side, or busy photos may miss. Zero detections fail with “No faces detected.”</p>
+        <p className="option-help" role="note">{copy.workspace.blurNote}</p>
         <label className="field">
           <span>{copy.workspace.blurMode}</span>
           <select
             aria-label={copy.workspace.blurMode}
-            value={stringValue(options.mode, 'blur')}
+            value={mode}
             onChange={(event) => onChange({ mode: event.target.value })}
           >
-            <option value="blur">Blur</option>
-            <option value="pixelate">Pixelate</option>
+            <option value="blur">{copy.workspace.blurOption}</option>
+            <option value="pixelate">{copy.workspace.pixelateOption}</option>
           </select>
-        </label>
-        <label className="field">
-          <span>{copy.workspace.blurStrength}</span>
-          <input
-            aria-label={copy.workspace.blurStrength}
-            type="number"
-            min={1}
-            max={32}
-            value={numberValue(options.strength, 8)}
-            onChange={(event) => onChange({ strength: Number(event.target.value) })}
-          />
+          <small>{copy.workspace.blurHelp}</small>
+          <small>{copy.workspace.pixelateHelp}</small>
         </label>
       </>
     )
@@ -232,7 +248,7 @@ export function RemoteToolFields({ toolId, options, onChange }: RemoteToolFields
   if (toolId === 'add-subtitle') {
     return (
       <>
-        <p className="option-help" role="note">Burns or muxes an existing .srt, .vtt, or .ass file into a video. This tool does not generate subtitles.</p>
+        <p className="option-help" role="note">{copy.workspace.subtitleHelp}</p>
         <label className="field">
           <span>{copy.workspace.subtitleMode}</span>
           <select
@@ -253,9 +269,67 @@ export function RemoteToolFields({ toolId, options, onChange }: RemoteToolFields
           >
             <option value="mp4">MP4</option>
             <option value="webm">WebM</option>
-            <option value="mkv">MKV</option>
           </select>
         </label>
+        {stringValue(options.mode, 'burn') === 'burn' && (
+          <>
+            <label className="field">
+              <span>{copy.workspace.fontSize}</span>
+              <input
+                aria-label={copy.workspace.fontSize}
+                type="number"
+                min={8}
+                max={96}
+                value={numberValue(options.fontSize, 24)}
+                onChange={(event) => onChange({ fontSize: Number(event.target.value) })}
+              />
+            </label>
+            <label className="field">
+              <span>{copy.workspace.textColor}</span>
+              <input
+                aria-label={copy.workspace.textColor}
+                type="color"
+                value={stringValue(options.fontColor, '#ffffff')}
+                onChange={(event) => onChange({ fontColor: event.target.value })}
+              />
+            </label>
+            <label className="field">
+              <span>{copy.workspace.subtitleOutline}</span>
+              <select
+                aria-label={copy.workspace.subtitleOutline}
+                value={stringValue(options.outline, 'outline')}
+                onChange={(event) => onChange({ outline: event.target.value })}
+              >
+                <option value="none">{copy.workspace.outlineNone}</option>
+                <option value="outline">{copy.workspace.outlineStroke}</option>
+                <option value="background">{copy.workspace.outlineBackground}</option>
+              </select>
+            </label>
+            <label className="field">
+              <span>{copy.workspace.subtitlePosition}</span>
+              <select
+                aria-label={copy.workspace.subtitlePosition}
+                value={stringValue(options.position, 'bottom')}
+                onChange={(event) => onChange({ position: event.target.value })}
+              >
+                <option value="bottom">{copy.workspace.positionBottom}</option>
+                <option value="middle">{copy.workspace.positionMiddle}</option>
+                <option value="top">{copy.workspace.positionTop}</option>
+              </select>
+            </label>
+            <label className="field">
+              <span>{copy.workspace.bottomMargin}</span>
+              <input
+                aria-label={copy.workspace.bottomMargin}
+                type="number"
+                min={0}
+                max={200}
+                value={numberValue(options.marginV, 24)}
+                onChange={(event) => onChange({ marginV: Number(event.target.value) })}
+              />
+            </label>
+          </>
+        )}
       </>
     )
   }

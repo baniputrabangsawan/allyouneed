@@ -14,7 +14,7 @@ import {
   X,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { isPro, useEntitlement } from '@/features/licensing/entitlement'
+import { useEntitlement } from '@/features/licensing/entitlement'
 import { localeLabels, locales, type Locale } from '@/i18n/config'
 import { LocaleLink } from '@/i18n/link'
 import { stripLocalePrefix, switchLocaleLocation, useLocale, useT } from '@/i18n'
@@ -46,7 +46,8 @@ export function MobileNav({ theme, shortcutLabel, onClose, onSearch, onCycleThem
   const locale = useLocale()
   const switchLocale = useSwitchLocale()
   const entitlement = useEntitlement()
-  const entitled = isPro(entitlement.data)
+  const entitled = entitlement.state === 'pro'
+  const licensePending = entitlement.state === 'loading'
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const searchStr = useRouterState({ select: (state) => state.location.searchStr })
   const hash = useRouterState({ select: (state) => state.location.hash.replace(/^#/, '') })
@@ -176,10 +177,17 @@ export function MobileNav({ theme, shortcutLabel, onClose, onSearch, onCycleThem
           </LocaleLink>
 
           <p className="mobile-sheet-label">{copy.nav.sectionPro}</p>
-          <LocaleLink className={`mobile-sheet-row${pathActive('/license') ? ' active' : ''}`} to="/license" onClick={close}>
-            <Sparkles size={18} aria-hidden="true" />
-            <span>{entitled ? copy.nav.managePro : copy.nav.license}</span>
-          </LocaleLink>
+          {licensePending ? (
+            <span className="mobile-sheet-row license-chip-loading" aria-busy="true" aria-label={copy.nav.proLicense}>
+              <Sparkles size={18} aria-hidden="true" />
+              <span />
+            </span>
+          ) : (
+            <LocaleLink className={`mobile-sheet-row${pathActive('/license') ? ' active' : ''}`} to="/license" onClick={close}>
+              <Sparkles size={18} aria-hidden="true" />
+              <span>{entitled ? copy.nav.managePro : copy.nav.license}</span>
+            </LocaleLink>
+          )}
 
           <p className="mobile-sheet-label">{copy.nav.sectionPreferences}</p>
           <button className="mobile-sheet-row" type="button" onClick={() => setLangOpen((open) => !open)}>

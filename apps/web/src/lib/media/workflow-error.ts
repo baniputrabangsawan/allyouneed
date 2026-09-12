@@ -8,11 +8,17 @@ export type WorkflowErrorCode =
   | 'FFMPEG_FAILED'
   | 'RESULT_FETCH_FAILED'
   | 'NO_AUDIO_STREAM'
+  | 'NO_VIDEO_STREAM'
+  | 'INVALID_SUBTITLE_FILE'
+  | 'UNSUPPORTED_SUBTITLE_FORMAT'
+  | 'SUBTITLE_RENDER_FAILED'
   | 'UNSUPPORTED_MEDIA'
   | 'TRANSCRIPTION_FAILED'
   | 'MODEL_UNAVAILABLE'
   | 'TEXT_TOO_LONG'
   | 'VOICE_UNAVAILABLE'
+  | 'UNSUPPORTED_LANGUAGE'
+  | 'VOICE_LANGUAGE_MISMATCH'
   | 'TTS_FAILED'
 
 export interface WorkflowMessages {
@@ -24,10 +30,16 @@ export interface WorkflowMessages {
   resultFetchFailed: string
   textTooLong?: string
   noAudioStream?: string
+  noVideoStream?: string
+  invalidSubtitleFile?: string
+  unsupportedSubtitleFormat?: string
+  subtitleRenderFailed?: string
   unsupportedMedia?: string
   transcriptionFailed?: string
   modelUnavailable?: string
   voiceUnavailable?: string
+  unsupportedLanguage?: string
+  voiceLanguageMismatch?: string
   ttsFailed?: string
 }
 
@@ -48,11 +60,17 @@ export function workflowErrorCode(reason: unknown): WorkflowErrorCode {
     if (reason.code === 'FFMPEG_FAILED') return 'FFMPEG_FAILED'
     if (reason.code === 'RESULT_FETCH_FAILED' || reason.code === 'JOB_NOT_READY') return 'RESULT_FETCH_FAILED'
     if (reason.code === 'NO_AUDIO_STREAM' || reason.code === 'AUDIO_STREAM_NOT_FOUND') return 'NO_AUDIO_STREAM'
+    if (reason.code === 'NO_VIDEO_STREAM' || reason.code === 'VIDEO_STREAM_NOT_FOUND') return 'NO_VIDEO_STREAM'
+    if (reason.code === 'INVALID_SUBTITLE_FILE') return 'INVALID_SUBTITLE_FILE'
+    if (reason.code === 'UNSUPPORTED_SUBTITLE_FORMAT') return 'UNSUPPORTED_SUBTITLE_FORMAT'
+    if (reason.code === 'SUBTITLE_RENDER_FAILED') return 'SUBTITLE_RENDER_FAILED'
     if (reason.code === 'UNSUPPORTED_MEDIA') return 'UNSUPPORTED_MEDIA'
     if (reason.code === 'TRANSCRIPTION_FAILED') return 'TRANSCRIPTION_FAILED'
     if (reason.code === 'MODEL_UNAVAILABLE' || reason.code === 'SERVICE_UNAVAILABLE') return 'MODEL_UNAVAILABLE'
     if (reason.code === 'TEXT_TOO_LONG') return 'TEXT_TOO_LONG'
     if (reason.code === 'VOICE_UNAVAILABLE') return 'VOICE_UNAVAILABLE'
+    if (reason.code === 'UNSUPPORTED_LANGUAGE') return 'UNSUPPORTED_LANGUAGE'
+    if (reason.code === 'VOICE_LANGUAGE_MISMATCH') return 'VOICE_LANGUAGE_MISMATCH'
     if (reason.code === 'TTS_FAILED') return 'TTS_FAILED'
     if (reason.status === 0) return 'API_UNREACHABLE'
     return 'PROCESSING_FAILED'
@@ -71,11 +89,17 @@ export function workflowMessage(reason: unknown, messages: WorkflowMessages): st
   if (code === 'FFMPEG_FAILED') return messages.ffmpegFailed
   if (code === 'RESULT_FETCH_FAILED') return messages.resultFetchFailed
   if (code === 'NO_AUDIO_STREAM') return messages.noAudioStream ?? (reason instanceof Error ? reason.message : messages.processingFailed)
+  if (code === 'NO_VIDEO_STREAM') return messages.noVideoStream ?? (reason instanceof Error ? reason.message : messages.processingFailed)
+  if (code === 'INVALID_SUBTITLE_FILE') return messages.invalidSubtitleFile ?? (reason instanceof Error ? reason.message : messages.processingFailed)
+  if (code === 'UNSUPPORTED_SUBTITLE_FORMAT') return messages.unsupportedSubtitleFormat ?? (reason instanceof Error ? reason.message : messages.processingFailed)
+  if (code === 'SUBTITLE_RENDER_FAILED') return messages.subtitleRenderFailed ?? (reason instanceof Error ? reason.message : messages.processingFailed)
   if (code === 'UNSUPPORTED_MEDIA') return messages.unsupportedMedia ?? (reason instanceof Error ? reason.message : messages.processingFailed)
   if (code === 'TRANSCRIPTION_FAILED') return messages.transcriptionFailed ?? (reason instanceof Error ? reason.message : messages.processingFailed)
   if (code === 'MODEL_UNAVAILABLE') return messages.modelUnavailable ?? (reason instanceof Error ? reason.message : messages.processingFailed)
   if (code === 'TEXT_TOO_LONG') return messages.textTooLong ?? (reason instanceof Error ? reason.message : messages.processingFailed)
   if (code === 'VOICE_UNAVAILABLE') return messages.voiceUnavailable ?? (reason instanceof Error ? reason.message : messages.processingFailed)
+  if (code === 'UNSUPPORTED_LANGUAGE') return messages.unsupportedLanguage ?? (reason instanceof Error ? reason.message : messages.processingFailed)
+  if (code === 'VOICE_LANGUAGE_MISMATCH') return messages.voiceLanguageMismatch ?? (reason instanceof Error ? reason.message : messages.processingFailed)
   if (code === 'TTS_FAILED') return messages.ttsFailed ?? (reason instanceof Error ? reason.message : messages.processingFailed)
   if (reason instanceof Error && reason.message && !NETWORK_PATTERN.test(reason.message)) {
     return reason.message

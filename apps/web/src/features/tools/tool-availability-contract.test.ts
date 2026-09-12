@@ -19,7 +19,7 @@ const remoteProcessors = new Set([
   'audio-trimmer', 'audio-merger', 'remove-silence', 'noise-reduction', 'extract-audio-from-video', 'video-compressor',
   'video-converter', 'video-to-gif', 'gif-to-video', 'video-cutter', 'video-trimmer', 'video-merger',
   'resize-video', 'crop-video', 'rotate-video', 'remove-audio', 'extract-audio', 'add-audio',
-  'change-video-speed', 'add-watermark', 'blur-face', 'html-to-image', 'basic-background-removal',
+  'change-video-speed', 'add-watermark', 'add-subtitle', 'blur-face', 'html-to-image', 'basic-background-removal',
   'speech-to-text', 'text-to-speech', 'remove-background',
 ])
 
@@ -44,7 +44,7 @@ describe('available-tool contract', () => {
   })
 
   it('keeps incomplete, AI, and dependency-required tools Coming Soon', () => {
-    for (const slug of [...unavailableAi, 'add-subtitle']) {
+    for (const slug of unavailableAi) {
       expect(getToolBySlug(slug)?.available, slug).toBe(false)
     }
     for (const tool of tools.filter((item) => item.implementation === 'dependency-required')) {

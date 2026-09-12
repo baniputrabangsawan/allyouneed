@@ -18,6 +18,9 @@ async def _run(job_id: str) -> None:
 
 
 def process_job(job_id: str) -> None:
+    from app.processors.media import warn_if_rnnoise_model_missing
+
+    warn_if_rnnoise_model_missing()
     asyncio.run(_run(job_id))
 
 

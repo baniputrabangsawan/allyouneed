@@ -10,6 +10,8 @@ import {
   type EntitlementCache,
 } from '@/lib/storage/entitlement'
 
+export type EntitlementState = 'loading' | 'free' | 'pro'
+
 const FATAL_CODES = new Set([
   'LICENSE_EXPIRED',
   'LICENSE_REVOKED',
@@ -32,14 +34,32 @@ function tokenSnapshot() {
   return getStoredEntitlementToken() ?? ''
 }
 
+export function useClientHydrated() {
+  return useSyncExternalStore(() => () => undefined, () => true, () => false)
+}
+
 export function useStoredEntitlementToken() {
   return useSyncExternalStore(subscribe, tokenSnapshot, () => '')
 }
 
+export function resolveEntitlementState(input: {
+  hydrated: boolean
+  hasToken: boolean
+  active: boolean
+  settled: boolean
+}): EntitlementState {
+  if (!input.hydrated) return 'loading'
+  if (input.active) return 'pro'
+  if (!input.hasToken) return 'free'
+  if (!input.settled) return 'loading'
+  return 'free'
+}
+
 export function useEntitlement() {
+  const hydrated = useClientHydrated()
   const token = useStoredEntitlementToken()
-  const cached = getStoredEntitlementCache()
-  return useQuery({
+  const cached = hydrated ? getStoredEntitlementCache() : undefined
+  const query = useQuery({
     queryKey: ['license-status', token],
     queryFn: async () => {
       try {
@@ -51,11 +71,18 @@ export function useEntitlement() {
         throw reason
       }
     },
-    enabled: token.length > 0,
+    enabled: hydrated && token.length > 0,
     staleTime: 30_000,
     retry: false,
     ...(cached ? { placeholderData: cacheToStatus(cached) } : {}),
   })
+  const state = resolveEntitlementState({
+    hydrated,
+    hasToken: token.length > 0,
+    active: isPro(query.data),
+    settled: query.isSuccess || query.isError,
+  })
+  return { ...query, state }
 }
 
 export function isPro(status: LicenseStatusView | EntitlementCache | undefined) {

@@ -1,19 +1,24 @@
 import { useState, type FormEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { LoaderCircle } from 'lucide-react'
 import { ApiError } from '@/lib/api/client'
 import { activateLicense, deactivateLicense } from '@/lib/api/licenses'
 import { getOrCreateInstallationId } from '@/lib/storage/installation'
 import { isLicenseKey, normalizeLicenseKey } from '@/lib/storage/license'
 import { clearEntitlement, saveEntitlement } from '@/lib/storage/entitlement'
-import { isPro, useEntitlement, useStoredEntitlementToken } from './entitlement'
+import { useEntitlement, useStoredEntitlementToken } from './entitlement'
 
 const errorCopy: Record<string, string> = {
-  INVALID_LICENSE: 'That license key is not valid.',
+  LICENSE_API_UNREACHABLE: 'Could not reach the license server.',
+  API_UNREACHABLE: 'Could not reach the license server.',
+  TIMEOUT: 'Could not reach the license server.',
+  INVALID_LICENSE: 'This license key is invalid.',
   LICENSE_EXPIRED: 'This license has expired.',
   LICENSE_SUSPENDED: 'This license is suspended.',
   LICENSE_REVOKED: 'This license has been revoked.',
-  ACTIVATION_LIMIT_REACHED: 'This license is already active on another installation.',
+  ACTIVATION_LIMIT_REACHED: 'This license is already active on another browser.',
   ACTIVATION_REVOKED: 'This installation is no longer active.',
+  ACTIVATION_FAILED: 'Could not activate this license.',
 }
 
 export function ActivateLicenseForm() {
@@ -24,11 +29,16 @@ export function ActivateLicenseForm() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [confirming, setConfirming] = useState(false)
-  const entitled = isPro(entitlement.data)
+  const [activated, setActivated] = useState(false)
+  if (entitlement.state === 'loading') {
+    return <div className="license-form entitlement-loading" aria-busy="true" aria-label="Checking license" />
+  }
+  const entitled = entitlement.state === 'pro'
 
   async function onActivate(event: FormEvent) {
     event.preventDefault()
     setError('')
+    setActivated(false)
     const installationId = getOrCreateInstallationId()
     if (!installationId) {
       setError('This browser cannot store an installation id.')
@@ -48,9 +58,10 @@ export function ActivateLicenseForm() {
         capabilities: result.capabilities,
       })
       setValue('')
+      setActivated(true)
       await queryClient.invalidateQueries({ queryKey: ['license-status'] })
     } catch (reason) {
-      clearEntitlement()
+          clearEntitlement()
       const code = reason instanceof ApiError ? reason.code : ''
       setError(errorCopy[code] ?? (reason instanceof ApiError ? reason.message : 'Could not activate this license.'))
     } finally {
@@ -83,6 +94,8 @@ export function ActivateLicenseForm() {
       ) : (
         <p className="license-status">Paste a Pro license key. No account is created.</p>
       )}
+      {entitled && activated ? <p className="license-success">Pro activated</p> : null}
+      {entitled ? <dl className="license-details"><div><dt>Plan</dt><dd>Pro</dd></div><div><dt>Expires</dt><dd>{formatExpiry(entitlement.data?.expiresAt)}</dd></div><div><dt>Installation</dt><dd>{entitlement.data?.installationActive === false ? 'Inactive' : 'Active'}</dd></div></dl> : null}
       {!entitled ? (
         <label className="field">
           <span>License key</span>
@@ -98,8 +111,10 @@ export function ActivateLicenseForm() {
       <div className="button-row">
         {!entitled ? (
           <button className="button primary" type="submit" disabled={busy}>
-            {busy ? 'Activating…' : 'Activate License'}
+            {busy ? <><LoaderCircle size={16} />Activating...</> : 'Activate License'}
           </button>
+        ) : activated ? (
+          <a className="button primary" href="/">Continue</a>
         ) : confirming ? (
           <>
             <button className="button primary" type="button" disabled={busy} onClick={onDeactivate}>
