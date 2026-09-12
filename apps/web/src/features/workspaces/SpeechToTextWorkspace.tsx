@@ -1,8 +1,7 @@
-import { Download, LoaderCircle, Square } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
+import { LoaderCircle, Square } from 'lucide-react'
+import { useCallback, useState } from 'react'
 import { FileDropzone, type DropzoneProgress, type DropzoneStatus } from '../../components/file/FileDropzone'
 import { useT } from '../../i18n'
-import { resolveApiUrl } from '../../lib/api/client'
 import { completeUpload, createUpload, uploadFile } from '../../lib/api/files'
 import { cancelJob, createJob, getJob, getJobResult } from '../../lib/api/jobs'
 import type { Job } from '../../lib/api/types'
@@ -10,61 +9,76 @@ import { remoteJobPhase } from '../../lib/media/job-phase'
 import { previewKind } from '../../lib/media/kind'
 import { useObjectUrl } from '../../lib/media/object-url'
 import { errorFromJob, workflowErrorCode, workflowMessage, type WorkflowErrorCode } from '../../lib/media/workflow-error'
-import { downloadFromJobResult, restoreNoticeMessage, useToolFileSession } from '../../lib/storage/use-tool-file-session'
+import { restoreNoticeMessage, useToolFileSession } from '../../lib/storage/use-tool-file-session'
 import type { ToolDefinition } from '../tools/tool-registry'
 import { MediaPreview } from './MediaPreview'
 import { SelectedFiles } from './SelectedFiles'
+import { CopyButton, DownloadButton } from './workspace-ui'
 import {
-  AUDIO_CONVERT_BITRATES,
-  AUDIO_CONVERT_FORMATS,
-  AUDIO_CONVERT_RATES,
-  buildAudioConvertOptions,
-  defaultAudioBitrate,
-  formatBytes,
-  formatDuration,
-  isLosslessAudioFormat,
-  type AudioConvertFormat,
-} from './audio-converter-utils'
+  STT_FORMATS,
+  STT_LANGUAGES,
+  defaultSpeechToTextOptions,
+  formatSeconds,
+  languageLabel,
+  wordCount,
+  type SttFormat,
+} from './speech-options'
 
 interface Transfer {
   status: DropzoneStatus
   progress: DropzoneProgress
 }
 
-interface ConvertResult {
-  downloadUrl: string
-  filename: string
-  sourceFormat?: string
-  outputFormat?: string
-  sourceSize?: number
-  outputSize?: number
+interface TranscriptionResult {
+  text: string
+  srt: string
+  vtt: string
+  language?: string
   duration?: number
+  processingTime?: number
+  wordCount?: number
+  characterCount?: number
+  filename?: string
 }
 
 const idleTransfer: Transfer = { status: 'idle', progress: {} }
 
-function isAudioConvertFormat(value: unknown): value is AudioConvertFormat {
-  return typeof value === 'string' && (AUDIO_CONVERT_FORMATS as readonly string[]).includes(value)
+function isSttFormat(value: unknown): value is SttFormat {
+  return value === 'txt' || value === 'srt' || value === 'vtt'
 }
 
-export function AudioConverterWorkspace({ tool }: { tool: ToolDefinition }) {
+function transcriptionFromResult(payload: unknown): TranscriptionResult | null {
+  if (!payload || typeof payload !== 'object') return null
+  const next = payload as TranscriptionResult
+  const text = typeof next.text === 'string' ? next.text.replace(/\r\n/g, '\n') : ''
+  return {
+    text,
+    srt: typeof next.srt === 'string' ? next.srt : '',
+    vtt: typeof next.vtt === 'string' ? next.vtt : '',
+    ...(typeof next.language === 'string' ? { language: next.language } : {}),
+    ...(typeof next.duration === 'number' ? { duration: next.duration } : {}),
+    ...(typeof next.processingTime === 'number' ? { processingTime: next.processingTime } : {}),
+    ...(typeof next.wordCount === 'number' ? { wordCount: next.wordCount } : {}),
+    ...(typeof next.characterCount === 'number' ? { characterCount: next.characterCount } : {}),
+    ...(typeof next.filename === 'string' ? { filename: next.filename } : {}),
+  }
+}
+
+export function SpeechToTextWorkspace({ tool }: { tool: ToolDefinition }) {
   const copy = useT()
+  const defaults = defaultSpeechToTextOptions()
   const [file, setFile] = useState<File | null>(null)
-  const [format, setFormat] = useState<AudioConvertFormat>('mp3')
-  const [bitrate, setBitrate] = useState(defaultAudioBitrate('mp3'))
-  const [sampleRate, setSampleRate] = useState<'original' | number>('original')
-  const [channels, setChannels] = useState<'original' | 1 | 2>('original')
+  const [language, setLanguage] = useState(defaults.language)
+  const [format, setFormat] = useState<SttFormat>(defaults.format as SttFormat)
+  const [timestamps, setTimestamps] = useState(defaults.timestamps)
   const [job, setJob] = useState<Job | null>(null)
-  const [result, setResult] = useState<ConvertResult | null>(null)
+  const [result, setResult] = useState<TranscriptionResult | null>(null)
   const [error, setError] = useState('')
   const [errorCode, setErrorCode] = useState<WorkflowErrorCode | null>(null)
   const [transfer, setTransfer] = useState<Transfer>(idleTransfer)
   const inputPreviewUrl = useObjectUrl(file)
-  const lossless = isLosslessAudioFormat(format)
-  const options = useMemo(
-    () => buildAudioConvertOptions({ format, bitrate, sampleRate, channels }),
-    [format, bitrate, sampleRate, channels],
-  )
+  const accept = tool.acceptedFormats ?? []
+  const options = { language, format, timestamps }
 
   const applyFiles = useCallback((next: File[]) => {
     setFile(next[0] ?? null)
@@ -79,15 +93,9 @@ export function AudioConverterWorkspace({ tool }: { tool: ToolDefinition }) {
     slug: tool.id,
     applyFiles,
     applyOptions: (next) => {
-      if (isAudioConvertFormat(next.format)) {
-        setFormat(next.format)
-        if (typeof next.bitrate === 'string') setBitrate(next.bitrate)
-        else setBitrate(defaultAudioBitrate(next.format))
-      }
-      if (typeof next.sampleRate === 'number') setSampleRate(next.sampleRate)
-      else setSampleRate('original')
-      if (next.channels === 1 || next.channels === 2) setChannels(next.channels)
-      else setChannels('original')
+      if (typeof next.language === 'string') setLanguage(next.language)
+      if (isSttFormat(next.format)) setFormat(next.format)
+      if (typeof next.timestamps === 'boolean') setTimestamps(next.timestamps)
     },
     applyJob: (next) => {
       setJob(next)
@@ -112,12 +120,9 @@ export function AudioConverterWorkspace({ tool }: { tool: ToolDefinition }) {
       }
     },
     applyResult: (payload) => {
-      if (!payload || typeof payload !== 'object') return
-      const next = payload as ConvertResult
-      if (typeof next.downloadUrl !== 'string') return
-      setResult({ ...next, downloadUrl: resolveApiUrl(next.downloadUrl) })
+      const restored = transcriptionFromResult(payload)
+      if (restored) setResult(restored)
     },
-    resolveDownload: downloadFromJobResult,
   })
   const restoreError = restoreNoticeMessage(session.notice, copy.errors)
 
@@ -131,15 +136,6 @@ export function AudioConverterWorkspace({ tool }: { tool: ToolDefinition }) {
     setTransfer(idleTransfer)
     if (next.length === 0) void session.clear()
     else void session.persist({ files: next, options })
-  }
-
-  function persistConvertOptions(next: {
-    format: AudioConvertFormat
-    bitrate: string
-    sampleRate: 'original' | number
-    channels: 'original' | 1 | 2
-  }) {
-    void session.persistOptions(buildAudioConvertOptions(next))
   }
 
   async function run() {
@@ -163,14 +159,17 @@ export function AudioConverterWorkspace({ tool }: { tool: ToolDefinition }) {
       const uploaded = await completeUpload({ fileKey: target.fileKey })
       void session.persistUploads([file], [uploaded.fileKey], options)
       setTransfer({ status: 'processing', progress: { fileName: file.name, percent: null, label: copy.dropzone.processing } })
-      let current = await createJob({ toolId: tool.id, input: { fileKey: uploaded.fileKey }, options })
+      let current = await createJob({
+        toolId: tool.id,
+        input: { fileKey: uploaded.fileKey },
+        options,
+      })
       setJob(current)
       void session.persistJob(current.jobId)
       while (!['completed', 'failed', 'cancelled', 'expired'].includes(current.status)) {
-        const wait = new Promise<void>((resolve) => {
+        await new Promise<void>((resolve) => {
           window.setTimeout(resolve, 500)
         })
-        await wait
         current = await getJob(current.jobId)
         setJob(current)
         setTransfer({
@@ -179,8 +178,9 @@ export function AudioConverterWorkspace({ tool }: { tool: ToolDefinition }) {
         })
       }
       if (current.status === 'completed') {
-        const payload = await getJobResult<ConvertResult>(current.jobId)
-        setResult({ ...payload.result, downloadUrl: resolveApiUrl(payload.result.downloadUrl) })
+        const payload = await getJobResult<TranscriptionResult>(current.jobId)
+        const restored = transcriptionFromResult(payload.result)
+        if (restored) setResult(restored)
         setTransfer({ status: 'success', progress: { fileName: file.name, percent: 100, label: copy.dropzone.completed } })
       } else if (current.status === 'failed') {
         const failed = errorFromJob(current.error)
@@ -214,13 +214,17 @@ export function AudioConverterWorkspace({ tool }: { tool: ToolDefinition }) {
     cancelled: copy.jobs.cancelled,
     unavailable: copy.jobs.unavailable,
   }[phase]
+  const labels = { auto: copy.workspace.languageAuto, en: copy.workspace.languageEnglish, id: copy.workspace.languageIndonesian }
+  const words = result ? (result.wordCount ?? wordCount(result.text)) : 0
+  const characters = result ? (result.characterCount ?? result.text.length) : 0
+  const baseName = (file?.name ?? 'transcription').replace(/\.[^.]+$/, '') || 'transcription'
 
   return (
     <section className="workspace split-workspace">
       <div className="options-panel">
         {(file == null || busy) && (
           <FileDropzone
-            accept={tool.acceptedFormats ?? []}
+            accept={accept}
             maxFiles={1}
             maxFileSize={100 * 1024 * 1024}
             status={transfer.status}
@@ -232,92 +236,93 @@ export function AudioConverterWorkspace({ tool }: { tool: ToolDefinition }) {
         {file && !busy && (
           <SelectedFiles
             files={[file]}
-            accept={tool.acceptedFormats ?? []}
+            accept={accept}
             maxFileSize={100 * 1024 * 1024}
             disabled={busy}
-            restored={session.notice === 'restored'}
             onReplace={(next) => chooseFiles(next)}
             onRemove={() => chooseFiles([])}
           />
         )}
         {file && inputPreviewUrl && (
-          <MediaPreview
-            src={inputPreviewUrl}
-            kind={previewKind(file, tool.category)}
-            label="Input preview"
-          />
+          <MediaPreview src={inputPreviewUrl} kind={previewKind(file, tool.category)} label="Input preview" />
         )}
+        <p className="option-help" role="note">{copy.workspace.speechPrivacyNote}</p>
         <label className="field">
-          <span>Output format</span>
-          <select value={format} onChange={(event) => {
-            const next = event.target.value as AudioConvertFormat
-            const nextBitrate = defaultAudioBitrate(next)
+          <span>{copy.workspace.language}</span>
+          <select aria-label={copy.workspace.language} value={language} onChange={(event) => {
+            setLanguage(event.target.value)
+            void session.persistOptions({ language: event.target.value, format, timestamps })
+          }}>
+            {STT_LANGUAGES.map((item) => (
+              <option key={item.value} value={item.value}>{copy.workspace[item.labelKey]}</option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span>{copy.workspace.outputFormat}</span>
+          <select aria-label={copy.workspace.outputFormat} value={format} onChange={(event) => {
+            const next = event.target.value as SttFormat
             setFormat(next)
-            setBitrate(nextBitrate)
-            persistConvertOptions({ format: next, bitrate: nextBitrate, sampleRate, channels })
+            void session.persistOptions({ language, format: next, timestamps })
           }}>
-            {AUDIO_CONVERT_FORMATS.map((item) => <option key={item} value={item}>{item.toUpperCase()}</option>)}
+            {STT_FORMATS.map((item) => (
+              <option key={item.value} value={item.value}>{copy.workspace[item.labelKey]}</option>
+            ))}
           </select>
         </label>
-        {!lossless && (
-          <label className="field">
-            <span>Bitrate</span>
-            <select value={bitrate} onChange={(event) => {
-              const next = event.target.value
-              setBitrate(next)
-              persistConvertOptions({ format, bitrate: next, sampleRate, channels })
-            }}>
-              {AUDIO_CONVERT_BITRATES.map((item) => <option key={item} value={item}>{item}</option>)}
-            </select>
-          </label>
-        )}
-        <label className="field">
-          <span>Sample rate</span>
-          <select value={sampleRate === 'original' ? 'original' : String(sampleRate)} onChange={(event) => {
-            const value = event.target.value
-            const next = value === 'original' ? 'original' as const : Number(value)
-            setSampleRate(next)
-            persistConvertOptions({ format, bitrate, sampleRate: next, channels })
-          }}>
-            <option value="original">Original</option>
-            {AUDIO_CONVERT_RATES.map((rate) => <option key={rate} value={rate}>{rate} Hz</option>)}
-          </select>
-        </label>
-        <label className="field">
-          <span>Channels</span>
-          <select value={channels === 'original' ? 'original' : String(channels)} onChange={(event) => {
-            const value = event.target.value
-            const next = value === 'original' ? 'original' as const : value === '1' ? 1 as const : 2 as const
-            setChannels(next)
-            persistConvertOptions({ format, bitrate, sampleRate, channels: next })
-          }}>
-            <option value="original">Original</option>
-            <option value="1">Mono</option>
-            <option value="2">Stereo</option>
-          </select>
+        <label className="field checkbox-field">
+          <input
+            type="checkbox"
+            checked={timestamps}
+            onChange={(event) => {
+              setTimestamps(event.target.checked)
+              void session.persistOptions({ language, format, timestamps: event.target.checked })
+            }}
+          />
+          <span>{copy.workspace.includeTimestamps}</span>
         </label>
         <div className="button-row">
-          <button className="button primary" type="button" disabled={!file || busy} onClick={run}>
-            {busy && <LoaderCircle size={17}/>} Convert
+          <button className="button primary" type="button" disabled={!file || busy} onClick={() => void run()}>
+            {busy && <LoaderCircle size={17} />} {copy.workspace.process}
           </button>
-          {busy && <button className="button secondary" type="button" onClick={stop}><Square size={15}/> Cancel</button>}
+          {busy && (
+            <button className="button secondary" type="button" onClick={() => void stop()}>
+              <Square size={15} /> {copy.workspace.cancel}
+            </button>
+          )}
         </div>
-        {restoreError && <p className="field-error" role="status">{restoreError}</p>}
+        {restoreError && <p className="option-help" role="status">{restoreError}</p>}
         {error && <p className="field-error" role="alert">{error}</p>}
       </div>
       <div className="result-card">
-        <div className="panel-label"><span>Result</span><span className={`badge badge-${phase}`}>{phaseLabel}</span></div>
+        <div className="panel-label">
+          <span>{copy.workspace.transcription}</span>
+          <span className={`badge badge-${phase}`}>{phaseLabel}</span>
+        </div>
         {phase === 'unavailable' && <p className="field-error" role="alert">{copy.errors.apiUnreachable}</p>}
-        {job && (phase === 'processing' || phase === 'queued' || phase === 'completed') && <><p>{job.stage ?? phaseLabel}</p><progress max="100" value={job.progress ?? (phase === 'completed' ? 100 : undefined)}/></>}
-        {result && (
-          <dl className="result-stats">
-            <div><dt>Source</dt><dd>{result.sourceFormat ?? file?.type ?? '—'} · {formatBytes(result.sourceSize ?? file?.size ?? 0)}</dd></div>
-            <div><dt>Output</dt><dd>{(result.outputFormat ?? format).toUpperCase()} · {formatBytes(result.outputSize ?? 0)}</dd></div>
-            {result.duration != null && <div><dt>Duration</dt><dd>{formatDuration(result.duration)}</dd></div>}
-          </dl>
+        {job && (phase === 'processing' || phase === 'queued' || phase === 'completed') && (
+          <>
+            <p>{job.stage ?? phaseLabel}</p>
+            <progress max="100" value={job.progress ?? (phase === 'completed' ? 100 : undefined)} />
+          </>
         )}
-        {result && <MediaPreview src={result.downloadUrl} kind="audio" label="Result preview" />}
-        {result && <a className="button primary" href={result.downloadUrl} download={result.filename}><Download size={18}/> Download result</a>}
+        {result && (
+          <>
+            <dl className="result-stats">
+              <div><dt>{copy.workspace.detectedLanguage}</dt><dd>{languageLabel(result.language, labels)}</dd></div>
+              <div><dt>{copy.workspace.duration}</dt><dd>{formatSeconds(result.duration)}</dd></div>
+              <div><dt>{copy.workspace.processingTime}</dt><dd>{formatSeconds(result.processingTime)}</dd></div>
+              <div><dt>{copy.workspace.counts}</dt><dd>{copy.workspace.wordCount(words)} · {copy.workspace.characterCount(characters)}</dd></div>
+            </dl>
+            <div className="button-row">
+              <CopyButton value={result.text} />
+              <DownloadButton value={result.text} filename={`${baseName}.txt`} label={copy.workspace.downloadTxt} />
+              <DownloadButton value={result.srt} filename={`${baseName}.srt`} type="application/x-subrip" label={copy.workspace.downloadSrt} />
+              <DownloadButton value={result.vtt} filename={`${baseName}.vtt`} type="text/vtt" label={copy.workspace.downloadVtt} />
+            </div>
+            <pre className="extracted-text">{result.text}</pre>
+          </>
+        )}
       </div>
     </section>
   )

@@ -62,7 +62,7 @@ describe('tool registry', () => {
     expect(getToolBySlug('html-formatter')?.available).toBe(true)
     expect(getToolBySlug('basic-background-removal')?.available).toBe(true)
     expect(getToolBySlug('basic-background-removal')?.implementation).toBe('remote-api')
-    expect(getToolBySlug('remove-background')?.available).toBe(false)
+    expect(getToolBySlug('remove-background')?.available).toBe(true)
     expect(getToolBySlug('remove-background')?.ai).toBe(true)
     expect(getToolBySlug('noise-reduction')?.available).toBe(true)
     expect(getToolBySlug('noise-reduction')?.ai).toBeUndefined()

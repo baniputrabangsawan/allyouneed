@@ -25,6 +25,8 @@ PRO_CAPABILITIES: tuple[str, ...] = (
 TOOL_CAPABILITIES: dict[str, str] = {
     "remove-background": IMAGE_BACKGROUND_REMOVAL,
     "upscale-image": IMAGE_UPSCALE,
+    "speech-to-text": AUDIO_SPEECH_TO_TEXT,
+    "text-to-speech": AUDIO_TTS_PREMIUM,
 }
 
 PLAN_CAPABILITIES: dict[LicensePlan, tuple[str, ...]] = {

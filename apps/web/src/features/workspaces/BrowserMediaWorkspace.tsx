@@ -6,20 +6,8 @@ import { VoiceRecorderWorkspace } from './VoiceRecorderWorkspace'
 import { formatBytes } from './workspace-utils'
 
 export function BrowserMediaWorkspace({ tool }: { tool: ToolDefinition }) {
-  if (tool.slug === 'text-to-speech') return <SpeechWorkspace/>
   if (tool.slug === 'voice-recorder') return <VoiceRecorderWorkspace/>
   return <MediaWorkspace tool={tool}/>
-}
-
-function SpeechWorkspace() {
-  const [text, setText] = useState(''), [error, setError] = useState('')
-  function speak() {
-    if (!('speechSynthesis' in window)) { setError('Text-to-speech is not available in this browser.'); return }
-    if (!text.trim()) { setError('Enter text to speak.'); return }
-    speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance(text)); setError('')
-  }
-  useEffect(() => () => { if ('speechSynthesis' in window) speechSynthesis.cancel() }, [])
-  return <section className="workspace"><label className="counter-editor"><span>Text to speak</span><textarea aria-label="Text to speak" value={text} onChange={(event) => setText(event.target.value)}/></label>{error && <p className="field-error" role="alert">{error}</p>}<div className="button-row"><button className="button primary" type="button" onClick={speak}>Speak</button><button className="button secondary" type="button" onClick={() => speechSynthesis.cancel()}>Stop</button></div></section>
 }
 
 function MediaWorkspace({ tool }: { tool: ToolDefinition }) {

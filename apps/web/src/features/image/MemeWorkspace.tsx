@@ -1,6 +1,9 @@
 import { FileImage, Plus, RefreshCcw, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
-import { FileDropzone } from '@/components/file/FileDropzone'
+import { ImageResultPreview } from '@/features/image/ImageResultPreview'
+import { SharedImageUpload } from '@/features/image/SharedImageUpload'
+import { ProcessingProgressPanel } from '@/features/workspaces/processing-progress'
+import { withProcessStages, type ProcessStage } from '@/processing/client/process-stage'
 import {
   addMemeLayer,
   createMemeLayer,
@@ -18,11 +21,8 @@ import {
   type MemeTextLayer,
 } from '@/features/image/meme-utils'
 import { formatBytes, outputFilename } from '@/lib/format'
-import { ImageResultPreview } from '@/features/image/ImageResultPreview'
-import { ProcessingProgressPanel } from '@/features/workspaces/processing-progress'
 import { renderMeme } from '@/processing/client/meme'
 import { type ImageOptimizeMode } from '@/processing/client/image-optimize'
-import { withProcessStages, type ProcessStage } from '@/processing/client/process-stage'
 
 interface MemeResult {
   id: string
@@ -231,7 +231,7 @@ export function MemeWorkspace() {
   return (
     <section className="workspace">
       {!file ? (
-        <FileDropzone accept={MEME_ACCEPT} onFileSelected={(next) => void chooseFile(next)}/>
+        <SharedImageUpload accept={MEME_ACCEPT} files={[]} onFilesSelected={(files) => { const next = files[0]; if (next) void chooseFile(next) }} onRemove={removeFile} />
       ) : (
         <div className="image-workspace">
           <div className="preview-panel">
@@ -383,7 +383,7 @@ export function MemeWorkspace() {
                 ))}
               </div>
             )}
-            {status === 'processing' && <ProcessingProgressPanel stage={processStage} title="Processing..." />}
+            {status === 'processing' && <ProcessingProgressPanel stage={processStage} title="Processing image..." />}
             {status === 'failed' && <ProcessingProgressPanel stage="failed" title="Processing failed" detail={error || 'Processing failed'} />}
             <button className={`button ${status === 'completed' ? 'success' : 'primary'} action-button`} type="button" disabled={status === 'processing' || !hasMemeText(layers)} onClick={() => void run()}>
               {status === 'processing' ? 'Rendering...' : status === 'completed' ? 'Generate again' : status === 'failed' ? 'Try again' : 'Generate meme'}

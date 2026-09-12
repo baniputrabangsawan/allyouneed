@@ -39,7 +39,10 @@ const specialWorkspaces: Record<string, LazyWorkspace> = {
   'html-formatter': workspace(() => import('./HtmlWorkspace'), 'HtmlWorkspace'),
   'html-to-image': workspace(() => import('../image/HtmlToImageWorkspace'), 'HtmlToImageWorkspace'),
   'basic-background-removal': workspace(() => import('../image/BasicBackgroundWorkspace'), 'BasicBackgroundWorkspace'),
+  'remove-background': workspace(() => import('../image/RemoveBackgroundWorkspace'), 'RemoveBackgroundWorkspace'),
   'audio-converter': workspace(() => import('./AudioConverterWorkspace'), 'AudioConverterWorkspace'),
+  'speech-to-text': workspace(() => import('./SpeechToTextWorkspace'), 'SpeechToTextWorkspace'),
+  'text-to-speech': workspace(() => import('./TextToSpeechWorkspace'), 'TextToSpeechWorkspace'),
   'svg-to-png': workspace(() => import('../image/SvgToPngWorkspace'), 'SvgToPngWorkspace'),
   'merge-png': workspace(() => import('../image/MergePngWorkspace'), 'MergePngWorkspace'),
 }

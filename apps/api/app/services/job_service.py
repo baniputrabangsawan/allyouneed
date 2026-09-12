@@ -365,10 +365,42 @@ class JobService:
                     "UNSUPPORTED_FORMAT",
                     str(exc),
                 ) from exc
+        if tool.id == "speech-to-text":
+            from app.providers.stt import resolve_stt_format, resolve_stt_language
+
+            try:
+                resolve_stt_format(payload.options)
+                resolve_stt_language(payload.options)
+            except ProcessingError as exc:
+                raise ApiError(
+                    status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    "UNSUPPORTED_FORMAT",
+                    str(exc),
+                ) from exc
+        if tool.id == "text-to-speech":
+            from app.providers.tts import (
+                resolve_tts_format,
+                resolve_tts_speed,
+                resolve_tts_text,
+                resolve_tts_voice,
+            )
+
+            try:
+                resolve_tts_text(str(payload.options.get("text", "")))
+                resolve_tts_voice(payload.options)
+                resolve_tts_speed(payload.options)
+                resolve_tts_format(payload.options)
+            except ProcessingError as exc:
+                code = exc.code if exc.code != "PROCESSING_FAILED" else "VALIDATION_ERROR"
+                raise ApiError(
+                    status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    code,
+                    str(exc),
+                ) from exc
         keys = input_keys(payload.input)
-        allow_empty = (tool.id == "text-to-speech" and bool(payload.options.get("text"))) or (
-            tool.id == "html-to-image" and bool(str(payload.options.get("html") or "").strip())
-        )
+        allow_empty = (
+            tool.id == "text-to-speech" and bool(str(payload.options.get("text") or "").strip())
+        ) or (tool.id == "html-to-image" and bool(str(payload.options.get("html") or "").strip()))
         if allow_empty and not keys:
             return
         if tool.id == "add-subtitle" and len(keys) != 2:
@@ -442,8 +474,6 @@ def output_format(tool_id: str, options: dict[str, Any], source: Path) -> tuple[
         "video-to-gif": "gif",
         "gif-to-video": "mp4",
         "ocr-pdf": "json",
-        "speech-to-text": "json",
-        "text-to-speech": "wav",
         "remove-background": "png",
         "basic-background-removal": "png",
     }
@@ -457,6 +487,31 @@ def output_format(tool_id: str, options: dict[str, Any], source: Path) -> tuple[
                 "Output format is not supported.",
             )
         extension = raw
+    if extension is None and tool_id == "speech-to-text":
+        from app.providers.stt import resolve_stt_format
+
+        try:
+            extension = resolve_stt_format(options)
+        except ProcessingError as exc:
+            raise ApiError(
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                "UNSUPPORTED_FORMAT",
+                str(exc),
+            ) from exc
+    if extension is None and tool_id == "text-to-speech":
+        from app.providers.tts import resolve_tts_format, resolve_tts_text, resolve_tts_voice
+
+        try:
+            resolve_tts_text(str(options.get("text", "")))
+            resolve_tts_voice(options)
+            extension = resolve_tts_format(options)
+        except ProcessingError as exc:
+            code = exc.code if exc.code != "PROCESSING_FAILED" else "VALIDATION_ERROR"
+            raise ApiError(
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                code,
+                str(exc),
+            ) from exc
     if extension is None and tool_id == "image-converter":
         extension = str(options.get("format", "jpeg")).split("/")[-1].replace("jpeg", "jpg")
     if extension is None and tool_id in PDF_TOOLS:
@@ -483,6 +538,9 @@ def output_format(tool_id: str, options: dict[str, Any], source: Path) -> tuple[
         "avif",
         "pdf",
         "json",
+        "txt",
+        "srt",
+        "vtt",
         "mp3",
         "wav",
         "ogg",

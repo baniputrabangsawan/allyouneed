@@ -14,6 +14,7 @@ interface SelectedFilesProps {
   maxFileSize?: number
   disabled?: boolean
   restored?: boolean
+  meta?: string
   onReplace: (files: File[]) => void
   onRemove: () => void
 }
@@ -33,6 +34,7 @@ export function SelectedFiles({
   maxFileSize = 100 * 1024 * 1024,
   disabled = false,
   restored = false,
+  meta,
   onReplace,
   onRemove,
 }: SelectedFilesProps) {
@@ -61,7 +63,7 @@ export function SelectedFiles({
         {files.map((file, index) => (
           <li key={`${file.name}-${file.size}-${index}`}>
             <strong>{file.name}</strong>
-            <span>{fileKindLabel(file)} · {formatBytes(file.size)}</span>
+            <span>{fileKindLabel(file)} · {formatBytes(file.size)}{meta ? ` · ${meta}` : ''}</span>
           </li>
         ))}
       </ul>

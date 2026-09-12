@@ -36,7 +36,7 @@ class MemoryJobConcurrencyLimiter:
         self._jobs: dict[str, str] = {}
 
     def limit_for(self, queue: str) -> int | None:
-        if queue == "ai-image":
+        if queue in {"ai-image", "stt", "tts"}:
             return self._ai_limit
         if queue == "video":
             return self._video_limit
@@ -98,7 +98,7 @@ def _counter_key(queue: str, license_id: str, installation_hash: str) -> str:
 
 def _limit_for_queue(queue: str) -> int | None:
     settings = get_settings()
-    if queue == "ai-image":
+    if queue in {"ai-image", "stt", "tts"}:
         return settings.ai_concurrent_jobs
     if queue == "video":
         return settings.video_concurrent_jobs

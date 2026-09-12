@@ -1,11 +1,16 @@
-import json
 from pathlib import Path
 
 from app.processors.base import Processor, ProcessorContext, ProcessorResult
 from app.providers.background_removal import get_background_removal_provider
-from app.providers.stt import get_stt_provider
-from app.providers.tts import get_tts_provider
+from app.providers.stt import get_stt_provider, resolve_stt_format
+from app.providers.tts import get_tts_provider, resolve_tts_format
 from app.providers.upscale import get_upscale_provider
+
+_STT_OUTPUT = {
+    "txt": ("text", "txt", "text/plain"),
+    "srt": ("srt", "srt", "application/x-subrip"),
+    "vtt": ("vtt", "vtt", "text/vtt"),
+}
 
 
 class BackgroundRemovalProcessor(Processor):
@@ -18,7 +23,7 @@ class BackgroundRemovalProcessor(Processor):
         *,
         context: ProcessorContext,
     ) -> ProcessorResult:
-        await context.report(None, "processing")
+        await context.report(None, "queued")
         provider = get_background_removal_provider()
         metadata = await provider.remove(inputs[0], output, context=context)
         return ProcessorResult(metadata=metadata, extension="png", content_type="image/png")
@@ -54,10 +59,12 @@ class SpeechToTextProcessor(Processor):
     ) -> ProcessorResult:
         await context.report(None, "processing")
         result = await get_stt_provider().transcribe(inputs[0], context=context)
-        output.write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")
-        return ProcessorResult(
-            metadata={"language": result.get("language"), "duration": result.get("duration")}
-        )
+        fmt = resolve_stt_format(context.options)
+        field, extension, content_type = _STT_OUTPUT[fmt]
+        body = str(result.get(field, "") or "")
+        output.write_text(body if body else "\n", encoding="utf-8")
+        metadata = {key: value for key, value in result.items() if key != "segments"}
+        return ProcessorResult(metadata=metadata, extension=extension, content_type=content_type)
 
 
 class TextToSpeechProcessor(Processor):
@@ -74,5 +81,8 @@ class TextToSpeechProcessor(Processor):
         text = str(context.options.get("text", ""))
         if not text and inputs:
             text = inputs[0].read_text(encoding="utf-8")
+        fmt = resolve_tts_format(context.options)
         metadata = await get_tts_provider().synthesize(text, output, context=context)
-        return ProcessorResult(metadata=metadata, extension="wav", content_type="audio/wav")
+        extension = str(metadata.get("format") or fmt)
+        content_type = "audio/mpeg" if extension == "mp3" else "audio/wav"
+        return ProcessorResult(metadata=metadata, extension=extension, content_type=content_type)

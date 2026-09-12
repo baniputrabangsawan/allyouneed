@@ -207,7 +207,11 @@ Copy `.env.example`. Important variables:
 | `ENTITLEMENT_PRIVATE_KEY` / `PUBLIC_KEY` | API | Entitlement tokens (generate for anything beyond local play) |
 | `REDIS_URL` | API | Job queue (when not using inline jobs) |
 | `R2_*` | API | Object storage for uploads |
-| `INLINE_JOBS` | API | `true` runs jobs in-process for local dev |
+| `INLINE_JOBS` | API | `true` runs jobs in-process for local dev; production must be `false` |
+| `WHISPER_MODEL` | API | faster-whisper size (`tiny`/`base`/`small`/`medium`/`large-v3`); lazy-loaded per worker |
+| `STT_MAX_DURATION_SECONDS` | API | Server-side speech-to-text duration cap |
+| `TTS_MAX_CHARS` | API | Server-side text-to-speech character cap |
+| `STORAGE_ROOT` | API | Uploads, job outputs, and self-hosted models (Piper/Kokoro under `models/tts/`) |
 | `MAX_UPLOAD_MB` | API | Upload size cap |
 
 Leave AI/R2 keys empty for a local UI-only pass.
