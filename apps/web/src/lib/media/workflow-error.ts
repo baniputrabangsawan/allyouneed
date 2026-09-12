@@ -21,6 +21,7 @@ export type WorkflowErrorCode =
   | 'VOICE_LANGUAGE_MISMATCH'
   | 'STYLE_UNAVAILABLE'
   | 'STYLE_VOICE_MISMATCH'
+  | 'EXPRESSIVE_TTS_UNAVAILABLE'
   | 'TTS_FAILED'
   | 'AI_PROCESSING_FAILED'
 
@@ -45,6 +46,7 @@ export interface WorkflowMessages {
   voiceLanguageMismatch?: string
   styleUnavailable?: string
   styleVoiceMismatch?: string
+  expressiveTtsUnavailable?: string
   ttsFailed?: string
   aiProcessingFailed?: string
 }
@@ -80,6 +82,7 @@ export function workflowErrorCode(reason: unknown): WorkflowErrorCode {
     if (reason.code === 'VOICE_LANGUAGE_MISMATCH') return 'VOICE_LANGUAGE_MISMATCH'
     if (reason.code === 'STYLE_UNAVAILABLE') return 'STYLE_UNAVAILABLE'
     if (reason.code === 'STYLE_VOICE_MISMATCH') return 'STYLE_VOICE_MISMATCH'
+    if (reason.code === 'EXPRESSIVE_TTS_UNAVAILABLE') return 'EXPRESSIVE_TTS_UNAVAILABLE'
     if (reason.code === 'TTS_FAILED') return 'TTS_FAILED'
     if (reason.status === 0) return 'API_UNREACHABLE'
     return 'PROCESSING_FAILED'
@@ -112,6 +115,7 @@ export function workflowMessage(reason: unknown, messages: WorkflowMessages): st
   if (code === 'VOICE_LANGUAGE_MISMATCH') return messages.voiceLanguageMismatch ?? (reason instanceof Error ? reason.message : messages.processingFailed)
   if (code === 'STYLE_UNAVAILABLE') return messages.styleUnavailable ?? (reason instanceof Error ? reason.message : messages.processingFailed)
   if (code === 'STYLE_VOICE_MISMATCH') return messages.styleVoiceMismatch ?? (reason instanceof Error ? reason.message : messages.processingFailed)
+  if (code === 'EXPRESSIVE_TTS_UNAVAILABLE') return messages.expressiveTtsUnavailable ?? (reason instanceof Error ? reason.message : messages.processingFailed)
   if (code === 'TTS_FAILED') return messages.ttsFailed ?? (reason instanceof Error ? reason.message : messages.processingFailed)
   if (reason instanceof Error && reason.message && !NETWORK_PATTERN.test(reason.message)) {
     return reason.message

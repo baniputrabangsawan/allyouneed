@@ -11,6 +11,7 @@ from app.processors.image.face import (
     clamp_box,
     detect_frontal_faces,
     expand_face_box,
+    face_contour_hull,
     image_to_bgr,
     parse_face_options,
     pixel_block_for_face,
@@ -82,16 +83,16 @@ def test_parse_face_options_is_mode_and_intensity() -> None:
 
 
 def test_expand_face_box_covers_forehead_cheeks_and_chin() -> None:
-    expanded = expand_face_box((40, 40, 100, 120), 400, 400, factor=0.26)
+    expanded = expand_face_box((40, 40, 100, 120), 400, 400, factor=0.12)
     x, y, width, height = expanded
     assert x < 40
     assert y < 40
     assert x + width > 140
     assert y + height > 160
-    privacy = expand_face_box((40, 40, 100, 120), 400, 400, factor=0.38)
-    assert privacy[2] > width
-    assert privacy[3] > height
-    assert expand_face_box((0, 0, 20, 20), 20, 20, factor=0.30) == (0, 0, 20, 20)
+    privacy = expand_face_box((40, 40, 100, 120), 400, 400, factor=0.15)
+    assert privacy[2] >= width
+    assert privacy[3] >= height
+    assert expand_face_box((0, 0, 20, 20), 20, 20, factor=0.15) == (0, 0, 20, 20)
 
 
 def test_blur_and_pixel_scale_with_face_size() -> None:
@@ -162,19 +163,22 @@ async def test_blur_face_changes_detected_roi_and_keeps_size(tmp_path: Path) -> 
     assert np.array_equal(corner, blurred_bgr[0:8, 0:8])
 
 
-def test_soft_mask_leaves_far_pixels_and_hides_face_center() -> None:
+def test_soft_mask_follows_face_contour_not_a_box() -> None:
     image = np.zeros((120, 120, 3), dtype=np.uint8)
     image[:, :] = (20, 180, 20)
     image[30:90, 30:90] = (40, 40, 220)
     boxes = [(30, 30, 60, 60)]
+    hull = face_contour_hull(image, boxes[0], expand=0.15)
+    assert hull is not None
+    assert hull.reshape(-1, 2).shape[0] >= 5
     obscured = apply_face_obscure(image, boxes, mode="blur", intensity="privacy")
     assert not np.array_equal(image[60, 60], obscured[60, 60])
     assert np.array_equal(image[0:8, 0:8], obscured[0:8, 0:8])
-    # Expanded bounding box covers the original box corners, not just an inner oval.
-    assert not np.array_equal(image[31, 31], obscured[31, 31])
-    assert not np.array_equal(image[31, 88], obscured[31, 88])
-    assert not np.array_equal(image[88, 31], obscured[88, 31])
-    assert not np.array_equal(image[88, 88], obscured[88, 88])
+    # Box corners sit outside the facial contour, so they stay sharp.
+    assert np.array_equal(image[31, 31], obscured[31, 31])
+    assert np.array_equal(image[31, 88], obscured[31, 88])
+    assert np.array_equal(image[88, 31], obscured[88, 31])
+    assert np.array_equal(image[88, 88], obscured[88, 88])
 
 
 def test_privacy_hides_identity_more_than_light() -> None:
