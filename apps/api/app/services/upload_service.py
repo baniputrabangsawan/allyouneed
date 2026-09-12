@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from threading import Lock
 from uuid import uuid4
@@ -20,6 +20,7 @@ class UploadService:
     def __init__(self, storage: LocalStorageProvider | None = None) -> None:
         self.storage = storage or LocalStorageProvider()
         self._issued: dict[str, PresignUploadRequest] = {}
+        self._expires_at: dict[str, datetime] = {}
         self._completed: set[str] = set()
         self._lock = Lock()
 
@@ -27,7 +28,9 @@ class UploadService:
         today = datetime.now(UTC).strftime("%Y/%m/%d")
         file_key = f"uploads/{today}/{uuid4().hex}"
         with self._lock:
+            self._prune_expired_locked()
             self._issued[file_key] = payload
+            self._expires_at[file_key] = datetime.now(UTC) + timedelta(minutes=15)
         return PresignedUpload(
             upload_url=f"/api/v1/uploads/local/{file_key}",
             file_key=file_key,
@@ -37,9 +40,12 @@ class UploadService:
 
     def write(self, file_key: str, data: bytes, content_type: str | None) -> None:
         with self._lock:
-            issued = self._issued.get(file_key)
+            issued = self._issued_locked(file_key)
+            completed = file_key in self._completed
         if issued is None:
             raise ApiError(status.HTTP_404_NOT_FOUND, "UPLOAD_FAILED", "Upload was not issued.")
+        if completed:
+            raise ApiError(status.HTTP_409_CONFLICT, "UPLOAD_REPLAYED", "Upload is complete.")
         if len(data) != issued.size or len(data) == 0:
             raise ApiError(
                 status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -54,9 +60,22 @@ class UploadService:
             )
         self.storage.write_bytes(file_key, data)
 
+    def expected_size(self, file_key: str) -> int:
+        with self._lock:
+            issued = self._issued_locked(file_key)
+            completed = file_key in self._completed
+        if issued is None:
+            raise ApiError(status.HTTP_404_NOT_FOUND, "UPLOAD_FAILED", "Upload was not issued.")
+        if completed:
+            raise ApiError(status.HTTP_409_CONFLICT, "UPLOAD_REPLAYED", "Upload is complete.")
+        return issued.size
+
+    def reject(self, file_key: str) -> None:
+        self.path(file_key).unlink(missing_ok=True)
+
     def complete(self, payload: CompleteUploadRequest) -> UploadedFile:
         with self._lock:
-            issued = self._issued.get(payload.file_key)
+            issued = self._issued_locked(payload.file_key)
         path = self.path(payload.file_key)
         if issued is None or not path.is_file() or path.stat().st_size != issued.size:
             raise ApiError(
@@ -101,7 +120,21 @@ class UploadService:
 
     def issued(self, file_key: str) -> PresignUploadRequest | None:
         with self._lock:
-            return self._issued.get(file_key)
+            return self._issued_locked(file_key)
+
+    def _issued_locked(self, file_key: str) -> PresignUploadRequest | None:
+        expires_at = self._expires_at.get(file_key)
+        if expires_at is not None and expires_at <= datetime.now(UTC):
+            self._issued.pop(file_key, None)
+            self._expires_at.pop(file_key, None)
+            self._completed.discard(file_key)
+            self.path(file_key).unlink(missing_ok=True)
+            return None
+        return self._issued.get(file_key)
+
+    def _prune_expired_locked(self) -> None:
+        for file_key in list(self._expires_at):
+            self._issued_locked(file_key)
 
 
 _service = UploadService()

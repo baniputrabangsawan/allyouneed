@@ -25,6 +25,7 @@ from app.services.entitlement_service import EntitlementService
 from app.services.job_concurrency import JobConcurrencyLimiter, get_job_concurrency_limiter
 from app.services.upload_service import get_upload_service
 from app.tools.registry import Tool, tool_registry
+from app.utils.media import duration_seconds, probe
 from app.utils.media_accept import content_type_accepted
 from app.utils.signing import signed_download_path
 from app.utils.temp import cleanup_work_dir, job_work_dir
@@ -221,6 +222,7 @@ class JobService:
                 dest = work / f"input-{index}{_source_suffix(upload_service, keys[index], source)}"
                 shutil.copy2(source, dest)
                 inputs.append(dest)
+            await _validate_media_duration(tool, inputs)
             if not inputs:
                 if tool.id == "html-to-image":
                     inputs = [work / "input-0.html"]
@@ -267,6 +269,8 @@ class JobService:
                 output = renamed
             if not output.is_file() or output.stat().st_size == 0:
                 raise ProcessingError("Processor produced no output.")
+            if output.stat().st_size > get_settings().max_result_mb * 1024 * 1024:
+                raise ProcessingError("Processor output exceeds the safety limit.")
             storage_key, stored = upload_service.result_path(job_id, extension)
             shutil.copy2(output, stored)
             download_url, expires_at = signed_download_path(storage_key)
@@ -452,6 +456,28 @@ def input_keys(input_data: dict[str, Any]) -> list[str]:
     if isinstance(files, list) and all(isinstance(item, str) for item in files):
         return files
     return []
+
+
+async def _validate_media_duration(tool: Tool, inputs: list[Path]) -> None:
+    if tool.queue not in {"audio", "video", "stt"}:
+        return
+    settings = get_settings()
+    maximum = (
+        settings.stt_max_duration_seconds
+        if tool.queue == "stt"
+        else settings.max_media_duration_seconds
+    )
+    total = 0.0
+    for source in inputs:
+        media_duration = duration_seconds(await probe(source))
+        if media_duration is not None:
+            total += media_duration
+    if total > maximum:
+        raise ApiError(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "MEDIA_TOO_LONG",
+            f"Combined media duration exceeds the {maximum}-second safety limit.",
+        )
 
 
 def output_format(tool_id: str, options: dict[str, Any], source: Path) -> tuple[str, str]:
