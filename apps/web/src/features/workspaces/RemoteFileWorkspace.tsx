@@ -8,32 +8,17 @@ import { cancelJob, createJob, getJob, getJobResult } from '../../lib/api/jobs'
 import type { Job } from '../../lib/api/types'
 import { previewKind, resultMediaKind } from '../../lib/media/kind'
 import { useObjectUrls } from '../../lib/media/object-url'
-import { workflowMessage } from '../../lib/media/workflow-error'
+import { remoteJobPhase } from '../../lib/media/job-phase'
+import { errorFromJob, workflowErrorCode, workflowMessage, type WorkflowErrorCode } from '../../lib/media/workflow-error'
 import type { ToolDefinition } from '../tools/tool-registry'
+import { ExtractedText } from './ExtractedText'
 import { MediaPreview } from './MediaPreview'
-import { formatBytes } from './workspace-utils'
+import { textFromJsonPayload } from './json-text'
+import { defaultRemoteOptions } from './remote-tool-options'
+import { RemoteToolFields } from './RemoteToolFields'
+import { SelectedFiles } from './SelectedFiles'
 
 const multipleTools = new Set(['merge-pdf', 'jpg-to-pdf', 'png-to-pdf', 'audio-merger', 'video-merger', 'add-audio', 'add-subtitle'])
-
-const defaultOptions: Record<string, string> = {
-  'split-pdf': '{"pages":[1]}',
-  'delete-pdf-pages': '{"pages":[1]}',
-  'extract-pdf-pages': '{"pages":[1]}',
-  'reorder-pdf-pages': '{"pages":[1]}',
-  'protect-pdf': '{"password":""}',
-  'unlock-pdf': '{"password":""}',
-  'watermark-pdf': '{"text":"Watermark"}',
-  'rotate-pdf': '{"rotation":90}',
-  'resize-video': '{"width":640,"height":360}',
-  'crop-video': '{"width":320,"height":180}',
-  'change-volume': '{"volume":1}',
-  'change-audio-speed': '{"speed":1}',
-  'change-video-speed': '{"speed":1}',
-  'add-watermark': '{"text":"Watermark"}',
-  'blur-face': '{"mode":"blur","strength":8}',
-  'noise-reduction': '{"strength":"medium"}',
-  'add-subtitle': '{"mode":"burn","format":"mp4"}',
-}
 
 interface Transfer {
   status: DropzoneStatus
@@ -42,30 +27,53 @@ interface Transfer {
 
 const idleTransfer: Transfer = { status: 'idle', progress: {} }
 
-function noiseStrength(raw: string): 'light' | 'medium' | 'strong' {
+async function loadExtractedText(url: string): Promise<string | null> {
   try {
-    const parsed = JSON.parse(raw) as { strength?: string }
-    if (parsed.strength === 'light' || parsed.strength === 'strong') return parsed.strength
-  } catch { /* keep medium */ }
-  return 'medium'
+    const response = await fetch(url)
+    if (!response.ok) return null
+    return textFromJsonPayload(await response.json())
+  } catch {
+    return null
+  }
 }
+
 export function RemoteFileWorkspace({ tool }: { tool: ToolDefinition }) {
   const copy = useT()
   const [files, setFiles] = useState<File[]>([])
-  const [options, setOptions] = useState(defaultOptions[tool.id] ?? '{}')
+  const [options, setOptions] = useState(() => defaultRemoteOptions(tool.id))
   const [job, setJob] = useState<Job | null>(null)
   const [download, setDownload] = useState<{ url: string; filename: string } | null>(null)
+  const [extractedText, setExtractedText] = useState('')
   const [error, setError] = useState('')
+  const [errorCode, setErrorCode] = useState<WorkflowErrorCode | null>(null)
   const [transfer, setTransfer] = useState<Transfer>(idleTransfer)
   const inputUrls = useObjectUrls(files)
   const resultKind = resultMediaKind(tool)
   const showInputPreview = tool.category === 'audio' || tool.category === 'video'
+  const busy = transfer.status === 'uploading' || job?.status === 'queued' || job?.status === 'processing'
+  const requiredFiles = tool.id === 'add-subtitle' ? 2 : 1
+  const maxFiles = tool.id === 'add-subtitle' ? 2 : 20
+  const accept = tool.acceptedFormats ?? []
+  const phase = remoteJobPhase(transfer.status, job, errorCode)
+  const phaseLabel = {
+    ready: copy.workspace.ready,
+    uploading: copy.jobs.uploading,
+    queued: copy.jobs.queued,
+    processing: copy.jobs.processing,
+    completed: copy.jobs.completed,
+    failed: copy.jobs.failed,
+    cancelled: copy.jobs.cancelled,
+    unavailable: copy.jobs.unavailable,
+  }[phase]
+  const showDropzone = files.length === 0 || busy
 
   function chooseFiles(next: File[]) {
     setFiles(next)
     setTransfer(idleTransfer)
     setError('')
+    setErrorCode(null)
     setDownload(null)
+    setExtractedText('')
     setJob(null)
   }
 
@@ -73,10 +81,10 @@ export function RemoteFileWorkspace({ tool }: { tool: ToolDefinition }) {
     if (files.length === 0) return
     const activeName = files[0]?.name ?? 'file'
     setError('')
+    setErrorCode(null)
     setDownload(null)
+    setExtractedText('')
     try {
-      const parsed = JSON.parse(options) as unknown
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Options must be a JSON object.')
       const keys: string[] = []
       setTransfer({ status: 'uploading', progress: { fileName: activeName, percent: 0, label: copy.dropzone.uploading } })
       for (const [index, file] of files.entries()) {
@@ -91,7 +99,7 @@ export function RemoteFileWorkspace({ tool }: { tool: ToolDefinition }) {
         keys.push((await completeUpload({ fileKey: target.fileKey })).fileKey)
       }
       setTransfer({ status: 'processing', progress: { fileName: activeName, percent: null, label: copy.dropzone.processing } })
-      let current = await createJob({ toolId: tool.id, input: keys.length === 1 ? { fileKey: keys[0] } : { files: keys }, options: parsed })
+      let current = await createJob({ toolId: tool.id, input: keys.length === 1 ? { fileKey: keys[0] } : { files: keys }, options })
       setJob(current)
       while (!['completed', 'failed', 'cancelled', 'expired'].includes(current.status)) {
         const wait = new Promise<void>((resolve) => {
@@ -111,15 +119,20 @@ export function RemoteFileWorkspace({ tool }: { tool: ToolDefinition }) {
       }
       if (current.status === 'completed') {
         const payload = await getJobResult<{ downloadUrl: string; filename: string }>(current.jobId)
-        setDownload({ url: resolveApiUrl(payload.result.downloadUrl), filename: payload.result.filename })
+        const url = resolveApiUrl(payload.result.downloadUrl)
+        setDownload({ url, filename: payload.result.filename })
+        if (!resultKind) setExtractedText((await loadExtractedText(url)) ?? '')
         setTransfer({ status: 'success', progress: { fileName: activeName, percent: 100, label: copy.dropzone.completed } })
       } else if (current.status === 'failed') {
-        setError(current.error?.message ?? copy.errors.processingFailed)
+        const failed = errorFromJob(current.error)
+        setErrorCode(workflowErrorCode(failed))
+        setError(workflowMessage(failed, copy.errors))
         setTransfer(idleTransfer)
       } else {
         setTransfer(idleTransfer)
       }
     } catch (reason) {
+      setErrorCode(workflowErrorCode(reason))
       setError(workflowMessage(reason, copy.errors))
       setTransfer(idleTransfer)
     }
@@ -130,23 +143,32 @@ export function RemoteFileWorkspace({ tool }: { tool: ToolDefinition }) {
     setTransfer(idleTransfer)
   }
 
-  const busy = transfer.status === 'uploading' || job?.status === 'queued' || job?.status === 'processing'
-  const requiredFiles = tool.id === 'add-subtitle' ? 2 : 1
-  const maxFiles = tool.id === 'add-subtitle' ? 2 : 20
-
   return (
     <section className="workspace split-workspace">
       <div className="options-panel">
-        <FileDropzone
-          accept={tool.acceptedFormats ?? []}
-          multiple={multipleTools.has(tool.id)}
-          maxFiles={maxFiles}
-          maxFileSize={100 * 1024 * 1024}
-          status={transfer.status}
-          progress={transfer.progress}
-          disabled={busy}
-          onFilesSelected={chooseFiles}
-        />
+        {showDropzone && (
+          <FileDropzone
+            accept={accept}
+            multiple={multipleTools.has(tool.id)}
+            maxFiles={maxFiles}
+            maxFileSize={100 * 1024 * 1024}
+            status={transfer.status}
+            progress={transfer.progress}
+            disabled={busy}
+            onFilesSelected={chooseFiles}
+          />
+        )}
+        {files.length > 0 && !busy && (
+          <SelectedFiles
+            files={files}
+            accept={accept}
+            multiple={multipleTools.has(tool.id)}
+            maxFiles={maxFiles}
+            disabled={busy}
+            onReplace={chooseFiles}
+            onRemove={() => chooseFiles([])}
+          />
+        )}
         {showInputPreview && files.length > 0 && (
           <ul className="media-file-list">
             {files.map((file, index) => {
@@ -158,44 +180,15 @@ export function RemoteFileWorkspace({ tool }: { tool: ToolDefinition }) {
                       src={url}
                       kind={previewKind(file, tool.category)}
                       label={`Input preview ${index + 1}`}
-                      title={`${file.name} · ${formatBytes(file.size)}`}
+                      title={`${file.name}`}
                     />
-                  ) : (
-                    <span>{file.name} · {formatBytes(file.size)}</span>
-                  )}
+                  ) : null}
                 </li>
               )
             })}
           </ul>
         )}
-        {!showInputPreview && files.length > 0 && (
-          <ul>{files.map((file) => <li key={`${file.name}-${file.size}`}>{file.name}</li>)}</ul>
-        )}
-        {tool.slug === 'blur-face' && <p role="note">Basic Haar frontal-face detection, not high-accuracy AI. Profile, side, or busy photos may miss. Zero detections fail with “No faces detected.”</p>}
-        {tool.slug === 'noise-reduction' && (
-          <>
-            <p role="note">{copy.workspace.noiseReductionNote}</p>
-            <label className="field">
-              <span>{copy.workspace.noiseStrength}</span>
-              <select
-                value={noiseStrength(options)}
-                onChange={(event) => setOptions(JSON.stringify({ strength: event.target.value }))}
-                aria-label={copy.workspace.noiseStrength}
-              >
-                <option value="light">{copy.workspace.strengthLight}</option>
-                <option value="medium">{copy.workspace.strengthMedium}</option>
-                <option value="strong">{copy.workspace.strengthStrong}</option>
-              </select>
-            </label>
-          </>
-        )}
-        {tool.slug === 'add-subtitle' && <p role="note">Burns or muxes an existing .srt, .vtt, or .ass file into a video. This tool does not generate subtitles. Audio is kept unless keepAudio is false.</p>}
-        {tool.slug !== 'noise-reduction' && (
-          <label className="field">
-            <span>{copy.workspace.advancedOptions}</span>
-            <textarea rows={5} value={options} onChange={(event) => setOptions(event.target.value)} spellCheck={false}/>
-          </label>
-        )}
+        <RemoteToolFields toolId={tool.id} options={options} onChange={(patch) => setOptions((current) => ({ ...current, ...patch }))} />
         <div className="button-row">
           <button className="button primary" type="button" disabled={files.length < requiredFiles || busy} onClick={run}>
             {busy && <LoaderCircle size={17}/>} {copy.workspace.process}
@@ -205,10 +198,25 @@ export function RemoteFileWorkspace({ tool }: { tool: ToolDefinition }) {
         {error && <p className="field-error" role="alert">{error}</p>}
       </div>
       <div className="result-card">
-        <div className="panel-label"><span>{copy.workspace.jobStatus}</span><span className="badge">{job?.status ?? copy.workspace.ready}</span></div>
-        {job && <><p>{job.stage ?? job.status}</p><progress max="100" value={job.progress ?? undefined}/></>}
-        {download && resultKind && <MediaPreview src={download.url} kind={resultKind} label="Result preview" />}
-        {download && (
+        <div className="panel-label"><span>{copy.workspace.jobStatus}</span><span className={`badge badge-${phase}`}>{phaseLabel}</span></div>
+        {phase === 'uploading' && (
+          <>
+            <p>{copy.jobs.uploading}{transfer.progress.percent != null ? ` ${transfer.progress.percent}%` : ''}</p>
+            <progress max="100" value={transfer.progress.percent ?? undefined} />
+          </>
+        )}
+        {phase === 'queued' && <p>{copy.jobs.queued}</p>}
+        {phase === 'unavailable' && <p className="field-error" role="alert">{copy.errors.apiUnreachable}</p>}
+        {job && (phase === 'processing' || phase === 'completed') && (
+          <>
+            <p>{job.stage ?? phaseLabel}</p>
+            <progress max="100" value={job.progress ?? (phase === 'completed' ? 100 : undefined)} />
+          </>
+        )}
+        {(phase === 'failed' || phase === 'cancelled') && error && <p className="field-error" role="alert">{error}</p>}
+        {extractedText && <ExtractedText text={extractedText} filename={files[0]?.name ?? download?.filename ?? 'extracted.txt'} />}
+        {!extractedText && download && resultKind && <MediaPreview src={download.url} kind={resultKind} label="Result preview" />}
+        {!extractedText && download && (
           <a className="button primary" href={download.url} download={download.filename}>
             <Download size={18}/> {copy.workspace.downloadResult}
           </a>

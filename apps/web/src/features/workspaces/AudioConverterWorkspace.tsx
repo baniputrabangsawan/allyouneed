@@ -8,9 +8,10 @@ import { cancelJob, createJob, getJob, getJobResult } from '../../lib/api/jobs'
 import type { Job } from '../../lib/api/types'
 import { previewKind } from '../../lib/media/kind'
 import { useObjectUrl } from '../../lib/media/object-url'
-import { workflowMessage } from '../../lib/media/workflow-error'
+import { errorFromJob, workflowMessage } from '../../lib/media/workflow-error'
 import type { ToolDefinition } from '../tools/tool-registry'
 import { MediaPreview } from './MediaPreview'
+import { SelectedFiles } from './SelectedFiles'
 import {
   AUDIO_CONVERT_BITRATES,
   AUDIO_CONVERT_FORMATS,
@@ -104,8 +105,7 @@ export function AudioConverterWorkspace({ tool }: { tool: ToolDefinition }) {
         setResult({ ...payload.result, downloadUrl: resolveApiUrl(payload.result.downloadUrl) })
         setTransfer({ status: 'success', progress: { fileName: file.name, percent: 100, label: copy.dropzone.completed } })
       } else if (current.status === 'failed') {
-        const message = current.error?.message ?? copy.errors.processingFailed
-        setError(message)
+        setError(workflowMessage(errorFromJob(current.error), copy.errors))
         setTransfer(idleTransfer)
       } else {
         setTransfer(idleTransfer)
@@ -126,21 +126,32 @@ export function AudioConverterWorkspace({ tool }: { tool: ToolDefinition }) {
   return (
     <section className="workspace split-workspace">
       <div className="options-panel">
-        <FileDropzone
-          accept={tool.acceptedFormats ?? []}
-          maxFiles={1}
-          maxFileSize={100 * 1024 * 1024}
-          status={transfer.status}
-          progress={transfer.progress}
-          disabled={busy}
-          onFilesSelected={chooseFiles}
-        />
+        {(file == null || busy) && (
+          <FileDropzone
+            accept={tool.acceptedFormats ?? []}
+            maxFiles={1}
+            maxFileSize={100 * 1024 * 1024}
+            status={transfer.status}
+            progress={transfer.progress}
+            disabled={busy}
+            onFilesSelected={chooseFiles}
+          />
+        )}
+        {file && !busy && (
+          <SelectedFiles
+            files={[file]}
+            accept={tool.acceptedFormats ?? []}
+            maxFileSize={100 * 1024 * 1024}
+            disabled={busy}
+            onReplace={(next) => chooseFiles(next)}
+            onRemove={() => chooseFiles([])}
+          />
+        )}
         {file && inputPreviewUrl && (
           <MediaPreview
             src={inputPreviewUrl}
             kind={previewKind(file, tool.category)}
             label="Input preview"
-            title={`${file.name} · ${formatBytes(file.size)}`}
           />
         )}
         <label className="field">
