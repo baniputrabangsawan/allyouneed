@@ -14,23 +14,26 @@ export function ProcessingProgressPanel({
   title,
   percent = null,
   detail,
+  active,
 }: {
   stage: ProcessStage
   title: string
   percent?: number | null
   detail?: string
+  active?: boolean
 }) {
-  const busy = BUSY_STAGES[stage]
+  const busy = active ?? BUSY_STAGES[stage]
   const label = detail ?? PROCESS_STAGE_LABEL[stage]
   const derived = percent == null && busy ? PROCESS_STAGE_RANGE[stage].start : percent
   const rounded = derived == null ? null : Math.max(0, Math.min(100, Math.round(derived)))
+  const showBar = stage !== 'failed' && (busy || rounded != null)
   return (
     <div className={`processing-progress${stage === 'failed' ? ' is-failed' : ''}${stage === 'completed' ? ' is-complete' : ''}`} role="status" aria-live="polite">
       <div className="processing-progress-head">
         <strong>{title}</strong>
         {rounded != null && <span>{rounded}%</span>}
       </div>
-      {busy && (
+      {showBar && (
         <div
           className="dropzone-track"
           role="progressbar"
@@ -45,7 +48,7 @@ export function ProcessingProgressPanel({
           />
         </div>
       )}
-      <p className="option-help">{label}</p>
+      {label && label !== title ? <p className="option-help">{label}</p> : null}
     </div>
   )
 }

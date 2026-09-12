@@ -112,3 +112,47 @@ async def test_remove_background_reports_model_unavailable(
             [source], tmp_path / "output.png", context=_context(tmp_path, "fast")
         )
     assert caught.value.code == "MODEL_UNAVAILABLE"
+
+
+async def test_quality_load_failure_is_model_unavailable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(background_removal, "_MODEL_CACHE", {})
+
+    def boom() -> None:
+        raise RuntimeError("CUDA out of memory")
+
+    monkeypatch.setattr(background_removal, "_load_quality_model", boom)
+    source = _portrait(tmp_path / "input.png")
+    with pytest.raises(ProcessingError) as caught:
+        await get_processor("remove-background").process(
+            [source], tmp_path / "output.png", context=_context(tmp_path, "quality")
+        )
+    assert caught.value.code == "MODEL_UNAVAILABLE"
+    assert "CUDA" not in str(caught.value)
+
+
+def test_select_torch_device_stays_on_cpu_when_cuda_probe_fails() -> None:
+    class FakeCuda:
+        @staticmethod
+        def is_available() -> bool:
+            return True
+
+    class FakeTorch:
+        cuda = FakeCuda
+
+        class device:
+            def __init__(self, name: str) -> None:
+                self.type = name
+
+            def __str__(self) -> str:
+                return self.type
+
+        @staticmethod
+        def zeros(*_args: object, **kwargs: object) -> object:
+            if kwargs.get("device") == "cuda":
+                raise RuntimeError("CUDA error: out of memory")
+            return 0
+
+    selected = background_removal._select_torch_device(FakeTorch)
+    assert str(selected) == "cpu"

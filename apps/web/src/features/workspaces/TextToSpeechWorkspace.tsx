@@ -33,6 +33,7 @@ interface SpeechResult {
   size?: number
   format?: string
   speed?: number
+  style?: string
 }
 
 function isTtsFormat(value: unknown): value is TtsFormat {
@@ -45,6 +46,7 @@ export function TextToSpeechWorkspace({ tool }: { tool: ToolDefinition }) {
   const [text, setText] = useState(defaults.text)
   const [language, setLanguage] = useState(defaults.language)
   const [voice, setVoice] = useState(defaults.voice)
+  const [style, setStyle] = useState('neutral')
   const [speed, setSpeed] = useState(defaults.speed)
   const [format, setFormat] = useState<TtsFormat>(defaults.format as TtsFormat)
   const [job, setJob] = useState<Job | null>(null)
@@ -53,12 +55,14 @@ export function TextToSpeechWorkspace({ tool }: { tool: ToolDefinition }) {
   const [errorCode, setErrorCode] = useState<WorkflowErrorCode | null>(null)
   const [busy, setBusy] = useState(false)
   const capabilities = useQuery({ queryKey: ['tts-capabilities'], queryFn: () => getTtsCapabilities(), staleTime: 60_000, retry: false })
-  const fallbackVoices = TTS_VOICES.map((item) => ({ id: item.value, name: item.label, language: item.language, provider: 'piper', model: item.value, available: true }))
+  const fallbackVoices = TTS_VOICES.map((item) => ({ id: item.value, name: item.label, language: item.language, provider: 'piper', model: item.value, styles: ['neutral'], available: true }))
   const voices = capabilities.data?.voices.filter((item) => item.available) ?? fallbackVoices
   const languages = capabilities.data?.languages ?? Array.from(new Set(voices.map((item) => item.language)))
   const filteredVoices = useMemo(() => voices.filter((item) => item.language === language), [language, voices])
   const selected = filteredVoices.find((item) => item.id === voice) ?? filteredVoices[0] ?? voices[0]
-  const options = { text, voice: selected?.id ?? voice, language: selected?.language ?? language, speed, format }
+  const styles = selected?.styles.length ? selected.styles : ['neutral']
+  const activeStyle = styles.includes(style) ? style : styles[0] ?? 'neutral'
+  const options = { text, voice: selected?.id ?? voice, language: selected?.language ?? language, style: activeStyle, speed, format }
 
   useEffect(() => {
     const nextLanguage = languages.includes(language) ? language : languages[0]
@@ -79,6 +83,7 @@ export function TextToSpeechWorkspace({ tool }: { tool: ToolDefinition }) {
       if (typeof next.text === 'string') setText(next.text.slice(0, TTS_MAX_CHARS))
       if (typeof next.language === 'string') setLanguage(next.language)
       if (typeof next.voice === 'string') setVoice(next.voice)
+      if (typeof next.style === 'string') setStyle(next.style)
       if (typeof next.speed === 'number') setSpeed(next.speed)
       if (isTtsFormat(next.format)) setFormat(next.format)
     },
@@ -95,12 +100,19 @@ export function TextToSpeechWorkspace({ tool }: { tool: ToolDefinition }) {
     },
   })
 
-  function persistSpeechOptions(next: { text: string; language: string; voice: string; speed: number; format: TtsFormat }) {
+  function persistSpeechOptions(next: { text: string; language: string; voice: string; style: string; speed: number; format: TtsFormat }) {
     void session.persistOptions(next)
   }
 
   async function run() {
-    const value = text.trim()
+    await processText(text.trim())
+  }
+
+  async function preview() {
+    await processText((text.trim().match(/^(.{1,220}?[.!?…]+)(\s|$)/)?.[1] ?? text.trim().slice(0, 220)).trim())
+  }
+
+  async function processText(value: string) {
     if (!value || busy) return
     if (value.length > TTS_MAX_CHARS) {
       setError(copy.errors.textTooLong)
@@ -180,7 +192,7 @@ export function TextToSpeechWorkspace({ tool }: { tool: ToolDefinition }) {
             onChange={(event) => {
               const next = event.target.value.slice(0, TTS_MAX_CHARS)
               setText(next)
-              persistSpeechOptions({ text: next, language, voice, speed, format })
+              persistSpeechOptions({ text: next, language, voice, style: activeStyle, speed, format })
             }}
           />
           <small>{copy.workspace.characterCount(text.length)} / {TTS_MAX_CHARS}</small>
@@ -190,7 +202,7 @@ export function TextToSpeechWorkspace({ tool }: { tool: ToolDefinition }) {
           <span>{copy.workspace.voice}</span>
           <select aria-label={copy.workspace.voice} value={voice} onChange={(event) => {
             setVoice(event.target.value)
-            persistSpeechOptions({ text, language, voice: event.target.value, speed, format })
+            persistSpeechOptions({ text, language, voice: event.target.value, style: activeStyle, speed, format })
           }} disabled={voiceUnavailable}>
             {filteredVoices.map((item) => (
               <option key={item.id} value={item.id}>{item.name}</option>
@@ -207,7 +219,7 @@ export function TextToSpeechWorkspace({ tool }: { tool: ToolDefinition }) {
               const nextVoice = voices.find((item) => item.language === nextLanguage)
               setLanguage(nextLanguage)
               if (nextVoice) setVoice(nextVoice.id)
-              persistSpeechOptions({ text, language: nextLanguage, voice: nextVoice?.id ?? '', speed, format })
+              persistSpeechOptions({ text, language: nextLanguage, voice: nextVoice?.id ?? '', style: nextVoice?.styles[0] ?? 'neutral', speed, format })
             }}
             disabled={languages.length === 0}
           >
@@ -218,11 +230,21 @@ export function TextToSpeechWorkspace({ tool }: { tool: ToolDefinition }) {
           {!languages.some((item) => shortLanguage(item) === 'id') && <small>Bahasa Indonesia is unavailable until an Indonesian TTS model is installed.</small>}
         </label>
         <label className="field">
+          <span>Emotion / Speaking style</span>
+          <select aria-label="Emotion / Speaking style" value={activeStyle} onChange={(event) => {
+            setStyle(event.target.value)
+            persistSpeechOptions({ text, language, voice, style: event.target.value, speed, format })
+          }}>
+            {styles.map((item) => <option key={item} value={item}>{styleLabel(item)}</option>)}
+          </select>
+          {styles.length === 1 && styles[0] === 'neutral' && <small>This installed voice only supports neutral style.</small>}
+        </label>
+        <label className="field">
           <span>{copy.workspace.playbackSpeed}</span>
           <select aria-label={copy.workspace.playbackSpeed} value={speed} onChange={(event) => {
             const next = Number(event.target.value)
             setSpeed(next)
-            persistSpeechOptions({ text, language, voice, speed: next, format })
+            persistSpeechOptions({ text, language, voice, style: activeStyle, speed: next, format })
           }}>
             {TTS_SPEEDS.map((item) => (
               <option key={item} value={item}>{item}x</option>
@@ -234,7 +256,7 @@ export function TextToSpeechWorkspace({ tool }: { tool: ToolDefinition }) {
           <select aria-label={copy.workspace.outputFormat} value={format} onChange={(event) => {
             const next = event.target.value as TtsFormat
             setFormat(next)
-            persistSpeechOptions({ text, language, voice, speed, format: next })
+            persistSpeechOptions({ text, language, voice, style: activeStyle, speed, format: next })
           }}>
             {TTS_FORMATS.map((item) => (
               <option key={item} value={item}>{item.toUpperCase()}</option>
@@ -245,6 +267,7 @@ export function TextToSpeechWorkspace({ tool }: { tool: ToolDefinition }) {
           <button className="button primary" type="button" disabled={!text.trim() || processing || voiceUnavailable} onClick={() => void run()}>
             {processing && <LoaderCircle size={17} />} {copy.workspace.process}
           </button>
+          <button className="button secondary" type="button" disabled={!text.trim() || processing || voiceUnavailable} onClick={() => void preview()}>Preview voice</button>
           {processing && (
             <button className="button secondary" type="button" onClick={() => void stop()}>
               <Square size={15} /> {copy.workspace.cancel}
@@ -273,6 +296,7 @@ export function TextToSpeechWorkspace({ tool }: { tool: ToolDefinition }) {
               <div><dt>{copy.workspace.language}</dt><dd>{languageLabel(result.language, labels)}</dd></div>
               <div><dt>{copy.workspace.playbackSpeed}</dt><dd>{result.speed ?? speed}x</dd></div>
               <div><dt>{copy.workspace.outputFormat}</dt><dd>{(result.format ?? format).toUpperCase()}</dd></div>
+              <div><dt>Style</dt><dd>{styleLabel(result.style ?? activeStyle)}</dd></div>
               <div><dt>{copy.workspace.duration}</dt><dd>{formatSeconds(result.duration)}</dd></div>
               <div><dt>{copy.workspace.fileSize}</dt><dd>{formatBytes(result.size ?? 0)}</dd></div>
             </dl>
@@ -285,4 +309,8 @@ export function TextToSpeechWorkspace({ tool }: { tool: ToolDefinition }) {
       </div>
     </section>
   )
+}
+
+function styleLabel(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1)
 }

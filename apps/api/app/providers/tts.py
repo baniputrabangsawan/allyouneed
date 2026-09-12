@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import threading
 import wave
 from dataclasses import dataclass
@@ -14,6 +15,10 @@ from app.utils.subprocess import run_command
 
 TTS_SPEEDS = (0.75, 1.0, 1.25, 1.5)
 TTS_FORMATS = frozenset({"mp3", "wav"})
+TTS_STYLES = frozenset(
+    {"neutral", "happy", "excited", "surprised", "sad", "angry", "calm", "whisper"}
+)
+SAFE_EXPRESSION_TAGS = frozenset({"laugh", "chuckle", "sigh", "whisper", "excited"})
 _KOKORO: Any = None
 _PIPER: dict[str, Any] = {}
 _LOAD_LOCK = threading.Lock()
@@ -27,6 +32,7 @@ class TtsVoice:
     language: str
     provider: str
     model: str
+    styles: tuple[str, ...] = ("neutral",)
     available: bool = True
 
 
@@ -72,6 +78,18 @@ def resolve_tts_voice(options: dict[str, Any]) -> TtsVoice:
             code="VOICE_LANGUAGE_MISMATCH",
         )
     return voice
+
+
+def resolve_tts_style(options: dict[str, Any], voice: TtsVoice) -> str:
+    style = str(options.get("style", "neutral")).strip().lower()
+    if style not in TTS_STYLES:
+        raise ProcessingError("That speaking style is not supported.", code="STYLE_UNAVAILABLE")
+    if style not in voice.styles:
+        raise ProcessingError(
+            "That speaking style is not available for the selected voice.",
+            code="STYLE_VOICE_MISMATCH",
+        )
+    return style
 
 
 def normalize_tts_language(value: str) -> str:
@@ -155,6 +173,17 @@ def resolve_tts_format(options: dict[str, Any]) -> str:
     return raw
 
 
+def prepare_tts_text(text: str, voice: TtsVoice) -> str:
+    if voice.provider != "piper":
+        return text
+
+    def replace(match: re.Match[str]) -> str:
+        tag = match.group(1).strip().lower()
+        return " " if tag in SAFE_EXPRESSION_TAGS else match.group(0)
+
+    return re.sub(r"\[([a-zA-Z ]{1,32})\]", replace, text)
+
+
 def write_wav(path: Path, pcm: bytes, *, sample_rate: int, channels: int = 1) -> None:
     with wave.open(str(path), "wb") as handle:
         handle.setnchannels(channels)
@@ -191,12 +220,14 @@ async def _synthesize_with(
 ) -> dict[str, Any]:
     value = resolve_tts_text(text)
     voice = resolve_tts_voice(context.options)
+    style = resolve_tts_style(context.options, voice)
     speed = resolve_tts_speed(context.options)
     fmt = resolve_tts_format(context.options)
+    prepared = prepare_tts_text(value, voice)
     await context.report(15, "synthesizing")
     wav = output if fmt == "wav" else context.work_dir / "tts.wav"
     try:
-        sample_rate = await asyncio.to_thread(_synthesize_wav, value, wav, voice, speed, engine)
+        sample_rate = await asyncio.to_thread(_synthesize_wav, prepared, wav, voice, speed, engine)
     except ProcessingError:
         raise
     except Exception as exc:
@@ -235,6 +266,7 @@ async def _synthesize_with(
         "language": voice.language,
         "provider": voice.provider,
         "model": voice.model,
+        "style": style,
         "speed": speed,
         "format": fmt,
         "duration": duration,

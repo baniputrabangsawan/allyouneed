@@ -19,7 +19,7 @@ const defaultOptions: Record<string, Record<string, unknown>> = {
   'change-audio-speed': { speed: 1 },
   'change-video-speed': { speed: 1 },
   'add-watermark': { text: 'Watermark' },
-  'blur-face': { mode: 'blur' },
+  'blur-face': { mode: 'blur', intensity: 'strong' },
   'noise-reduction': { mode: 'smart', strength: 'medium' },
   'add-subtitle': {
     mode: 'burn',
@@ -47,7 +47,11 @@ export function sanitizeRemoteOptions(
   options: Record<string, unknown>,
 ): Record<string, unknown> {
   if (toolId === 'blur-face') {
-    return { mode: options.mode === 'pixelate' ? 'pixelate' : 'blur' }
+    const intensity = options.intensity
+    return {
+      mode: options.mode === 'pixelate' ? 'pixelate' : 'blur',
+      intensity: intensity === 'light' || intensity === 'medium' || intensity === 'privacy' ? intensity : 'strong',
+    }
   }
   return { ...options }
 }

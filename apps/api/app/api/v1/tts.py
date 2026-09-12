@@ -12,7 +12,10 @@ async def tts_capabilities() -> DataResponse[TtsCapabilitiesView]:
     voices = available_tts_voices()
     return DataResponse(
         data=TtsCapabilitiesView(
-            voices=[TtsVoiceView.model_validate(voice.__dict__) for voice in voices],
+            voices=[
+                TtsVoiceView.model_validate({**voice.__dict__, "styles": list(voice.styles)})
+                for voice in voices
+            ],
             languages=sorted({voice.language for voice in voices if voice.available}),
         )
     )

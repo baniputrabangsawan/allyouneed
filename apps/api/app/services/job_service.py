@@ -381,13 +381,15 @@ class JobService:
             from app.providers.tts import (
                 resolve_tts_format,
                 resolve_tts_speed,
+                resolve_tts_style,
                 resolve_tts_text,
                 resolve_tts_voice,
             )
 
             try:
                 resolve_tts_text(str(payload.options.get("text", "")))
-                resolve_tts_voice(payload.options)
+                voice = resolve_tts_voice(payload.options)
+                resolve_tts_style(payload.options, voice)
                 resolve_tts_speed(payload.options)
                 resolve_tts_format(payload.options)
             except ProcessingError as exc:
@@ -499,11 +501,17 @@ def output_format(tool_id: str, options: dict[str, Any], source: Path) -> tuple[
                 str(exc),
             ) from exc
     if extension is None and tool_id == "text-to-speech":
-        from app.providers.tts import resolve_tts_format, resolve_tts_text, resolve_tts_voice
+        from app.providers.tts import (
+            resolve_tts_format,
+            resolve_tts_style,
+            resolve_tts_text,
+            resolve_tts_voice,
+        )
 
         try:
             resolve_tts_text(str(options.get("text", "")))
-            resolve_tts_voice(options)
+            voice = resolve_tts_voice(options)
+            resolve_tts_style(options, voice)
             extension = resolve_tts_format(options)
         except ProcessingError as exc:
             code = exc.code if exc.code != "PROCESSING_FAILED" else "VALIDATION_ERROR"

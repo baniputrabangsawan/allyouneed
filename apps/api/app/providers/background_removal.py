@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol, cast
@@ -28,6 +30,8 @@ _MAX_INFERENCE_EDGE = {"fast": 768, "quality": 1024}
 _MODEL_CACHE: dict[str, Any] = {}
 _MODEL_LOCK = asyncio.Lock()
 _AI_LOCK = asyncio.Lock()
+logger = logging.getLogger(__name__)
+_MODEL_UNAVAILABLE_MESSAGE = "Background removal model is unavailable on this server."
 
 
 class BackgroundRemovalProvider(Protocol):
@@ -48,21 +52,21 @@ class SelfHostedBackgroundRemovalProvider:
     ) -> dict[str, Any]:
         mode = parse_mode(context.options)
         started = asyncio.get_running_loop().time()
-        await context.report(None, "removing-background")
+        await context.report(35, "removing-background")
         image = _load_image(source)
         try:
             rgb = np.asarray(image.convert("RGB"), dtype=np.uint8)
             async with _AI_LOCK:
                 segmentation = await _segment(rgb, mode)
             context.raise_if_cancelled()
-            await context.report(None, "refining-edges")
+            await context.report(70, "refining-edges")
             mask = refine_mask(segmentation.mask, rgb, mode=mode)
             result = apply_alpha(rgb, mask)
             if result.size != image.size:
                 raise ProcessingError(
                     "Output dimensions must match the original image.", code=ERROR_EXPORT
                 )
-            await context.report(None, "finalizing")
+            await context.report(85, "finalizing")
             try:
                 result.save(output, format="PNG", optimize=True)
             except OSError as exc:
@@ -92,10 +96,6 @@ def parse_mode(options: dict[str, Any]) -> str:
 
 async def _segment(rgb: Rgb, mode: str) -> SegmentationResult:
     model = await _load_model(mode)
-    if not callable(model):
-        raise ProcessingError(
-            "Background removal model is unavailable on this server.", code=ERROR_MODEL
-        )
     work, _ = _downscale(rgb, _MAX_INFERENCE_EDGE[mode])
     try:
         mask = await asyncio.to_thread(model, work)
@@ -108,43 +108,92 @@ async def _segment(rgb: Rgb, mode: str) -> SegmentationResult:
 
 async def _load_model(mode: str) -> Any:
     async with _MODEL_LOCK:
-        if mode in _MODEL_CACHE:
-            return _MODEL_CACHE[mode]
+        cached = _MODEL_CACHE.get(mode)
+        if callable(cached):
+            return cached
         loader = _load_fast_model if mode == "fast" else _load_quality_model
-        model = await asyncio.to_thread(loader)
+        try:
+            model = await asyncio.to_thread(loader)
+        except ProcessingError:
+            raise
+        except Exception as exc:
+            raise ProcessingError(_MODEL_UNAVAILABLE_MESSAGE, code=ERROR_MODEL) from exc
+        if not callable(model):
+            raise ProcessingError(_MODEL_UNAVAILABLE_MESSAGE, code=ERROR_MODEL)
         _MODEL_CACHE[mode] = model
         return model
 
 
 def _load_fast_model() -> Any:
+    return _load_rembg_session("u2netp")
+
+
+def _load_quality_model() -> Any:
+    if _torch_cuda_build_present():
+        cuda_model = _try_load_cuda_birefnet()
+        if callable(cuda_model):
+            return cuda_model
+    return _load_rembg_session("silueta")
+
+
+def _load_rembg_session(name: str) -> Any:
     try:
+        import onnxruntime as ort  # type: ignore[import-not-found]
         from rembg import new_session, remove  # type: ignore[import-not-found]
-    except ImportError:
-        return None
-    session = new_session("u2netp")
+    except ImportError as exc:
+        raise ProcessingError(_MODEL_UNAVAILABLE_MESSAGE, code=ERROR_MODEL) from exc
+    sess_opts = ort.SessionOptions()
+    sess_opts.enable_cpu_mem_arena = False
+    sess_opts.enable_mem_pattern = False
+    sess_opts.intra_op_num_threads = 1
+    sess_opts.inter_op_num_threads = 1
+    try:
+        session = new_session(name, sess_opts=sess_opts, providers=["CPUExecutionProvider"])
+    except Exception as exc:
+        raise ProcessingError(_MODEL_UNAVAILABLE_MESSAGE, code=ERROR_MODEL) from exc
+    logger.info("background removal session %s ready", name)
 
     def infer(rgb: Rgb) -> Mask:
         image = Image.fromarray(rgb, mode="RGB")
         result = remove(image, session=session, only_mask=True)
-        return np.asarray(result.convert("L"), dtype=np.uint8)
+        if isinstance(result, Image.Image):
+            return np.asarray(result.convert("L"), dtype=np.uint8)
+        return np.asarray(result, dtype=np.uint8)
 
     return infer
 
 
-def _load_quality_model() -> Any:
+def _torch_cuda_build_present() -> bool:
+    if os.environ.get("KITS_AI_DEVICE", "").strip().lower() == "cpu":
+        return False
+    import importlib.util
+
+    spec = importlib.util.find_spec("torch")
+    if spec is None or not spec.origin:
+        return False
+    return (Path(spec.origin).resolve().parent / "lib" / "libtorch_cuda.so").is_file()
+
+
+def _try_load_cuda_birefnet() -> Any | None:
     try:
         import torch  # type: ignore[import-not-found]
         from torchvision import transforms  # type: ignore[import-not-found]
         from transformers import AutoModelForImageSegmentation  # type: ignore[import-not-found]
     except ImportError:
         return None
+    device = _select_torch_device(torch)
+    if getattr(device, "type", str(device)) != "cuda":
+        return None
+    try:
+        model = AutoModelForImageSegmentation.from_pretrained(
+            "ZhengPeng7/BiRefNet", trust_remote_code=True
+        )
+        model = model.to(device)
+        model.eval()
+    except Exception:
+        logger.info("cuda BiRefNet unavailable, using ONNX")
+        return None
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = AutoModelForImageSegmentation.from_pretrained(
-        "ZhengPeng7/BiRefNet", trust_remote_code=True
-    )
-    model.to(device)
-    model.eval()
     transform = transforms.Compose(
         [
             transforms.Resize((1024, 1024)),
@@ -152,16 +201,47 @@ def _load_quality_model() -> Any:
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
         ]
     )
+    logger.info("quality background removal ready on %s", device)
 
     def infer(rgb: Rgb) -> Mask:
         image = Image.fromarray(rgb, mode="RGB")
-        tensor = transform(image).unsqueeze(0).to(device)
+        param = next(model.parameters())
+        tensor = transform(image).unsqueeze(0).to(device=param.device, dtype=param.dtype)
         with torch.no_grad():
-            prediction = model(tensor)[-1].sigmoid().cpu()[0].squeeze()
+            prediction = _birefnet_logits(model(tensor)).sigmoid().float().cpu()[0].squeeze()
         mask = transforms.ToPILImage()(prediction).resize(image.size, Image.Resampling.BILINEAR)
         return np.asarray(mask.convert("L"), dtype=np.uint8)
 
     return infer
+
+
+def _select_torch_device(torch: Any) -> Any:
+    requested = os.environ.get("KITS_AI_DEVICE", "").strip().lower()
+    if requested == "cpu":
+        return torch.device("cpu")
+    want_cuda = requested == "cuda" or (requested == "" and bool(torch.cuda.is_available()))
+    if not want_cuda:
+        return torch.device("cpu")
+    try:
+        probe = torch.zeros(1, device="cuda")
+        probe.item()
+        del probe
+        return torch.device("cuda")
+    except Exception:
+        return torch.device("cpu")
+
+
+def _birefnet_logits(output: Any) -> Any:
+    if isinstance(output, dict):
+        for key in ("logits", "pred", "prediction"):
+            if key in output:
+                output = output[key]
+                break
+        else:
+            output = next(iter(output.values()))
+    if isinstance(output, (list, tuple)):
+        output = output[-1]
+    return output
 
 
 def refine_mask(mask: Mask, rgb: Rgb, *, mode: str) -> Mask:
@@ -231,41 +311,6 @@ def _remove_small_artifacts(mask: Mask, min_area: int) -> Mask:
     return cleaned
 
 
-def _fallback_mask(rgb: Rgb, mode: str) -> Mask:
-    work, scale = _downscale(rgb, _MAX_INFERENCE_EDGE[mode])
-    height, width = work.shape[:2]
-    rect = (
-        max(1, width // 12),
-        max(1, height // 12),
-        max(2, width * 5 // 6),
-        max(2, height * 5 // 6),
-    )
-    mask = np.zeros((height, width), dtype=np.uint8)
-    bgd = np.zeros((1, 65), dtype=np.float64)
-    fgd = np.zeros((1, 65), dtype=np.float64)
-    try:
-        cv2.grabCut(
-            cv2.cvtColor(work, cv2.COLOR_RGB2BGR),
-            mask,
-            rect,
-            bgd,
-            fgd,
-            5 if mode == "fast" else 8,
-            cv2.GC_INIT_WITH_RECT,
-        )
-    except cv2.error as exc:
-        raise ProcessingError(
-            "Background removal failed for this image.", code=ERROR_FAILED
-        ) from exc
-    binary = np.where((mask == cv2.GC_FGD) | (mask == cv2.GC_PR_FGD), 255, 0).astype(np.uint8)
-    if scale != 1:
-        binary = np.asarray(
-            cv2.resize(binary, (rgb.shape[1], rgb.shape[0]), interpolation=cv2.INTER_LINEAR),
-            dtype=np.uint8,
-        )
-    return binary
-
-
 def _downscale(rgb: Rgb, max_edge: int) -> tuple[Rgb, float]:
     height, width = rgb.shape[:2]
     edge = max(height, width)
@@ -279,5 +324,5 @@ def _downscale(rgb: Rgb, max_edge: int) -> tuple[Rgb, float]:
 def get_background_removal_provider() -> BackgroundRemovalProvider:
     settings = get_settings()
     if settings.background_removal_provider != "selfhosted" or not settings.enable_self_hosted_ai:
-        raise ProcessingError("Background removal model is unavailable.", code=ERROR_MODEL)
+        raise ProcessingError(_MODEL_UNAVAILABLE_MESSAGE, code=ERROR_MODEL)
     return SelfHostedBackgroundRemovalProvider()

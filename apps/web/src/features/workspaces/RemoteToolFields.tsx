@@ -225,6 +225,10 @@ export function RemoteToolFields({ toolId, options, onChange }: RemoteToolFields
 
   if (toolId === 'blur-face') {
     const mode = stringValue(options.mode, 'blur') === 'pixelate' ? 'pixelate' : 'blur'
+    const intensityValue = stringValue(options.intensity, 'strong')
+    const intensity = intensityValue === 'light' || intensityValue === 'medium' || intensityValue === 'privacy'
+      ? intensityValue
+      : 'strong'
     return (
       <>
         <p className="option-help" role="note">{copy.workspace.blurNote}</p>
@@ -241,6 +245,30 @@ export function RemoteToolFields({ toolId, options, onChange }: RemoteToolFields
           <small>{copy.workspace.blurHelp}</small>
           <small>{copy.workspace.pixelateHelp}</small>
         </label>
+        <label className="field">
+          <span>{copy.workspace.blurIntensity}</span>
+        </label>
+        <div className="segmented segmented-4" role="group" aria-label={copy.workspace.blurIntensity}>
+          {([
+            ['light', copy.workspace.strengthLight],
+            ['medium', copy.workspace.strengthMedium],
+            ['strong', copy.workspace.strengthStrong],
+            ['privacy', copy.workspace.blurPrivacy],
+          ] as const).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              className={intensity === value ? 'active' : ''}
+              aria-pressed={intensity === value}
+              onClick={() => onChange({ intensity: value })}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="option-help" role="note">
+          {intensity === 'privacy' ? copy.workspace.blurPrivacyHelp : copy.workspace.blurIntensityHelp}
+        </p>
       </>
     )
   }
