@@ -4,7 +4,7 @@ from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.db.models import AdminAuditLog, License, LicenseActivation, LicenseEvent
+from app.db.models import AdminAuditLog, License, LicenseActivation, LicenseEvent, LicenseTransfer
 
 
 class LicenseRepository:
@@ -20,6 +20,53 @@ class LicenseRepository:
         self._session.add(activation)
         await self._session.flush()
         return activation
+
+    async def add_transfer(self, transfer: LicenseTransfer) -> LicenseTransfer:
+        self._session.add(transfer)
+        await self._session.flush()
+        return transfer
+
+    async def get_activation_by_hashes(
+        self, installation_hash: str, device_credential_hash: str
+    ) -> LicenseActivation | None:
+        result = await self._session.execute(
+            select(LicenseActivation)
+            .options(selectinload(LicenseActivation.license).selectinload(License.activations))
+            .where(
+                LicenseActivation.installation_hash == installation_hash,
+                LicenseActivation.device_credential_hash == device_credential_hash,
+                LicenseActivation.revoked_at.is_(None),
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def get_unbound_activation(self, installation_hash: str) -> LicenseActivation | None:
+        result = await self._session.execute(
+            select(LicenseActivation)
+            .options(selectinload(LicenseActivation.license).selectinload(License.activations))
+            .where(
+                LicenseActivation.installation_hash == installation_hash,
+                LicenseActivation.device_credential_hash.is_(None),
+                LicenseActivation.revoked_at.is_(None),
+            )
+        )
+        activations = list(result.scalars().unique().all())
+        return activations[0] if len(activations) == 1 else None
+
+    async def get_transfer_by_hash(self, token_hash: str) -> LicenseTransfer | None:
+        result = await self._session.execute(
+            select(LicenseTransfer).where(LicenseTransfer.token_hash == token_hash)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_open_transfer_for_activation(self, activation_id: str) -> LicenseTransfer | None:
+        result = await self._session.execute(
+            select(LicenseTransfer).where(
+                LicenseTransfer.from_activation_id == activation_id,
+                LicenseTransfer.redeemed_at.is_(None),
+            )
+        )
+        return result.scalar_one_or_none()
 
     async def add_event(self, event: LicenseEvent) -> LicenseEvent:
         self._session.add(event)

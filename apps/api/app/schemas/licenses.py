@@ -13,6 +13,23 @@ StatusValue = Literal["active", "expired", "suspended", "revoked"]
 class ActivateLicenseRequest(ApiModel):
     license_key: str = Field(min_length=8, max_length=64)
     installation_id: str = Field(min_length=8, max_length=128)
+    device_secret: str = Field(min_length=32, max_length=128)
+
+
+class RestoreEntitlementRequest(ApiModel):
+    installation_id: str = Field(min_length=8, max_length=128)
+    device_secret: str = Field(min_length=32, max_length=128)
+
+
+class RedeemTransferRequest(ApiModel):
+    token: str = Field(min_length=16, max_length=128)
+    installation_id: str = Field(min_length=8, max_length=128)
+    device_secret: str = Field(min_length=32, max_length=128)
+
+
+class TransferTokenView(ApiModel):
+    token: str
+    expires_at: datetime
 
 
 class LicenseView(ApiModel):

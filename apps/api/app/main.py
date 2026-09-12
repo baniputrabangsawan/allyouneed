@@ -49,6 +49,7 @@ def create_app() -> FastAPI:
             "X-Request-ID",
             "X-CSRF-Token",
             "Idempotency-Key",
+            "X-Installation-Id",
         ],
         expose_headers=["Location", "X-Request-ID", "Retry-After"],
     )

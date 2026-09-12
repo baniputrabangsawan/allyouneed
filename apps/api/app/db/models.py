@@ -49,6 +49,7 @@ class LicenseActivation(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     license_id: Mapped[str] = mapped_column(ForeignKey("licenses.id"), index=True)
     installation_hash: Mapped[str] = mapped_column(String(64))
+    device_credential_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     activated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -178,3 +179,15 @@ class JobOutput(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
     job: Mapped[ProcessingJob] = relationship(back_populates="result")
+
+
+class LicenseTransfer(Base):
+    __tablename__ = "license_transfers"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    license_id: Mapped[str] = mapped_column(ForeignKey("licenses.id"), index=True)
+    from_activation_id: Mapped[str] = mapped_column(String(36))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    redeemed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

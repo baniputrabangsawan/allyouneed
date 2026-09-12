@@ -61,3 +61,5 @@ class LicenseEventType(StrEnum):
     REVOKED = "revoked"
     EXPIRED = "expired"
     ACTIVATION_RESET = "activation_reset"
+    TRANSFER_ISSUED = "transfer_issued"
+    TRANSFER_REDEEMED = "transfer_redeemed"
