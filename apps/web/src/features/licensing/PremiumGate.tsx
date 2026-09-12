@@ -7,7 +7,7 @@ import { hasCapability, useEntitlement } from './entitlement'
 
 export function PremiumGate({ tool, children }: { tool: ToolDefinition; children: ReactNode }) {
   const entitlement = useEntitlement()
-  if (tool.accessTier !== 'pro' && !tool.premium) return children
+  if (!tool.requiresPro) return children
   if (entitlement.state === 'loading') {
     return <section className="workspace entitlement-loading" aria-busy="true" aria-label="Checking license" />
   }

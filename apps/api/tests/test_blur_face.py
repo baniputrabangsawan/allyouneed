@@ -1,11 +1,16 @@
 from pathlib import Path
 
+import cv2
 import numpy as np
 import pytest
 from PIL import Image, ImageDraw
 
 from app.processors.base import ProcessingError, ProcessorContext
 from app.processors.image.face import (
+    _MASK_EXPAND,
+    FaceDetection,
+    _debug_enabled,
+    _nms,
     apply_face_obscure,
     blur_sigma_for_face,
     clamp_box,
@@ -15,6 +20,7 @@ from app.processors.image.face import (
     image_to_bgr,
     parse_face_options,
     pixel_block_for_face,
+    scale_to_original,
 )
 from app.processors.registry import get_processor
 from tests.helpers import png_bytes
@@ -101,7 +107,9 @@ def test_blur_and_pixel_scale_with_face_size() -> None:
     assert large > small
     assert large >= 400 * 0.18
     assert blur_sigma_for_face(20, intensity="privacy") >= 28
-    assert pixel_block_for_face(400, intensity="privacy") >= pixel_block_for_face(80, intensity="light")
+    privacy_block = pixel_block_for_face(400, intensity="privacy")
+    light_block = pixel_block_for_face(80, intensity="light")
+    assert privacy_block >= light_block
     light = blur_sigma_for_face(200, intensity="light")
     medium = blur_sigma_for_face(200, intensity="medium")
     strong = blur_sigma_for_face(200, intensity="strong")
@@ -204,7 +212,9 @@ def test_privacy_hides_identity_more_than_light() -> None:
 def test_edge_and_small_faces_stay_inside_image() -> None:
     image = np.full((80, 80, 3), 40, dtype=np.uint8)
     image[2:22, 2:22] = (200, 80, 40)
-    obscured = apply_face_obscure(image, [(2, 2, 20, 20), (50, 50, 40, 40)], mode="blur", intensity="privacy")
+    obscured = apply_face_obscure(
+        image, [(2, 2, 20, 20), (50, 50, 40, 40)], mode="blur", intensity="privacy"
+    )
     assert obscured.shape == image.shape
     assert not np.array_equal(image[12, 12], obscured[12, 12])
 
@@ -230,3 +240,153 @@ async def test_pixelate_mode_changes_roi_and_keeps_size(tmp_path: Path) -> None:
         after = image_to_bgr(pixelated)[y : y + height, x : x + width]
     before = original_bgr[y : y + height, x : x + width]
     assert not np.array_equal(before, after)
+
+
+def test_nms_drops_overlapping_duplicates() -> None:
+    landmarks = ((10, 10), (20, 10), (15, 16), (12, 22), (18, 22))
+    kept = _nms(
+        [
+            FaceDetection(box=(10, 10, 80, 90), score=0.9, landmarks=landmarks),
+            FaceDetection(box=(18, 14, 76, 88), score=0.4, landmarks=landmarks),
+            FaceDetection(box=(200, 10, 70, 80), score=0.8, landmarks=landmarks),
+        ]
+    )
+    assert [item.box[0] for item in kept] == [10, 200]
+
+
+def test_scale_to_original_maps_inference_coords() -> None:
+    mapped = scale_to_original(
+        10, 20, original_width=400, original_height=300, inference_width=200, inference_height=150
+    )
+    assert mapped == (20, 40)
+
+
+
+def test_mask_expansion_is_proportional_not_a_square() -> None:
+    assert _MASK_EXPAND["light"] == 0.04
+    assert _MASK_EXPAND["medium"] == 0.07
+    assert _MASK_EXPAND["strong"] == 0.10
+    assert _MASK_EXPAND["privacy"] == 0.14
+    box = (40, 40, 100, 140)
+    light = expand_face_box(box, 400, 400, factor=_MASK_EXPAND["light"])
+    privacy = expand_face_box(box, 400, 400, factor=_MASK_EXPAND["privacy"])
+    assert privacy[2] > light[2]
+    assert privacy[3] / privacy[2] == pytest.approx(light[3] / light[2], rel=0.08)
+
+
+def test_debug_overlay_is_off_in_production(monkeypatch: pytest.MonkeyPatch) -> None:
+    class Settings:
+        app_env = "production"
+
+    monkeypatch.setattr("app.core.config.get_settings", lambda: Settings())
+    assert _debug_enabled({"debug": True}) is False
+    dev = type("S", (), {"app_env": "development"})()
+    monkeypatch.setattr("app.core.config.get_settings", lambda: dev)
+    assert _debug_enabled({"debug": True}) is True
+    assert _debug_enabled({}) is False
+
+
+def test_busy_background_does_not_invent_extra_masks() -> None:
+    image = np.full((200, 200, 3), 30, dtype=np.uint8)
+    image[40:160, 50:150] = (90, 160, 220)
+    image[70:90, 70:90] = (20, 20, 20)
+    image[70:90, 110:130] = (20, 20, 20)
+    image[0:30, 0:30] = (200, 40, 40)
+    image[170:200, 170:200] = (40, 200, 40)
+    detections = [
+        FaceDetection(
+            box=(50, 40, 100, 120),
+            score=0.92,
+            landmarks=((80, 80), (120, 80), (100, 105), (85, 130), (115, 130)),
+        )
+    ]
+    obscured = apply_face_obscure(
+        image, [detections[0].box], mode="blur", intensity="strong", detections=detections
+    )
+    assert np.array_equal(image[10, 10], obscured[10, 10])
+    assert np.array_equal(image[185, 185], obscured[185, 185])
+    assert not np.array_equal(image[80, 80], obscured[80, 80])
+
+
+
+def test_multiple_faces_get_independent_masks() -> None:
+    image = np.full((160, 280, 3), 20, dtype=np.uint8)
+    image[40:120, 30:110] = (80, 140, 210)
+    image[40:120, 170:250] = (80, 140, 210)
+    left = FaceDetection(
+        box=(30, 40, 80, 80),
+        score=0.9,
+        landmarks=((50, 65), (90, 65), (70, 85), (55, 105), (85, 105)),
+    )
+    right = FaceDetection(
+        box=(170, 40, 80, 80),
+        score=0.88,
+        landmarks=((190, 65), (230, 65), (210, 85), (195, 105), (225, 105)),
+    )
+    obscured = apply_face_obscure(
+        image, [left.box, right.box], mode="blur", intensity="privacy", detections=[left, right]
+    )
+    assert not np.array_equal(image[80, 70], obscured[80, 70])
+    assert not np.array_equal(image[80, 210], obscured[80, 210])
+    assert np.array_equal(image[10, 140], obscured[10, 140])
+
+
+async def test_debug_overlay_changes_pixels_only_when_enabled(tmp_path: Path) -> None:
+    source = _face_source(tmp_path)
+    plain = tmp_path / "plain.png"
+    debug = tmp_path / "debug.png"
+    await get_processor("blur-face").process([source], plain, context=_context(tmp_path))
+    await get_processor("blur-face").process(
+        [source], debug, context=_context(tmp_path, {"debug": True})
+    )
+    with Image.open(plain) as left, Image.open(debug) as right:
+        assert left.size == right.size
+
+
+def _changed_components(original: np.ndarray, obscured: np.ndarray, thresh: int = 14) -> int:
+    delta = np.max(np.abs(original.astype(np.int16) - obscured.astype(np.int16)), axis=2)
+    binary = (delta > thresh).astype(np.uint8)
+    kernel = np.ones((3, 3), np.uint8)
+    binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
+    count, _labels = cv2.connectedComponents(binary)
+    return int(count) - 1
+
+
+def test_single_face_produces_one_blur_region() -> None:
+    image = np.full((180, 180, 3), 24, dtype=np.uint8)
+    yy, xx = np.ogrid[:180, :180]
+    face = ((xx - 90) ** 2) / (42 ** 2) + ((yy - 88) ** 2) / (52 ** 2) <= 1
+    image[face] = (88, 150, 210)
+    detections = [
+        FaceDetection(
+            box=(48, 36, 84, 104),
+            score=0.94,
+            landmarks=((72, 78), (108, 78), (90, 98), (76, 118), (104, 118)),
+        )
+    ]
+    obscured = apply_face_obscure(
+        image, [detections[0].box], mode="blur", intensity="strong", detections=detections
+    )
+    assert _changed_components(image, obscured) == 1
+    assert np.array_equal(image[8, 8], obscured[8, 8])
+
+
+def test_light_medium_privacy_change_blur_strength() -> None:
+    image = np.full((160, 160, 3), 30, dtype=np.uint8)
+    yy, xx = np.ogrid[:160, :160]
+    face = ((xx - 80) ** 2) / (48 ** 2) + ((yy - 80) ** 2) / (58 ** 2) <= 1
+    image[face] = (90, 160, 220)
+    image[70:90, 55:75] = (20, 20, 20)
+    image[70:90, 85:105] = (20, 20, 20)
+    box = (32, 22, 96, 116)
+    light = apply_face_obscure(image, [box], mode="blur", intensity="light")
+    medium = apply_face_obscure(image, [box], mode="blur", intensity="medium")
+    privacy = apply_face_obscure(image, [box], mode="blur", intensity="privacy")
+
+    def detail(frame: np.ndarray) -> float:
+        return float(np.std(frame[50:110, 50:110].astype(np.float32)))
+
+    assert detail(privacy) < detail(medium) < detail(light)
+    assert np.array_equal(image[4, 4], privacy[4, 4])
+
+

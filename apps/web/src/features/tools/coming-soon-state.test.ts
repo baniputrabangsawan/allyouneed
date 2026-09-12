@@ -14,8 +14,8 @@ describe('public tool audience state', () => {
     const compress = getToolBySlug('compress-image')
     expect(compress?.available).toBe(true)
     expect(publicToolAudienceState(compress!)).toBe('available')
-    expect(publicToolAudienceState({ available: true, accessTier: 'pro' }, false)).toBe('pro-locked')
-    expect(publicToolAudienceState({ available: true, accessTier: 'pro' }, true)).toBe('available')
+    expect(publicToolAudienceState({ available: true, requiresPro: true }, false)).toBe('pro-locked')
+    expect(publicToolAudienceState({ available: true, requiresPro: true }, true)).toBe('available')
   })
 
   it('does not expose configuration-required to public users', () => {

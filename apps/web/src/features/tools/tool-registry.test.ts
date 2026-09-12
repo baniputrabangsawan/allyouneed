@@ -66,9 +66,46 @@ describe('tool registry', () => {
     expect(getToolBySlug('remove-background')?.ai).toBe(true)
     expect(getToolBySlug('noise-reduction')?.available).toBe(true)
     expect(getToolBySlug('noise-reduction')?.ai).toBeUndefined()
-    expect(getToolBySlug('add-subtitle')?.available).toBe(true)
-    expect(getToolBySlug('add-subtitle')?.implementation).toBe('remote-api')
-    expect(getPopularTools().every((tool) => tool.available && tool.popular)).toBe(true)
+      expect(getToolBySlug('add-subtitle')?.available).toBe(true)
+      expect(getToolBySlug('add-subtitle')?.implementation).toBe('remote-api')
+      expect(getPopularTools().every((tool) => tool.available && tool.popular)).toBe(true)
+    })
+
+  it('orders Popular Tools from registry metadata', () => {
+    expect(getPopularTools().map((tool) => tool.name)).toEqual([
+      'Compress Image',
+      'Resize Image',
+      'Image Converter',
+      'QR Code Generator',
+      'Word Counter',
+      'Remove Extra Spaces',
+      'Speech to Text',
+      'Text to Speech',
+      'Add Subtitle',
+      'Noise Reduction',
+      'Photo Editor',
+      'Add Watermark',
+      'Meme Generator',
+      'Merge PNG',
+      'Color Palette Generator',
+      'PDF to Text',
+      'Favicon Generator',
+      'PNG to PDF',
+      'PDF to PNG',
+      'JPG to PNG',
+      'PNG to JPG',
+    ])
+  })
+
+  it('derives Pro tools from the entitlement registry fields', () => {
+    expect(getToolBySlug('blur-face')).toMatchObject({ requiresPro: true, requiredCapability: 'image.face_blur' })
+    expect(getToolBySlug('speech-to-text')).toMatchObject({ requiresPro: true, requiredCapability: 'audio.speech_to_text' })
+    expect(getToolBySlug('text-to-speech')).toMatchObject({ requiresPro: true, requiredCapability: 'audio.text_to_speech' })
+    expect(getToolBySlug('remove-background')).toMatchObject({ requiresPro: true, requiredCapability: 'image.ai.background_removal' })
+    expect(getToolBySlug('add-subtitle')).toMatchObject({ requiresPro: true, requiredCapability: 'video.add_subtitle' })
+    expect(getToolBySlug('noise-reduction')).toMatchObject({ requiresPro: true, requiredCapability: 'audio.noise_reduction' })
+    expect(getToolBySlug('upscale-image')).toMatchObject({ requiresPro: true, requiredCapability: 'image.ai.upscale' })
+    expect(getToolBySlug('ocr-pdf')).toMatchObject({ requiresPro: true, requiredCapability: 'document.ocr.advanced' })
   })
 
   it('searches names, descriptions, and aliases', () => {

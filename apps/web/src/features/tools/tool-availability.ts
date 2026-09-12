@@ -23,10 +23,10 @@ export function sortAvailableFirst<T extends { available: boolean }>(items: read
 export type ToolAudienceState = 'available' | 'coming-soon' | 'pro-locked' | 'configuration-required'
 
 export function publicToolAudienceState(
-  tool: { available: boolean; accessTier?: 'free' | 'pro'; premium?: boolean },
+  tool: { available: boolean; requiresPro?: boolean },
   entitled = true,
 ): Exclude<ToolAudienceState, 'configuration-required'> {
   if (!tool.available) return 'coming-soon'
-  if ((tool.accessTier === 'pro' || tool.premium) && !entitled) return 'pro-locked'
+  if (tool.requiresPro && !entitled) return 'pro-locked'
   return 'available'
 }

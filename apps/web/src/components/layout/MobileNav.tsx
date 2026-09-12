@@ -15,23 +15,27 @@ import {
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useEntitlement } from '@/features/licensing/entitlement'
+import { explorerSearch, pageNav, primaryNav } from '@/components/layout/primary-nav'
 import { localeLabels, locales, type Locale } from '@/i18n/config'
 import { LocaleLink } from '@/i18n/link'
 import { stripLocalePrefix, switchLocaleLocation, useLocale, useT } from '@/i18n'
-import { useSwitchLocale } from '@/i18n/navigate'
+import { useGoHomeTop, useSwitchLocale } from '@/i18n/navigate'
 import { gsap, useGSAP } from '@/lib/motion/gsap'
 import { prefersReducedMotion } from '@/lib/motion/prefers-reduced-motion'
 import { themeIsDark } from '@/lib/theme'
 import type { ThemePreference } from '@/lib/storage/preferences'
 
-const explorerSearch = { q: '', category: 'all', group: 'all' } as const
+const hashIcons = {
+  tools: LayoutGrid,
+  favorites: Star,
+  recent: Clock,
+  new: Sparkles,
+} as const
 
-const navItems = [
-  { key: 'tools', hash: 'all-tools', icon: LayoutGrid },
-  { key: 'favorites', hash: 'favorites', icon: Star },
-  { key: 'recent', hash: 'recent', icon: Clock },
-  { key: 'new', hash: 'new', icon: Sparkles },
-] as const
+const pageIcons = {
+  docs: BookOpen,
+  pricing: Tag,
+} as const
 
 interface MobileNavProps {
   theme: ThemePreference
@@ -43,6 +47,7 @@ interface MobileNavProps {
 
 export function MobileNav({ theme, shortcutLabel, onClose, onSearch, onCycleTheme }: MobileNavProps) {
   const copy = useT()
+  const goHomeTop = useGoHomeTop()
   const locale = useLocale()
   const switchLocale = useSwitchLocale()
   const entitlement = useEntitlement()
@@ -88,8 +93,12 @@ export function MobileNav({ theme, shortcutLabel, onClose, onSearch, onCycleThem
   }, { scope: sheetRef })
 
   useEffect(() => {
-    const previous = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const body = document.body
+    const html = document.documentElement
+    const previousBody = body.style.overflow
+    const previousHtml = html.style.overflow
+    body.style.overflow = 'hidden'
+    html.style.overflow = 'hidden'
     closeRef.current?.focus()
     function onKey(event: KeyboardEvent) {
       if (event.key === 'Escape') {
@@ -99,8 +108,8 @@ export function MobileNav({ theme, shortcutLabel, onClose, onSearch, onCycleThem
       }
       const sheet = sheetRef.current
       if (event.key !== 'Tab' || !sheet) return
-      const focusable = [...sheet.querySelectorAll<HTMLElement>('a,button')]
-        .filter((node) => !node.hasAttribute('disabled'))
+      const focusable = [...sheet.querySelectorAll<HTMLElement>('a,button,select,[href],[tabindex]:not([tabindex="-1"])')]
+        .filter((node) => !node.hasAttribute('disabled') && node.getAttribute('aria-hidden') !== 'true')
       const first = focusable[0]
       const last = focusable[focusable.length - 1]
       if (!first || !last) return
@@ -114,7 +123,8 @@ export function MobileNav({ theme, shortcutLabel, onClose, onSearch, onCycleThem
     }
     document.addEventListener('keydown', onKey)
     return () => {
-      document.body.style.overflow = previous
+      body.style.overflow = previousBody
+      html.style.overflow = previousHtml
       document.removeEventListener('keydown', onKey)
     }
   }, [onClose])
@@ -139,7 +149,7 @@ export function MobileNav({ theme, shortcutLabel, onClose, onSearch, onCycleThem
       <button ref={backdropRef} className="mobile-menu-backdrop" type="button" aria-label={copy.nav.closeMenu} onClick={close} />
       <nav ref={sheetRef} id="mobile-navigation" className="mobile-sheet" aria-label="Mobile primary" aria-modal="true" role="dialog">
         <div className="mobile-sheet-header">
-          <LocaleLink to="/" className="brand" onClick={close}>
+          <LocaleLink to="/" className="brand" onClick={(event) => { close(); goHomeTop(event) }}>
             <span className="brand-mark"><Grid2X2 size={18} /></span>
             {copy.brand}
           </LocaleLink>
@@ -150,8 +160,8 @@ export function MobileNav({ theme, shortcutLabel, onClose, onSearch, onCycleThem
 
         <div className="mobile-sheet-body">
           <p className="mobile-sheet-label">{copy.nav.sectionNav}</p>
-          {navItems.map((item) => {
-            const Icon = item.icon
+          {primaryNav.map((item) => {
+            const Icon = hashIcons[item.key]
             return (
               <LocaleLink
                 key={item.hash}
@@ -167,14 +177,20 @@ export function MobileNav({ theme, shortcutLabel, onClose, onSearch, onCycleThem
               </LocaleLink>
             )
           })}
-          <LocaleLink className={`mobile-sheet-row${pathActive('/docs') ? ' active' : ''}`} to="/docs" onClick={close}>
-            <BookOpen size={18} aria-hidden="true" />
-            <span>{copy.nav.docs}</span>
-          </LocaleLink>
-          <LocaleLink className={`mobile-sheet-row${pathActive('/pricing') ? ' active' : ''}`} to="/pricing" onClick={close}>
-            <Tag size={18} aria-hidden="true" />
-            <span>{copy.nav.pricing}</span>
-          </LocaleLink>
+          {pageNav.map((item) => {
+            const Icon = pageIcons[item.key]
+            return (
+              <LocaleLink
+                key={item.to}
+                className={`mobile-sheet-row${pathActive(item.to) ? ' active' : ''}`}
+                to={item.to}
+                onClick={close}
+              >
+                <Icon size={18} aria-hidden="true" />
+                <span>{copy.nav[item.key]}</span>
+              </LocaleLink>
+            )
+          })}
 
           <p className="mobile-sheet-label">{copy.nav.sectionPro}</p>
           {licensePending ? (

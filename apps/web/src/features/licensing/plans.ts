@@ -51,10 +51,12 @@ export const pricingPlans: readonly PricingPlan[] = [
 const CAPABILITY_FALLBACKS = [
   ['image.ai.background_removal', 'remove-background', 'AI Background Removal'],
   ['image.ai.upscale', 'upscale-image', 'AI Image Upscale'],
-  ['media.subtitle.generate', 'add-subtitle', 'Subtitle Generator'],
+  ['video.add_subtitle', 'add-subtitle', 'Subtitle Generator'],
   ['audio.speech_to_text', 'speech-to-text', 'Speech to Text'],
   ['document.ocr.advanced', 'ocr-pdf', 'Advanced OCR'],
-  ['audio.tts.premium', 'text-to-speech', 'Premium Text to Speech'],
+  ['audio.text_to_speech', 'text-to-speech', 'Premium Text to Speech'],
+  ['audio.noise_reduction', 'noise-reduction', 'Noise Reduction'],
+  ['image.face_blur', 'blur-face', 'Face Blur'],
   ['video.processing', 'video-compressor', 'Video Processing'],
   ['pdf.large_processing', 'compress-pdf', 'Large PDF Processing'],
 ] as const
@@ -113,7 +115,7 @@ export function comparisonRows(): ComparisonRow[] {
     { label: 'Image / QR / Developer utilities', free: true, pro: true },
     { label: featureLabel('image.ai.background_removal', 'remove-background', 'AI Background Removal'), free: false, pro: true },
     { label: featureLabel('image.ai.upscale', 'upscale-image', 'AI Image Upscale'), free: false, pro: true },
-    { label: featureLabel('media.subtitle.generate', 'add-subtitle', 'Subtitle Generator'), free: false, pro: true },
+    { label: featureLabel('video.add_subtitle', 'add-subtitle', 'Subtitle Generator'), free: false, pro: true },
     { label: featureLabel('audio.speech_to_text', 'speech-to-text', 'Speech to Text'), free: false, pro: true },
     { label: featureLabel('document.ocr.advanced', 'ocr-pdf', 'Advanced OCR'), free: false, pro: true },
     { label: featureLabel('video.processing', 'video-compressor', 'Video Processing'), free: false, pro: true },

@@ -2,6 +2,7 @@ import { useRouter } from '@tanstack/react-router'
 import { localeStorageKey, type Locale } from './config'
 import { localizedPath, type EnglishTo, useLocale } from './index'
 import { restoreKeepScroll, saveKeepScroll } from '@/lib/motion/restore'
+import { markGoHomeTop, scrollWindowTop } from '@/lib/navigation/home-top'
 
 export function useLocaleNavigate() {
   const locale = useLocale()
@@ -20,6 +21,18 @@ export function useLocaleNavigate() {
       : ''
     const hash = opts.hash ? (opts.hash.startsWith('#') ? opts.hash : `#${opts.hash}`) : ''
     return router.navigate({ href: `${path}${search}${hash}`, replace: opts.replace, resetScroll: opts.resetScroll } as never)
+  }
+}
+
+export function useGoHomeTop() {
+  const navigate = useLocaleNavigate()
+  return (event?: { preventDefault: () => void; metaKey?: boolean; ctrlKey?: boolean; shiftKey?: boolean; altKey?: boolean; button?: number }) => {
+    if (event && (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || (event.button ?? 0) !== 0)) return
+    event?.preventDefault()
+    markGoHomeTop()
+    void navigate({ to: '/', resetScroll: true })
+    scrollWindowTop()
+    requestAnimationFrame(scrollWindowTop)
   }
 }
 
