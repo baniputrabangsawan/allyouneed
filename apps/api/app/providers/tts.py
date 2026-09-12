@@ -81,6 +81,11 @@ def resolve_tts_voice(options: dict[str, Any]) -> TtsVoice:
 
 
 def resolve_tts_style(options: dict[str, Any], voice: TtsVoice) -> str:
+    mode = str(options.get("mode", "fast")).strip().lower()
+    if mode == "expressive" and voice.provider not in {"qwen3-tts", "cosyvoice3"}:
+        raise ProcessingError(
+            "Expressive TTS is not available on this server.", code="EXPRESSIVE_TTS_UNAVAILABLE"
+        )
     style = str(options.get("style", "neutral")).strip().lower()
     if style not in TTS_STYLES:
         raise ProcessingError("That speaking style is not supported.", code="STYLE_UNAVAILABLE")
@@ -266,6 +271,7 @@ async def _synthesize_with(
         "language": voice.language,
         "provider": voice.provider,
         "model": voice.model,
+        "mode": str(context.options.get("mode", "fast")).strip().lower(),
         "style": style,
         "speed": speed,
         "format": fmt,

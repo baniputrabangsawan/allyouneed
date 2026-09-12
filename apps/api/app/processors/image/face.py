@@ -11,13 +11,17 @@ from app.processors.base import ProcessingError
 from app.processors.image.ops import open_image, save_image
 
 FaceBox = tuple[int, int, int, int]
+Point = tuple[int, int]
 BgrImage = NDArray[np.uint8]
 GrayImage = NDArray[np.uint8]
+Polygon = NDArray[np.int32]
 
 _VENDORED_CASCADE = Path(__file__).with_name("data") / "haarcascade_frontalface_default.xml"
 _MODES = {"blur", "pixelate"}
 _INTENSITIES = {"light", "medium", "strong", "privacy"}
-_EXPAND = {"light": 0.20, "medium": 0.24, "strong": 0.28, "privacy": 0.38}
+_SEARCH_EXPAND = 0.22
+_MASK_EXPAND = {"light": 0.08, "medium": 0.10, "strong": 0.12, "privacy": 0.15}
+_FEATHER = {"light": 6, "medium": 9, "strong": 12, "privacy": 16}
 _SIGMA_FRACTION = {"light": 0.06, "medium": 0.12, "strong": 0.20, "privacy": 0.32}
 _MIN_SIGMA = {"light": 4.0, "medium": 10.0, "strong": 20.0, "privacy": 36.0}
 _PIXEL_FRACTION = {"light": 0.08, "medium": 0.14, "strong": 0.22, "privacy": 0.34}
@@ -86,26 +90,24 @@ def pixel_block_for_face(face_width: int, *, intensity: str) -> int:
     return max(minimum, int(round(face_width * fraction)))
 
 
-@lru_cache(maxsize=1)
-def _frontal_cascade() -> cv2.CascadeClassifier:
-    path = _cascade_path()
-    classifier = cv2.CascadeClassifier(path)
-    if classifier.empty():
-        raise ProcessingError("Haar cascade could not be loaded.")
-    return classifier
-
-
 def detect_frontal_faces(gray: NDArray[np.uint8]) -> list[FaceBox]:
+    prepared = _prepared_gray(gray)
+    return _detect_with(_cascade("haarcascade_frontalface_default.xml"), prepared, gray.shape)
+
+
+def detect_faces(gray: NDArray[np.uint8]) -> list[FaceBox]:
     height, width = gray.shape[:2]
-    detected = _frontal_cascade().detectMultiScale(
-        gray,
-        scaleFactor=1.1,
-        minNeighbors=5,
-        minSize=(30, 30),
-        flags=cv2.CASCADE_SCALE_IMAGE,
-    )
-    boxes = [clamp_box(int(x), int(y), int(w), int(h), width, height) for x, y, w, h in detected]
-    return [box for box in boxes if box[2] > 0 and box[3] > 0]
+    prepared = _prepared_gray(gray)
+    boxes = detect_frontal_faces(gray)
+    profile = _cascade("haarcascade_profileface.xml")
+    if profile is not None:
+        boxes.extend(_detect_with(profile, prepared, gray.shape, min_size=(24, 24)))
+        flipped = cv2.flip(prepared, 1)
+        for x, y, box_width, box_height in _detect_with(
+            profile, flipped, gray.shape, min_size=(24, 24)
+        ):
+            boxes.append((width - x - box_width, y, box_width, box_height))
+    return _nms(boxes)
 
 
 def apply_face_obscure(
@@ -117,21 +119,42 @@ def apply_face_obscure(
 ) -> BgrImage:
     result = bgr.copy()
     image_height, image_width = result.shape[:2]
-    factor = _EXPAND.get(intensity, _EXPAND["strong"])
+    expand = _MASK_EXPAND.get(intensity, _MASK_EXPAND["strong"])
     for box in boxes:
-        x, y, width, height = expand_face_box(box, image_width, image_height, factor=factor)
+        hull = face_contour_hull(bgr, box, expand=expand)
+        if hull is None:
+            continue
+        x, y, width, height = _padded_bounds(hull, image_width, image_height, intensity)
         if width < 2 or height < 2:
             continue
         roi = result[y : y + height, x : x + width]
-        if roi.size == 0:
+        source = bgr[y : y + height, x : x + width]
+        if roi.size == 0 or source.size == 0:
             continue
-        mask = _feathered_round_rect_mask(width, height)
+        mask = _feathered_polygon_mask((width, height), hull, origin=(x, y), intensity=intensity)
         if mode == "pixelate":
-            obscured = _pixelate(roi, pixel_block_for_face(width, intensity=intensity))
+            obscured = _pixelate(source, pixel_block_for_face(width, intensity=intensity))
         else:
-            obscured = _gaussian_blur(roi, blur_sigma_for_face(width, intensity=intensity))
+            obscured = _gaussian_blur(source, blur_sigma_for_face(width, intensity=intensity))
         result[y : y + height, x : x + width] = _composite(roi, obscured, mask)
     return result
+
+
+def face_contour_hull(
+    bgr: BgrImage,
+    box: FaceBox,
+    *,
+    expand: float,
+) -> Polygon | None:
+    image_height, image_width = bgr.shape[:2]
+    points = _landmark_points(bgr, box)
+    if len(points) < 3:
+        return None
+    hull = cv2.convexHull(np.array(points, dtype=np.int32))
+    scaled = _scale_polygon(hull, expand, image_width, image_height)
+    if scaled.shape[0] < 3:
+        return None
+    return scaled
 
 
 def image_to_bgr(image: Image.Image) -> BgrImage:
@@ -150,7 +173,7 @@ def blur_faces(source: Path, output: Path, options: dict[str, object]) -> dict[s
     try:
         bgr = image_to_bgr(image)
         gray = cast(GrayImage, cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY))
-        boxes = detect_frontal_faces(gray)
+        boxes = detect_faces(gray)
         if not boxes:
             raise ProcessingError("No face detected", code="NO_FACES_DETECTED")
         obscured = apply_face_obscure(bgr, boxes, mode=mode, intensity=intensity)
@@ -160,24 +183,227 @@ def blur_faces(source: Path, output: Path, options: dict[str, object]) -> dict[s
         image.close()
 
 
-def _feathered_round_rect_mask(width: int, height: int) -> GrayImage:
+def _landmark_points(bgr: BgrImage, box: FaceBox) -> list[Point]:
+    image_height, image_width = bgr.shape[:2]
+    points = _face_scaffold(box)
+    search = expand_face_box(box, image_width, image_height, factor=_SEARCH_EXPAND)
+    x, y, width, height = search
+    if width < 8 or height < 8:
+        return points
+    roi = bgr[y : y + height, x : x + width]
+    gray = cast(GrayImage, cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY))
+    prepared = _prepared_gray(gray)
+    points.extend(_offset_points(_eye_points(prepared, width, height), x, y))
+    points.extend(_offset_points(_mouth_points(prepared, width, height), x, y))
+    points.extend(_offset_points(_skin_contour_points(roi), x, y))
+    return _unique_points(points, image_width, image_height)
+
+
+def _face_scaffold(box: FaceBox) -> list[Point]:
+    x, y, width, height = box
+    return [
+        (x + int(0.22 * width), y + int(0.10 * height)),
+        (x + int(0.50 * width), y + int(0.04 * height)),
+        (x + int(0.78 * width), y + int(0.10 * height)),
+        (x + int(0.96 * width), y + int(0.36 * height)),
+        (x + int(0.93 * width), y + int(0.58 * height)),
+        (x + int(0.74 * width), y + int(0.88 * height)),
+        (x + int(0.50 * width), y + int(0.99 * height)),
+        (x + int(0.26 * width), y + int(0.88 * height)),
+        (x + int(0.07 * width), y + int(0.58 * height)),
+        (x + int(0.04 * width), y + int(0.36 * height)),
+    ]
+
+
+def _eye_points(gray: GrayImage, width: int, height: int) -> list[Point]:
+    cascade = _cascade("haarcascade_eye.xml")
+    if cascade is None:
+        return []
+    upper = gray[: max(8, int(height * 0.65))]
+    min_side = max(8, int(min(width, height) * 0.12))
+    points: list[Point] = []
+    for ex, ey, eye_w, eye_h in _raw_detect(cascade, upper, (min_side, min_side), neighbors=4):
+        points.extend(
+            (
+                (ex, ey),
+                (ex + eye_w, ey),
+                (ex, ey + eye_h),
+                (ex + eye_w, ey + eye_h),
+                (ex + eye_w // 2, max(0, ey - max(2, eye_h // 2))),
+            )
+        )
+    return points
+
+
+def _mouth_points(gray: GrayImage, width: int, height: int) -> list[Point]:
+    cascade = _cascade("haarcascade_smile.xml")
+    if cascade is None:
+        return []
+    top = int(height * 0.48)
+    lower = gray[top:]
+    if lower.size == 0:
+        return []
+    min_w = max(10, int(width * 0.22))
+    min_h = max(8, int(height * 0.10))
+    points: list[Point] = []
+    for mx, my, mouth_w, mouth_h in _raw_detect(cascade, lower, (min_w, min_h), neighbors=18):
+        my += top
+        chin = my + mouth_h + max(2, mouth_h // 3)
+        points.extend(
+            (
+                (mx, my + mouth_h),
+                (mx + mouth_w, my + mouth_h),
+                (mx + mouth_w // 2, chin),
+            )
+        )
+    return points
+
+
+def _skin_contour_points(roi: BgrImage) -> list[Point]:
+    if roi.size == 0:
+        return []
+    ycrcb = cv2.cvtColor(roi, cv2.COLOR_BGR2YCrCb)
+    skin = cv2.inRange(ycrcb, (0, 133, 77), (255, 173, 127))
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    skin = cv2.morphologyEx(skin, cv2.MORPH_OPEN, kernel)
+    skin = cv2.morphologyEx(skin, cv2.MORPH_CLOSE, kernel)
+    contours, _ = cv2.findContours(skin, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return []
+    largest = max(contours, key=cv2.contourArea)
+    area = float(cv2.contourArea(largest))
+    roi_area = float(roi.shape[0] * roi.shape[1])
+    if area < 0.12 * roi_area:
+        return []
+    bx, by, bw, bh = cv2.boundingRect(largest)
+    if bw * bh > 0.88 * roi_area:
+        return []
+    peri = cv2.arcLength(largest, True)
+    approx = cv2.approxPolyDP(largest, max(1.0, 0.012 * peri), True)
+    if len(approx) < 6:
+        return []
+    return [(int(px), int(py)) for px, py in approx.reshape(-1, 2)]
+
+
+def _feathered_polygon_mask(
+    size: tuple[int, int],
+    hull: Polygon,
+    *,
+    origin: tuple[int, int],
+    intensity: str,
+) -> GrayImage:
+    width, height = size
     mask = np.zeros((height, width), dtype=np.uint8)
-    radius = max(4, int(min(width, height) * 0.10))
-    _fill_round_rect(mask, radius)
-    feather = max(3, int(min(width, height) * 0.04))
-    kernel = feather if feather % 2 == 1 else feather + 1
+    shifted = hull.reshape(-1, 2) - np.array(origin, dtype=np.int32)
+    if shifted.shape[0] < 3:
+        return cast(GrayImage, mask)
+    cv2.fillConvexPoly(mask, shifted, 255)
+    kernel = _feather_kernel(width, height, intensity)
     return cast(GrayImage, cv2.GaussianBlur(mask, (kernel, kernel), 0))
 
 
-def _fill_round_rect(mask: GrayImage, radius: int) -> None:
-    height, width = mask.shape[:2]
-    radius = max(1, min(int(radius), width // 2, height // 2))
-    cv2.rectangle(mask, (radius, 0), (width - radius, height), 255, -1)
-    cv2.rectangle(mask, (0, radius), (width, height - radius), 255, -1)
-    cv2.circle(mask, (radius, radius), radius, 255, -1)
-    cv2.circle(mask, (width - 1 - radius, radius), radius, 255, -1)
-    cv2.circle(mask, (radius, height - 1 - radius), radius, 255, -1)
-    cv2.circle(mask, (width - 1 - radius, height - 1 - radius), radius, 255, -1)
+def _padded_bounds(
+    hull: Polygon,
+    image_width: int,
+    image_height: int,
+    intensity: str,
+) -> FaceBox:
+    x, y, width, height = cv2.boundingRect(hull)
+    pad = _feather_kernel(width, height, intensity) + 2
+    return clamp_box(x - pad, y - pad, width + 2 * pad, height + 2 * pad, image_width, image_height)
+
+
+def _scale_polygon(points: NDArray[np.integer], factor: float, image_width: int, image_height: int) -> Polygon:
+    pts = points.reshape(-1, 2).astype(np.float32)
+    center = pts.mean(axis=0)
+    scaled = center + (pts - center) * (1.0 + factor)
+    scaled[:, 0] = np.clip(scaled[:, 0], 0, max(0, image_width - 1))
+    scaled[:, 1] = np.clip(scaled[:, 1], 0, max(0, image_height - 1))
+    return np.round(scaled).astype(np.int32)
+
+
+def _feather_kernel(width: int, height: int, intensity: str) -> int:
+    preset = _FEATHER.get(intensity, _FEATHER["strong"])
+    capped = max(3, min(preset, int(min(width, height) * 0.18), 16))
+    return capped if capped % 2 == 1 else capped + 1
+
+
+def _prepared_gray(gray: NDArray[np.uint8]) -> GrayImage:
+    return cast(GrayImage, cv2.equalizeHist(gray))
+
+
+def _detect_with(
+    cascade: cv2.CascadeClassifier | None,
+    gray: GrayImage,
+    shape: tuple[int, ...],
+    *,
+    min_size: tuple[int, int] = (30, 30),
+    neighbors: int = 5,
+) -> list[FaceBox]:
+    if cascade is None:
+        return []
+    height, width = int(shape[0]), int(shape[1])
+    boxes = [
+        clamp_box(int(x), int(y), int(box_w), int(box_h), width, height)
+        for x, y, box_w, box_h in _raw_detect(cascade, gray, min_size, neighbors=neighbors)
+    ]
+    return [box for box in boxes if box[2] > 0 and box[3] > 0]
+
+
+def _raw_detect(
+    cascade: cv2.CascadeClassifier,
+    gray: GrayImage,
+    min_size: tuple[int, int],
+    *,
+    neighbors: int,
+) -> list[tuple[int, int, int, int]]:
+    if gray.size == 0:
+        return []
+    detected = cascade.detectMultiScale(
+        gray,
+        scaleFactor=1.1,
+        minNeighbors=neighbors,
+        minSize=min_size,
+        flags=cv2.CASCADE_SCALE_IMAGE,
+    )
+    if detected is None or len(detected) == 0:
+        return []
+    return [(int(x), int(y), int(w), int(h)) for x, y, w, h in detected]
+
+
+def _nms(boxes: list[FaceBox], threshold: float = 0.35) -> list[FaceBox]:
+    ordered = sorted(boxes, key=lambda box: box[2] * box[3], reverse=True)
+    kept: list[FaceBox] = []
+    for box in ordered:
+        if all(_iou(box, other) < threshold for other in kept):
+            kept.append(box)
+    return kept
+
+
+def _iou(left: FaceBox, right: FaceBox) -> float:
+    ax, ay, aw, ah = left
+    bx, by, bw, bh = right
+    x0, y0 = max(ax, bx), max(ay, by)
+    x1, y1 = min(ax + aw, bx + bw), min(ay + ah, by + bh)
+    overlap = max(0, x1 - x0) * max(0, y1 - y0)
+    union = aw * ah + bw * bh - overlap
+    return overlap / union if union else 0.0
+
+
+def _offset_points(points: list[Point], x: int, y: int) -> list[Point]:
+    return [(px + x, py + y) for px, py in points]
+
+
+def _unique_points(points: list[Point], image_width: int, image_height: int) -> list[Point]:
+    seen: set[Point] = set()
+    unique: list[Point] = []
+    for px, py in points:
+        point = (max(0, min(px, image_width - 1)), max(0, min(py, image_height - 1)))
+        if point in seen:
+            continue
+        seen.add(point)
+        unique.append(point)
+    return unique
 
 
 def _gaussian_blur(roi: BgrImage, sigma: float) -> BgrImage:
@@ -201,12 +427,20 @@ def _composite(original: BgrImage, obscured: BgrImage, mask: GrayImage) -> BgrIm
     return cast(BgrImage, np.clip(blended, 0, 255).astype(np.uint8))
 
 
-def _cascade_path() -> str:
+@lru_cache(maxsize=8)
+def _cascade(name: str) -> cv2.CascadeClassifier | None:
     packaged = getattr(getattr(cv2, "data", None), "haarcascades", None)
+    candidates = []
     if packaged:
-        candidate = Path(packaged) / "haarcascade_frontalface_default.xml"
-        if candidate.is_file():
-            return str(candidate)
-    if _VENDORED_CASCADE.is_file():
-        return str(_VENDORED_CASCADE)
-    raise ProcessingError("Haar cascade is not installed.")
+        candidates.append(Path(packaged) / name)
+    if name == "haarcascade_frontalface_default.xml":
+        candidates.append(_VENDORED_CASCADE)
+    for path in candidates:
+        if not path.is_file():
+            continue
+        classifier = cv2.CascadeClassifier(str(path))
+        if not classifier.empty():
+            return classifier
+    if name == "haarcascade_frontalface_default.xml":
+        raise ProcessingError("Haar cascade is not installed.")
+    return None
