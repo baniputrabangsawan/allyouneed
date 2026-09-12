@@ -6,20 +6,41 @@ import { resolveApiUrl } from '../../lib/api/client'
 import { completeUpload, createUpload, uploadFile } from '../../lib/api/files'
 import { cancelJob, createJob, getJob, getJobResult } from '../../lib/api/jobs'
 import type { Job } from '../../lib/api/types'
-import { previewKind, resultMediaKind } from '../../lib/media/kind'
+import { formatBytes } from '../../lib/format'
+import { previewKind, resultMediaKind, isSubtitleFile } from '../../lib/media/kind'
 import { useObjectUrls } from '../../lib/media/object-url'
 import { remoteJobPhase } from '../../lib/media/job-phase'
+import { useAutoDownloadResult } from '../../lib/media/use-auto-download'
 import { errorFromJob, workflowErrorCode, workflowMessage, type WorkflowErrorCode } from '../../lib/media/workflow-error'
 import { downloadFromJobResult, restoreNoticeMessage, useToolFileSession } from '../../lib/storage/use-tool-file-session'
 import type { ToolDefinition } from '../tools/tool-registry'
 import { ImageResultPreview } from '../image/ImageResultPreview'
 import { isImageResultFile, toolOutputsImage } from '../image/image-result'
+import { formatDuration } from './audio-converter-utils'
 import { ExtractedText } from './ExtractedText'
 import { MediaPreview } from './MediaPreview'
 import { textFromJsonPayload } from './json-text'
-import { defaultRemoteOptions } from './remote-tool-options'
+import { defaultRemoteOptions, sanitizeRemoteOptions } from './remote-tool-options'
 import { RemoteToolFields } from './RemoteToolFields'
 import { SelectedFiles } from './SelectedFiles'
+
+interface RemoteResult {
+  url: string
+  filename: string
+  duration?: number
+  outputSize?: number
+  width?: number
+  height?: number
+  resolution?: string
+}
+
+function numberMeta(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function stringMeta(value: unknown): string | undefined {
+  return typeof value === 'string' && value ? value : undefined
+}
 
 const multipleTools = new Set(['merge-pdf', 'jpg-to-pdf', 'png-to-pdf', 'audio-merger', 'video-merger', 'add-audio', 'add-subtitle'])
 
@@ -45,7 +66,7 @@ export function RemoteFileWorkspace({ tool }: { tool: ToolDefinition }) {
   const [files, setFiles] = useState<File[]>([])
   const [options, setOptions] = useState(() => defaultRemoteOptions(tool.id))
   const [job, setJob] = useState<Job | null>(null)
-  const [download, setDownload] = useState<{ url: string; filename: string } | null>(null)
+  const [download, setDownload] = useState<RemoteResult | null>(null)
   const [extractedText, setExtractedText] = useState('')
   const [error, setError] = useState('')
   const [errorCode, setErrorCode] = useState<WorkflowErrorCode | null>(null)
@@ -86,7 +107,7 @@ export function RemoteFileWorkspace({ tool }: { tool: ToolDefinition }) {
   const session = useToolFileSession({
     slug: tool.id,
     applyFiles,
-    applyOptions: (next) => setOptions((current) => ({ ...current, ...next })),
+    applyOptions: (next) => setOptions((current) => sanitizeRemoteOptions(tool.id, { ...current, ...next })),
     applyJob: (next) => {
       setJob(next)
       if (!next) {
@@ -120,6 +141,16 @@ export function RemoteFileWorkspace({ tool }: { tool: ToolDefinition }) {
     resolveDownload: downloadFromJobResult,
   })
   const restoreError = restoreNoticeMessage(session.notice, copy.errors)
+  const autoDownloaded = useAutoDownloadResult({
+    id: job?.jobId,
+    source: download?.url,
+    filename: download?.filename,
+    restored: session.notice === 'restored',
+    enabled: Boolean(download && resultKind && !imageResult),
+  })
+  const processingLabel = tool.id === 'add-subtitle' && job?.progress != null
+    ? `${job.stage || copy.workspace.burningSubtitles} ${job.progress}%`
+    : (job?.stage ?? phaseLabel)
 
   function chooseFiles(next: File[]) {
     session.setNotice(null)
@@ -131,7 +162,7 @@ export function RemoteFileWorkspace({ tool }: { tool: ToolDefinition }) {
     setExtractedText('')
     setJob(null)
     if (next.length === 0) void session.clear()
-    else void session.persist({ files: next, options })
+    else void session.persist({ files: next, options: sanitizeRemoteOptions(tool.id, options) })
   }
 
   async function run() {
@@ -156,9 +187,10 @@ export function RemoteFileWorkspace({ tool }: { tool: ToolDefinition }) {
         })
         keys.push((await completeUpload({ fileKey: target.fileKey })).fileKey)
       }
-      void session.persistUploads(files, keys, options)
+      const jobOptions = sanitizeRemoteOptions(tool.id, options)
+      void session.persistUploads(files, keys, jobOptions)
       setTransfer({ status: 'processing', progress: { fileName: activeName, percent: null, label: copy.dropzone.processing } })
-      let current = await createJob({ toolId: tool.id, input: keys.length === 1 ? { fileKey: keys[0] } : { files: keys }, options })
+      let current = await createJob({ toolId: tool.id, input: keys.length === 1 ? { fileKey: keys[0] } : { files: keys }, options: jobOptions })
       setJob(current)
       void session.persistJob(current.jobId)
       while (!['completed', 'failed', 'cancelled', 'expired'].includes(current.status)) {
@@ -178,9 +210,32 @@ export function RemoteFileWorkspace({ tool }: { tool: ToolDefinition }) {
         })
       }
       if (current.status === 'completed') {
-        const payload = await getJobResult<{ downloadUrl: string; filename: string }>(current.jobId)
+        const payload = await getJobResult<{
+          downloadUrl: string
+          filename: string
+          duration?: number
+          outputSize?: number
+          size?: number
+          width?: number
+          height?: number
+          resolution?: string
+        }>(current.jobId)
         const url = resolveApiUrl(payload.result.downloadUrl)
-        setDownload({ url, filename: payload.result.filename })
+        const duration = numberMeta(payload.result.duration)
+        const outputSize = numberMeta(payload.result.outputSize) ?? numberMeta(payload.result.size)
+        const width = numberMeta(payload.result.width)
+        const height = numberMeta(payload.result.height)
+        const resolution = stringMeta(payload.result.resolution)
+          ?? (width && height ? `${width}x${height}` : undefined)
+        setDownload({
+          url,
+          filename: payload.result.filename,
+          ...(duration === undefined ? {} : { duration }),
+          ...(outputSize === undefined ? {} : { outputSize }),
+          ...(width === undefined ? {} : { width }),
+          ...(height === undefined ? {} : { height }),
+          ...(resolution === undefined ? {} : { resolution }),
+        })
         if (!resultKind) setExtractedText((await loadExtractedText(url)) ?? '')
         setTransfer({ status: 'success', progress: { fileName: activeName, percent: 100, label: copy.dropzone.completed } })
       } else if (current.status === 'failed') {
@@ -234,6 +289,13 @@ export function RemoteFileWorkspace({ tool }: { tool: ToolDefinition }) {
           <ul className="media-file-list">
             {files.map((file, index) => {
               const url = inputUrls[index]
+              if (tool.id === 'add-subtitle' && isSubtitleFile(file)) {
+                return (
+                  <li key={`${file.name}-${file.size}-${index}`}>
+                    <p className="media-preview-meta">{copy.workspace.subtitleFile}: {file.name}</p>
+                  </li>
+                )
+              }
               return (
                 <li key={`${file.name}-${file.size}-${index}`}>
                   {url ? (
@@ -251,7 +313,7 @@ export function RemoteFileWorkspace({ tool }: { tool: ToolDefinition }) {
         )}
         <RemoteToolFields toolId={tool.id} options={options} onChange={(patch) => {
           setOptions((current) => {
-            const next = { ...current, ...patch }
+            const next = sanitizeRemoteOptions(tool.id, { ...current, ...patch })
             void session.persistOptions(next)
             return next
           })
@@ -277,7 +339,7 @@ export function RemoteFileWorkspace({ tool }: { tool: ToolDefinition }) {
         {phase === 'unavailable' && <p className="field-error" role="alert">{copy.errors.apiUnreachable}</p>}
         {job && (phase === 'processing' || phase === 'completed') && (
           <>
-            <p>{job.stage ?? phaseLabel}</p>
+            <p>{processingLabel}</p>
             <progress max="100" value={job.progress ?? (phase === 'completed' ? 100 : undefined)} />
           </>
         )}
@@ -296,11 +358,32 @@ export function RemoteFileWorkspace({ tool }: { tool: ToolDefinition }) {
             {...(imageResult && download ? { meta: { filename: download.filename } } : {})}
           />
         )}
-        {!extractedText && download && resultKind && <MediaPreview src={download.url} kind={resultKind} label="Result preview" />}
+        {!extractedText && download && resultKind && (
+          <>
+            {tool.id === 'noise-reduction' && inputUrls[0] ? (
+              <div className="compare-audio">
+                <MediaPreview src={inputUrls[0]} kind="audio" label={copy.workspace.original} title={copy.workspace.original} />
+                <MediaPreview src={download.url} kind={resultKind} label={copy.workspace.result} title={copy.workspace.result} />
+              </div>
+            ) : (
+              <MediaPreview src={download.url} kind={resultKind} label="Result preview" />
+            )}
+            {(download.duration != null || download.outputSize != null || download.resolution) && (
+              <ul className="result-meta">
+                {download.duration != null && <li>{copy.workspace.duration}: {formatDuration(download.duration)}</li>}
+                {download.outputSize != null && <li>{copy.workspace.fileSize}: {formatBytes(download.outputSize)}</li>}
+                {download.resolution && <li>{copy.workspace.dimensions}: {download.resolution}</li>}
+              </ul>
+            )}
+          </>
+        )}
         {!extractedText && download && !imageResult && (
-          <a className="button primary" href={download.url} download={download.filename}>
-            <Download size={18}/> {copy.workspace.downloadResult}
-          </a>
+          <>
+            {autoDownloaded && <p className="option-help" role="status">{copy.workspace.downloadedAutomatically}</p>}
+            <a className="button primary" href={download.url} download={download.filename}>
+              <Download size={18}/> {autoDownloaded ? copy.workspace.downloadAgain : copy.workspace.downloadResult}
+            </a>
+          </>
         )}
       </div>
     </section>

@@ -1,7 +1,11 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+API_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_LICENSE_DATABASE_URL = f"sqlite+aiosqlite:///{API_ROOT / 'data' / 'licenses.db'}"
 
 
 class Settings(BaseSettings):
@@ -13,7 +17,7 @@ class Settings(BaseSettings):
         default_factory=lambda: ["http://localhost:3000", "http://127.0.0.1:3000"]
     )
     database_url: str = ""
-    license_database_url: str = "sqlite+aiosqlite:///./data/licenses.db"
+    license_database_url: str = DEFAULT_LICENSE_DATABASE_URL
     admin_cors_origins: list[str] = Field(
         default_factory=lambda: ["http://localhost:3000", "http://127.0.0.1:3000"]
     )
@@ -55,13 +59,11 @@ class Settings(BaseSettings):
     download_signing_secret: str = "dev-download-secret"
     download_url_ttl_seconds: int = 900
     inline_jobs: bool = True
+    rnnoise_model_path: str = str(API_ROOT / "app" / "assets" / "rnnoise" / "cb.rnnn")
 
     @model_validator(mode="after")
     def alias_database_url(self) -> "Settings":
-        if (
-            self.database_url
-            and self.license_database_url == "sqlite+aiosqlite:///./data/licenses.db"
-        ):
+        if self.database_url and self.license_database_url == DEFAULT_LICENSE_DATABASE_URL:
             self.license_database_url = self.database_url
         if self.app_env == "production":
             required = {

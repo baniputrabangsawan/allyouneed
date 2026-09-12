@@ -13,6 +13,7 @@ FORMATS: tuple[tuple[frozenset[str], frozenset[str]], ...] = (
     (frozenset({".webm"}), frozenset({"audio/webm", "video/webm"})),
     (frozenset({".mp4", ".m4v"}), frozenset({"video/mp4"})),
     (frozenset({".mov", ".qt"}), frozenset({"video/quicktime"})),
+    (frozenset({".mkv"}), frozenset({"video/x-matroska", "video/mkv"})),
     (frozenset({".gif"}), frozenset({"image/gif"})),
     (frozenset({".jpg", ".jpeg"}), frozenset({"image/jpeg", "image/jpg"})),
     (frozenset({".png"}), frozenset({"image/png"})),

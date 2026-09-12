@@ -24,6 +24,7 @@ from app.providers.stt import (
 from app.providers.tts import (
     PiperProvider,
     UnavailableTtsProvider,
+    available_tts_voices,
     resolve_tts_format,
     resolve_tts_speed,
     resolve_tts_text,
@@ -143,13 +144,22 @@ def _fake_transcribe(_path: str, language: str | None) -> tuple[list[dict[str, A
     return SEGMENTS, language or "en", 0.4
 
 
-def _fake_synthesize(
-    text: str, wav: Path, voice: Any, speed: float, engine: str
-) -> int:
+def _fake_synthesize(text: str, wav: Path, voice: Any, speed: float, engine: str) -> int:
     assert text
     assert engine in {"kokoro", "piper"}
     assert speed > 0
-    _write_tone_wav(wav, duration=max(0.3, 0.4 / speed))
+    frequency = 440 if voice.id == "en_US-lessac-medium" else 660
+    frames = int(16_000 * max(0.3, 0.4 / speed))
+    with wave.open(str(wav), "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(16_000)
+        handle.writeframes(
+            b"".join(
+                struct.pack("<h", int(12_000 * math.sin(2 * math.pi * frequency * index / 16_000)))
+                for index in range(frames)
+            )
+        )
     return 16_000
 
 
@@ -195,9 +205,11 @@ def test_stt_caption_payload_preserves_paragraphs() -> None:
 
 
 def test_tts_option_helpers() -> None:
+    voices = available_tts_voices()
+    assert any(voice.id == "en_US-lessac-medium" for voice in voices)
+    assert all(voice.language != "id-ID" for voice in voices)
     assert resolve_tts_text(" Hello from Kits. ") == "Hello from Kits."
-    assert resolve_tts_voice({"voice": "adam"}).name == "Adam"
-    assert resolve_tts_voice({"voice": "sarah", "language": "id"}).key == "maya"
+    assert resolve_tts_voice({"voice": "en_US-lessac-medium"}).name == "Lessac Medium"
     assert resolve_tts_speed({"speed": "1.25"}) == 1.25
     assert resolve_tts_format({"format": "audio/mpeg"}) == "mp3"
     with pytest.raises(ProcessingError) as too_long:
@@ -206,10 +218,23 @@ def test_tts_option_helpers() -> None:
     with pytest.raises(ProcessingError) as voice:
         resolve_tts_voice({"voice": "robot"})
     assert voice.value.code == "VOICE_UNAVAILABLE"
+    with pytest.raises(ProcessingError) as language:
+        resolve_tts_voice({"voice": "en_US-lessac-medium", "language": "id-ID"})
+    assert language.value.code == "UNSUPPORTED_LANGUAGE"
     with pytest.raises(ProcessingError):
         resolve_tts_speed({"speed": 2})
     with pytest.raises(ProcessingError):
         resolve_tts_text("   ")
+
+
+async def test_text_to_speech_capabilities_endpoint(api: AsyncClient) -> None:
+    response = await api.get("/api/v1/tts/capabilities")
+    assert response.status_code == 200
+    data = response.json()["data"]
+    ids = [voice["id"] for voice in data["voices"]]
+    assert "en_US-lessac-medium" in ids
+    assert "en-US" in data["languages"]
+    assert "id-ID" not in data["languages"]
 
 
 @needs_ffmpeg
@@ -293,7 +318,13 @@ async def test_text_to_speech_mp3_and_wav(tmp_path: Path, monkeypatch: pytest.Mo
             context=_context(
                 tmp_path,
                 "text-to-speech",
-                {"text": "Hello from Kits.", "voice": "sarah", "format": fmt, "speed": 1},
+                {
+                    "text": "Hello from Kits.",
+                    "voice": "en_US-lessac-medium",
+                    "language": "en-US",
+                    "format": fmt,
+                    "speed": 1,
+                },
             ),
         )
         assert output.is_file()
@@ -302,8 +333,9 @@ async def test_text_to_speech_mp3_and_wav(tmp_path: Path, monkeypatch: pytest.Mo
         assert duration_seconds(info) and duration_seconds(info) > 0
         assert result.extension == fmt
         assert result.content_type == ("audio/mpeg" if fmt == "mp3" else "audio/wav")
-        assert result.metadata["voice"] == "sarah"
-        assert result.metadata["voiceName"] == "Sarah"
+        assert result.metadata["voice"] == "en_US-lessac-medium"
+        assert result.metadata["voiceName"] == "Lessac Medium"
+        assert result.metadata["provider"] == "piper"
         assert "kokoro_id" not in result.metadata
         assert "piper_id" not in result.metadata
 
@@ -321,7 +353,7 @@ async def test_text_to_speech_model_unavailable(
             context=_context(
                 tmp_path,
                 "text-to-speech",
-                {"text": "Hello from Kits.", "voice": "sarah", "format": "mp3"},
+                {"text": "Hello from Kits.", "voice": "en_US-lessac-medium", "format": "mp3"},
             ),
         )
     assert caught.value.code == "MODEL_UNAVAILABLE"
@@ -346,7 +378,11 @@ async def test_speech_tools_require_license(admin_api: AsyncClient) -> None:
         json={
             "toolId": "text-to-speech",
             "input": {},
-            "options": {"text": "Hello from Kits.", "voice": "sarah", "format": "mp3"},
+            "options": {
+                "text": "Hello from Kits.",
+                "voice": "en_US-lessac-medium",
+                "format": "mp3",
+            },
         },
     )
     assert blocked_tts.status_code == 403
@@ -361,7 +397,7 @@ async def test_text_to_speech_rejects_invalid_options(admin_api: AsyncClient) ->
         json={
             "toolId": "text-to-speech",
             "input": {},
-            "options": {"text": "x" * 5001, "voice": "sarah", "format": "mp3"},
+            "options": {"text": "x" * 5001, "voice": "en_US-lessac-medium", "format": "mp3"},
         },
         headers=headers,
     )
@@ -379,6 +415,23 @@ async def test_text_to_speech_rejects_invalid_options(admin_api: AsyncClient) ->
     )
     assert unknown.status_code == 422
     assert unknown.json()["error"]["code"] == "VOICE_UNAVAILABLE"
+
+    mismatch = await api.post(
+        "/api/v1/jobs",
+        json={
+            "toolId": "text-to-speech",
+            "input": {},
+            "options": {
+                "text": "Hello from Kits.",
+                "voice": "en_US-lessac-medium",
+                "language": "id-ID",
+                "format": "mp3",
+            },
+        },
+        headers=headers,
+    )
+    assert mismatch.status_code == 422
+    assert mismatch.json()["error"]["code"] == "UNSUPPORTED_LANGUAGE"
 
 
 @needs_ffmpeg
@@ -434,8 +487,8 @@ async def test_text_to_speech_job(
             "input": {},
             "options": {
                 "text": "Hello from Kits.",
-                "voice": "sarah",
-                "language": "en",
+                "voice": "en_US-lessac-medium",
+                "language": "en-US",
                 "speed": 1,
                 "format": "mp3",
             },
@@ -447,7 +500,7 @@ async def test_text_to_speech_job(
     assert job["status"] == "completed", job
     result = (await api.get(f"/api/v1/jobs/{job['jobId']}/result")).json()["data"]["result"]
     assert result["contentType"] == "audio/mpeg"
-    assert result["voiceName"] == "Sarah"
+    assert result["voiceName"] == "Lessac Medium"
     downloaded = await api.get(result["downloadUrl"])
     assert downloaded.status_code == 200
     output = tmp_path / "hello.mp3"
@@ -466,7 +519,12 @@ async def test_text_to_speech_live_piper(tmp_path: Path) -> None:
         context=_context(
             tmp_path,
             "text-to-speech",
-            {"text": "Hello from Kits.", "voice": "sarah", "format": "wav", "speed": 1},
+            {
+                "text": "Hello from Kits.",
+                "voice": "en_US-lessac-medium",
+                "format": "wav",
+                "speed": 1,
+            },
         ),
     )
     assert output.is_file()
@@ -476,15 +534,13 @@ async def test_text_to_speech_live_piper(tmp_path: Path) -> None:
     assert result.extension == "wav"
     assert result.content_type == "audio/wav"
     assert result.metadata["engine"] == "piper"
-    assert result.metadata["voiceName"] == "Sarah"
+    assert result.metadata["voiceName"] == "Lessac Medium"
 
 
 @needs_ffmpeg
 @pytest.mark.skipif(not _piper_voice().is_file(), reason="piper voice")
 @pytest.mark.skipif(not _whisper_tiny_cached(), reason="whisper tiny")
-async def test_speech_to_text_live_whisper(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_speech_to_text_live_whisper(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("app.providers.stt._whisper_model_name", lambda: "tiny")
     spoken = tmp_path / "spoken.wav"
     await get_processor("text-to-speech").process(
@@ -493,7 +549,12 @@ async def test_speech_to_text_live_whisper(
         context=_context(
             tmp_path,
             "text-to-speech",
-            {"text": "Hello from Kits.", "voice": "sarah", "format": "wav", "speed": 1},
+            {
+                "text": "Hello from Kits.",
+                "voice": "en_US-lessac-medium",
+                "format": "wav",
+                "speed": 1,
+            },
         ),
     )
     output = tmp_path / "live.txt"

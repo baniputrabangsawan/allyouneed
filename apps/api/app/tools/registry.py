@@ -23,7 +23,14 @@ AUDIO = {
     "audio/aac",
     "audio/opus",
 }
-VIDEO = {"video/mp4", "video/webm", "video/quicktime", "image/gif"}
+VIDEO = {
+    "video/mp4",
+    "video/webm",
+    "video/quicktime",
+    "video/x-matroska",
+    "video/mkv",
+    "image/gif",
+}
 SUBTITLES = {
     "text/plain",
     "text/vtt",

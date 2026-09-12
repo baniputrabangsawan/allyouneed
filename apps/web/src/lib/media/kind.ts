@@ -13,6 +13,19 @@ export function mediaKindFromFile(file: File): MediaKind | null {
   return null
 }
 
+const SUBTITLE_EXT = /\.(srt|vtt|ass|ssa)$/i
+
+export function isSubtitleFile(file: File): boolean {
+  if (SUBTITLE_EXT.test(file.name)) return true
+  const type = file.type.trim().toLowerCase()
+  return type === 'text/vtt'
+    || type === 'application/x-subrip'
+    || type === 'text/x-subrip'
+    || type === 'application/x-ass'
+    || type === 'text/x-ass'
+    || type === 'text/x-ssa'
+}
+
 export function previewKind(file: File, category?: string): MediaKind {
   if (category === 'audio') return 'audio'
   return mediaKindFromFile(file) ?? (category === 'video' ? 'video' : 'audio')

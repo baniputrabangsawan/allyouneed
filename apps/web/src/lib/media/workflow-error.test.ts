@@ -38,6 +38,30 @@ describe('workflow errors', () => {
     }), copy)).toBe('This file has no audio stream.')
   })
 
+  it('maps subtitle codes to user-safe copy', () => {
+    const messages = {
+      ...copy,
+      noVideoStream: 'This file has no video stream.',
+      invalidSubtitleFile: 'That subtitle file could not be read.',
+      unsupportedSubtitleFormat: 'Use an .srt, .vtt, or .ass subtitle file.',
+      subtitleRenderFailed: 'Subtitles could not be burned into this video.',
+    }
+    expect(workflowErrorCode(errorFromJob({ code: 'NO_VIDEO_STREAM', message: 'ffprobe' }))).toBe('NO_VIDEO_STREAM')
+    expect(workflowErrorCode(errorFromJob({ code: 'VIDEO_STREAM_NOT_FOUND', message: 'ffprobe' }))).toBe('NO_VIDEO_STREAM')
+    expect(workflowErrorCode(errorFromJob({ code: 'INVALID_SUBTITLE_FILE', message: 'parse' }))).toBe('INVALID_SUBTITLE_FILE')
+    expect(workflowErrorCode(errorFromJob({ code: 'UNSUPPORTED_SUBTITLE_FORMAT', message: 'txt' }))).toBe('UNSUPPORTED_SUBTITLE_FORMAT')
+    expect(workflowErrorCode(errorFromJob({ code: 'SUBTITLE_RENDER_FAILED', message: 'libass' }))).toBe('SUBTITLE_RENDER_FAILED')
+    expect(workflowMessage(errorFromJob({ code: 'SUBTITLE_RENDER_FAILED', message: 'libass' }), messages)).toBe(messages.subtitleRenderFailed)
+    expect(workflowMessage(errorFromJob({ code: 'INVALID_SUBTITLE_FILE', message: 'parse' }), messages)).toBe(messages.invalidSubtitleFile)
+  })
+
+  it('surfaces no-face job messages instead of a generic failure', () => {
+    expect(workflowMessage(errorFromJob({
+      code: 'NO_FACES_DETECTED',
+      message: 'No face detected',
+    }), copy)).toBe('No face detected')
+  })
+
   it('maps speech codes without collapsing them', () => {
     expect(workflowErrorCode(errorFromJob({ code: 'NO_AUDIO_STREAM', message: 'no audio' }))).toBe('NO_AUDIO_STREAM')
     expect(workflowErrorCode(errorFromJob({ code: 'MODEL_UNAVAILABLE', message: 'missing' }))).toBe('MODEL_UNAVAILABLE')

@@ -22,17 +22,18 @@ _INFER_LOCK = threading.Lock()
 
 @dataclass(frozen=True)
 class TtsVoice:
-    key: str
+    id: str
     name: str
     language: str
-    kokoro_id: str
-    piper_id: str
+    provider: str
+    model: str
+    available: bool = True
 
 
-TTS_VOICES: dict[str, TtsVoice] = {
-    "sarah": TtsVoice("sarah", "Sarah", "en", "af_sarah", "en_US-lessac-medium"),
-    "adam": TtsVoice("adam", "Adam", "en", "am_adam", "en_US-lessac-medium"),
-    "maya": TtsVoice("maya", "Maya", "id", "af_nicole", "en_US-lessac-medium"),
+KOKORO_VOICES: dict[str, tuple[str, str]] = {
+    "af_heart": ("Heart", "en-US"),
+    "af_sarah": ("Sarah", "en-US"),
+    "am_adam": ("Adam", "en-US"),
 }
 
 
@@ -53,23 +54,84 @@ def resolve_tts_text(text: str) -> str:
 
 
 def resolve_tts_voice(options: dict[str, Any]) -> TtsVoice:
-    raw = str(options.get("voice", "sarah")).strip().lower()
-    voice = TTS_VOICES.get(raw)
-    if voice is None:
+    voices = available_tts_voices()
+    raw = str(options.get("voice", "")).strip()
+    if not raw and voices:
+        raw = voices[0].id
+    voice = next((item for item in voices if item.id == raw), None)
+    if voice is None or not voice.available:
         raise ProcessingError("That voice is not available.", code="VOICE_UNAVAILABLE")
-    language = str(options.get("language", voice.language)).strip().lower()
-    if language in {"", "auto"}:
-        return voice
-    if language in {"en", "eng", "english"}:
-        language = "en"
-    elif language in {"id", "ind", "bahasa", "bahasa indonesia", "indonesian"}:
-        language = "id"
+    language = normalize_tts_language(str(options.get("language", voice.language)))
+    if not language:
+        language = voice.language
+    if language not in {item.language for item in voices if item.available}:
+        raise ProcessingError("That language is not supported.", code="UNSUPPORTED_LANGUAGE")
     if language != voice.language:
-        matched = next((item for item in TTS_VOICES.values() if item.language == language), None)
-        if matched is None:
-            raise ProcessingError("That voice is not available.", code="VOICE_UNAVAILABLE")
-        return matched
+        raise ProcessingError(
+            "That voice is not available for the selected language.",
+            code="VOICE_LANGUAGE_MISMATCH",
+        )
     return voice
+
+
+def normalize_tts_language(value: str) -> str:
+    raw = value.strip().replace("_", "-")
+    lower = raw.lower()
+    aliases = {
+        "": "",
+        "auto": "",
+        "en": "en-US",
+        "eng": "en-US",
+        "english": "en-US",
+        "en-us": "en-US",
+        "id": "id-ID",
+        "ind": "id-ID",
+        "indonesian": "id-ID",
+        "bahasa": "id-ID",
+        "bahasa indonesia": "id-ID",
+        "id-id": "id-ID",
+    }
+    return aliases.get(lower, raw)
+
+
+def available_tts_voices() -> list[TtsVoice]:
+    root = Path(get_settings().storage_root) / "models" / "tts"
+    voices: list[TtsVoice] = []
+    if root.is_dir():
+        for model in sorted(root.glob("*.onnx")):
+            if model.name == "kokoro-v1.0.onnx":
+                continue
+            voice = _piper_voice_from_model(model.stem)
+            if voice is not None:
+                voices.append(voice)
+    if _kokoro_available():
+        voices.extend(
+            TtsVoice(
+                id=voice_id,
+                name=name,
+                language=language,
+                provider="kokoro",
+                model="kokoro-v1.0",
+            )
+            for voice_id, (name, language) in sorted(KOKORO_VOICES.items())
+        )
+    return voices
+
+
+def _piper_voice_from_model(model: str) -> TtsVoice | None:
+    parts = model.split("-")
+    if len(parts) < 3 or "_" not in parts[0]:
+        return None
+    locale = parts[0].replace("_", "-")
+    name = parts[1].replace("_", " ").title()
+    quality = parts[2].replace("_", " ").title()
+    return TtsVoice(
+        id=model,
+        name=f"{name} {quality}",
+        language=locale,
+        provider="piper",
+        model=model,
+    )
 
 
 def resolve_tts_speed(options: dict[str, Any]) -> float:
@@ -168,9 +230,11 @@ async def _synthesize_with(
     if duration is None or duration <= 0:
         raise ProcessingError("Speech could not be generated.", code="TTS_FAILED")
     return {
-        "voice": voice.key,
+        "voice": voice.id,
         "voiceName": voice.name,
         "language": voice.language,
+        "provider": voice.provider,
+        "model": voice.model,
         "speed": speed,
         "format": fmt,
         "duration": duration,
@@ -180,9 +244,7 @@ async def _synthesize_with(
     }
 
 
-def _synthesize_wav(
-    text: str, wav: Path, voice: TtsVoice, speed: float, engine: str
-) -> int:
+def _synthesize_wav(text: str, wav: Path, voice: TtsVoice, speed: float, engine: str) -> int:
     if engine == "kokoro":
         return _kokoro_wav(text, wav, voice, speed)
     return _piper_wav(text, wav, voice, speed)
@@ -190,9 +252,9 @@ def _synthesize_wav(
 
 def _kokoro_wav(text: str, wav: Path, voice: TtsVoice, speed: float) -> int:
     kokoro = _load_kokoro()
-    lang = "en-us" if voice.language == "en" else "en-us"
+    lang = voice.language.lower()
     with _INFER_LOCK:
-        samples, sample_rate = kokoro.create(text, voice=voice.kokoro_id, speed=speed, lang=lang)
+        samples, sample_rate = kokoro.create(text, voice=voice.id, speed=speed, lang=lang)
     pcm = _float_to_pcm16(samples)
     write_wav(wav, pcm, sample_rate=int(sample_rate))
     return int(sample_rate)
@@ -259,7 +321,7 @@ def _load_kokoro() -> Any:
 
 def _load_piper(voice: TtsVoice) -> Any:
     with _LOAD_LOCK:
-        cached = _PIPER.get(voice.piper_id)
+        cached = _PIPER.get(voice.model)
         if cached is not None:
             return cached
         try:
@@ -268,7 +330,7 @@ def _load_piper(voice: TtsVoice) -> Any:
             raise ProcessingError(
                 "The speech model is not available on this server.", code="MODEL_UNAVAILABLE"
             ) from exc
-        model_path = Path(get_settings().storage_root) / "models" / "tts" / f"{voice.piper_id}.onnx"
+        model_path = Path(get_settings().storage_root) / "models" / "tts" / f"{voice.model}.onnx"
         if not model_path.is_file():
             raise ProcessingError(
                 "The speech model is not available on this server.", code="MODEL_UNAVAILABLE"
@@ -279,7 +341,7 @@ def _load_piper(voice: TtsVoice) -> Any:
             raise ProcessingError(
                 "The speech model is not available on this server.", code="MODEL_UNAVAILABLE"
             ) from exc
-        _PIPER[voice.piper_id] = loaded
+        _PIPER[voice.model] = loaded
         return loaded
 
 

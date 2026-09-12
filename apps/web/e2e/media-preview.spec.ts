@@ -94,7 +94,8 @@ test('accepts MediaRecorder WebM on Noise Reduction', async ({ page }) => {
   await page.goto('/noise-reduction')
   await waitForClient(page)
   await expect(page.getByRole('heading', { name: /Noise Reduction|Reduksi Noise/ })).toBeVisible()
-  await expect(page.getByLabel(/Noise reduction strength|Kekuatan reduksi noise/)).toBeVisible()
+  await expect(page.getByRole('group', { name: /Noise reduction mode|Mode reduksi noise/ })).toBeVisible()
+  await expect(page.getByRole('group', { name: /Strength|Kekuatan/ })).toBeVisible()
   await expect(page.getByText('Opsi lanjutan (JSON)')).toHaveCount(0)
   const input = page.locator('input[type="file"]')
   await input.setInputFiles({
@@ -145,5 +146,7 @@ test('processes audio-only WebM through Noise Reduction', async ({ page }) => {
   await expect(page.getByText('Format file tidak didukung.')).toHaveCount(0)
   await page.getByRole('button', { name: /Process|Proses/ }).click()
   await expect(page.getByText(/Completed|Selesai/)).toBeVisible({ timeout: 30_000 })
-  await expect(page.getByRole('link', { name: /Download result|Unduh hasil/ })).toBeVisible()
+  await expect(page.locator('audio[aria-label="Original"], audio[aria-label="Asli"]')).toBeVisible()
+  await expect(page.locator('audio[aria-label="Result"], audio[aria-label="Hasil"]')).toBeVisible()
+  await expect(page.getByRole('link', { name: /Download result|Unduh hasil|Download again|Unduh lagi/ })).toBeVisible()
 })

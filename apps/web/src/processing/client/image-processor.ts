@@ -145,9 +145,9 @@ export async function runImageJob(
   signal?: AbortSignal,
 ): Promise<ImageJobResult> {
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
-  const report = throttleProgress(onProgress)
   const host = ensureWorker()
-  if (!host) return executeImageJob(job, report)
+  if (!host) return executeImageJob(job, onProgress)
+  const report = throttleProgress(onProgress)
   const id = nextId
   nextId += 1
   const serialized = await serializeJob(job)

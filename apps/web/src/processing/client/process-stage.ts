@@ -31,12 +31,8 @@ export function stagePercent(stage: ProcessStage, fraction = 0): number {
 }
 
 export function yieldToUi(): Promise<void> {
+  if (typeof self !== 'undefined' && 'importScripts' in self) return Promise.resolve()
   return new Promise((resolve) => {
-    const workerScope = typeof WorkerGlobalScope === 'function' && typeof self !== 'undefined' && self instanceof WorkerGlobalScope
-    if (workerScope) {
-      setTimeout(resolve, 0)
-      return
-    }
     if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => resolve())
     else setTimeout(resolve, 0)
   })

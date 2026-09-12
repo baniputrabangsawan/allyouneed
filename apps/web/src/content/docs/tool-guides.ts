@@ -1,6 +1,30 @@
 import type { ToolGuide } from './types'
 
 export const toolGuides: Record<string, ToolGuide> = {
+  'add-subtitle': {
+    slug: 'add-subtitle',
+    overview: 'Add Subtitle burns an existing .srt, .vtt, or .ass file into a video on the Kits server. It does not generate subtitles or invent timing for plain text.',
+    steps: [
+      'Open Add Subtitle.',
+      'Upload one video (MP4, WebM, MOV, or MKV) and one subtitle file.',
+      'Choose burn-in or mux, then set font size, color, outline, position, and bottom margin for burn-in.',
+      'Process the video. Progress uses processed time over duration when FFmpeg reports it.',
+      'Preview the result. It downloads automatically once. Use Download again for another copy.',
+    ],
+    optionDocs: [
+      { name: 'Mode', description: 'Burn in draws captions into the picture. Mux attaches a subtitle track without burning.' },
+      { name: 'Font size / Text color', description: 'Burn-in only. Applied through FFmpeg subtitle styling, not a custom filter string.' },
+      { name: 'Background / outline', description: 'None, outline, or a solid caption box.' },
+      { name: 'Position / Bottom margin', description: 'Bottom, middle, or top, plus vertical margin in pixels.' },
+    ],
+    output: 'A video with burned-in or muxed subtitles, preview, duration, size, resolution, and an automatic download.',
+    example: 'An MP4 clip plus an .srt file can be burned in with white 24px captions at the bottom.',
+    troubleshooting: [
+      { problem: 'The subtitle file is rejected', solution: 'Use .srt, .vtt, or .ass with real cue times. Plain text without timestamps is not supported.' },
+      { problem: 'The video has no picture', solution: 'The source must include a video stream. Audio-only files cannot be subtitled here.' },
+    ],
+    keywords: ['subtitle', 'caption', 'srt', 'vtt', 'ass', 'burn'],
+  },
   'compress-image': {
     slug: 'compress-image',
     overview: 'Compress Image reduces JPEG, PNG, WebP, or AVIF file size in this browser. PNG uses Lossless, Balanced (default), or Strong modes instead of a quality slider.',
@@ -226,6 +250,30 @@ export const toolGuides: Record<string, ToolGuide> = {
       { problem: 'Processing is unavailable', solution: 'The API and job worker must be running. This is not a browser converter.' },
     ],
     keywords: ['audio', 'convert', 'ffmpeg', 'mp3', 'wav', 'flac', 'opus'],
+  },
+  'noise-reduction': {
+    slug: 'noise-reduction',
+    overview: 'Noise Reduction removes hiss, fan, room, and keyboard noise from speech recordings on the Kits server. Standard uses fast FFmpeg filtering. Smart uses local RNNoise for stronger voice-focused suppression.',
+    steps: [
+      'Open Noise Reduction.',
+      'Add an audio file (MP3, WAV, M4A, OGG, WebM, FLAC, or AAC).',
+      'Choose Standard for steady hiss, or Smart for speech with background noise.',
+      'Set strength to Light, Medium, or Strong.',
+      'Process the job, then compare Original and Result in the preview players.',
+      'Download the cleaned audio.',
+    ],
+    optionDocs: [
+      { name: 'Mode', description: 'Standard is fast FFmpeg filtering for steady hiss. Smart is stronger voice-focused suppression with a local RNNoise model. Nothing is sent to a paid API.' },
+      { name: 'Strength', description: 'Light, Medium (default), or Strong. FFmpeg parameters stay hidden.' },
+    ],
+    output: 'A processed audio file with original and result players so you can compare immediately.',
+    example: 'A voice memo with laptop fan noise can be cleaned in Smart Medium, then compared with the original before download.',
+    troubleshooting: [
+      { problem: 'The result still sounds noisy', solution: 'Switch to Smart and try Strong. Standard is meant for steady hiss, not room or keyboard noise.' },
+      { problem: 'Speech sounds thin or metallic', solution: 'Use Light or Medium. Strong can over-suppress on some voices.' },
+      { problem: 'Processing is unavailable', solution: 'The API and job worker must be running. Smart also needs the local RNNoise model file.' },
+    ],
+    keywords: ['noise', 'denoise', 'hiss', 'rnnoise', 'afftdn'],
   },
   'video-compressor': {
     slug: 'video-compressor',

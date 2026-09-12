@@ -14,6 +14,7 @@ export const MEDIA_FORMATS = {
   webm: { extensions: ['.webm'], mimeTypes: ['audio/webm', 'video/webm'] },
   mp4: { extensions: ['.mp4', '.m4v'], mimeTypes: ['video/mp4'] },
   mov: { extensions: ['.mov', '.qt'], mimeTypes: ['video/quicktime'] },
+  mkv: { extensions: ['.mkv'], mimeTypes: ['video/x-matroska', 'video/mkv'] },
   gif: { extensions: ['.gif'], mimeTypes: ['image/gif'] },
   jpeg: { extensions: ['.jpg', '.jpeg'], mimeTypes: ['image/jpeg', 'image/jpg'] },
   png: { extensions: ['.png'], mimeTypes: ['image/png'] },
@@ -26,7 +27,7 @@ export const MEDIA_FORMATS = {
 export type MediaFormatId = keyof typeof MEDIA_FORMATS
 
 export const AUDIO_FORMAT_IDS = ['mp3', 'wav', 'm4a', 'aac', 'ogg', 'opus', 'flac', 'webm'] as const
-export const VIDEO_FORMAT_IDS = ['mp4', 'webm', 'mov', 'gif'] as const
+export const VIDEO_FORMAT_IDS = ['mp4', 'webm', 'mov', 'mkv', 'gif'] as const
 
 function unique(values: readonly string[]): string[] {
   return [...new Set(values)]

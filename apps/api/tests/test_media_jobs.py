@@ -8,18 +8,21 @@ from httpx import AsyncClient
 
 from app.processors.base import ProcessingError, ProcessorContext
 from app.processors.media import (
+    MISSING_RNNOISE_MODEL,
     NOISE_REDUCTION_PRESETS,
     audio_converter_args,
+    burn_force_style,
     escape_subtitles_path,
     ffmpeg_args,
     first_audio_stream,
     noise_reduction_filter,
     resolve_audio_convert_format,
+    rnnoise_model_file,
     stream_types,
 )
 from app.processors.registry import get_processor
 from app.utils.media import duration_seconds, probe, validate_media_output
-from app.utils.subprocess import run_command
+from app.utils.subprocess import FFMPEG_FAILED_MESSAGE, run_command
 from tests.helpers import upload_bytes
 
 needs_ffmpeg = shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None
@@ -71,7 +74,7 @@ async def _make_audio(path: Path) -> bytes:
     return path.read_bytes()
 
 
-async def _make_noisy_audio(path: Path, *, duration: str = "0.4") -> bytes:
+async def _make_noisy_audio(path: Path, *, duration: str = "1.2") -> bytes:
     await run_command(
         [
             "ffmpeg",
@@ -83,7 +86,7 @@ async def _make_noisy_audio(path: Path, *, duration: str = "0.4") -> bytes:
             "-f",
             "lavfi",
             "-i",
-            f"anoisesrc=color=white:amplitude=0.08:duration={duration}",
+            f"anoisesrc=color=white:amplitude=0.18:duration={duration}",
             "-filter_complex",
             "[0:a][1:a]amix=inputs=2:duration=shortest:dropout_transition=0,aformat=sample_fmts=s16:sample_rates=44100:channel_layouts=mono",
             "-ar",
@@ -96,22 +99,92 @@ async def _make_noisy_audio(path: Path, *, duration: str = "0.4") -> bytes:
     return path.read_bytes()
 
 
-def test_noise_reduction_presets_map_to_afftdn() -> None:
-    assert noise_reduction_filter({}) == "afftdn=nr=12:nf=-50:nt=w"
-    assert noise_reduction_filter({"strength": "light"}) == "afftdn=nr=8:nf=-50:nt=w"
-    assert noise_reduction_filter({"strength": "MEDIUM"}) == "afftdn=nr=12:nf=-50:nt=w"
-    assert noise_reduction_filter({"strength": "strong"}) == "afftdn=nr=24:nf=-40:nt=w"
-    assert NOISE_REDUCTION_PRESETS["medium"] == (12, -50)
-    args = ffmpeg_args(
-        "noise-reduction", [Path("tone.wav")], {"strength": "light"}, Path("out.mp3")
+async def _pcm_s16le(path: Path, dest: Path) -> bytes:
+    await run_command(
+        [
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(path),
+            "-ac",
+            "1",
+            "-ar",
+            "16000",
+            "-f",
+            "s16le",
+            str(dest),
+        ]
     )
-    assert args[args.index("-af") + 1] == "afftdn=nr=8:nf=-50:nt=w"
+    return dest.read_bytes()
+
+
+def _rms(pcm: bytes) -> float:
+    import array
+
+    samples = array.array("h")
+    samples.frombytes(pcm[: len(pcm) - len(pcm) % 2])
+    if not samples:
+        return 0.0
+    return (sum(sample * sample for sample in samples) / len(samples)) ** 0.5
+
+
+def test_noise_reduction_presets_map_to_afftdn() -> None:
+    assert noise_reduction_filter({}) == "afftdn=nr=28:nf=-60:tn=1:tr=1:om=o:rf=-42"
+    assert noise_reduction_filter({"strength": "light"}) == "afftdn=nr=18:nf=-55:tn=1:tr=1:om=o"
+    assert noise_reduction_filter({"mode": "STANDARD", "strength": "MEDIUM"}) == (
+        "afftdn=nr=28:nf=-60:tn=1:tr=1:om=o:rf=-42"
+    )
+    assert noise_reduction_filter({"strength": "strong"}) == (
+        "afftdn=nr=42:nf=-65:tn=1:tr=1:om=o:rf=-35"
+    )
+    assert NOISE_REDUCTION_PRESETS["medium"] == (28, -60, -42)
+    args = ffmpeg_args(
+        "noise-reduction", [Path("tone.wav")], {"mode": "standard", "strength": "light"}, Path("out.mp3")
+    )
+    graph = args[args.index("-af") + 1]
+    assert graph == "afftdn=nr=18:nf=-55:tn=1:tr=1:om=o"
+    assert "tn=1" in graph
     assert "arnndn" not in " ".join(args)
+    assert "-c" not in args and "copy" not in args
     try:
         noise_reduction_filter({"strength": "extreme"})
         raise AssertionError("expected invalid strength")
     except ProcessingError as exc:
         assert "light, medium, or strong" in str(exc)
+    try:
+        noise_reduction_filter({"mode": "magic"})
+        raise AssertionError("expected invalid mode")
+    except ProcessingError as exc:
+        assert "standard or smart" in str(exc)
+
+
+def test_noise_reduction_smart_uses_arnndn() -> None:
+    model = rnnoise_model_file()
+    assert model.is_file(), model
+    graph = noise_reduction_filter({"mode": "smart", "strength": "medium"})
+    assert "arnndn" in graph
+    assert "afftdn" not in graph
+    assert "aformat=sample_rates=48000" in graph
+    assert "mix=0.85" in graph
+    assert model.name in graph
+    args = ffmpeg_args(
+        "noise-reduction",
+        [Path("tone.wav")],
+        {"mode": "smart", "strength": "strong"},
+        Path("out.mp3"),
+    )
+    joined = " ".join(args)
+    assert args[args.index("-af") + 1].startswith("aformat=sample_rates=48000,arnndn=")
+    assert "mix=1.0" in args[args.index("-af") + 1]
+    assert "-c" not in args and "copy" not in joined
+
+
+def test_noise_reduction_smart_missing_model(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    missing = tmp_path / "missing.rnnn"
+    monkeypatch.setattr("app.processors.media.rnnoise_model_file", lambda: missing)
+    with pytest.raises(ProcessingError) as caught:
+        noise_reduction_filter({"mode": "smart", "strength": "medium"})
+    assert str(caught.value) == MISSING_RNNOISE_MODEL
 
 
 @pytest.mark.skipif(needs_ffmpeg, reason="ffmpeg")
@@ -123,6 +196,7 @@ async def test_ffmpeg_nonzero_exit_is_ffmpeg_failed(tmp_path: Path) -> None:
             timeout=15,
         )
     assert caught.value.code == "FFMPEG_FAILED"
+    assert str(caught.value) == FFMPEG_FAILED_MESSAGE
 
 
 @pytest.mark.skipif(needs_ffmpeg, reason="ffmpeg")
@@ -136,7 +210,7 @@ async def test_noise_reduction_produces_ffprobe_valid_audio(tmp_path: Path) -> N
     context = ProcessorContext(
         job_id="job_denoise",
         tool_id="noise-reduction",
-        options={"strength": "medium"},
+        options={"mode": "standard", "strength": "medium"},
         work_dir=tmp_path,
     )
     await get_processor("noise-reduction").process([source], output, context=context)
@@ -156,6 +230,31 @@ async def test_noise_reduction_produces_ffprobe_valid_audio(tmp_path: Path) -> N
 
 
 @pytest.mark.skipif(needs_ffmpeg, reason="ffmpeg")
+@pytest.mark.parametrize("mode", ["standard", "smart"])
+async def test_noise_reduction_pcm_differs_and_lowers_noise(tmp_path: Path, mode: str) -> None:
+    if mode == "smart":
+        assert rnnoise_model_file().is_file()
+    source = tmp_path / "noisy.wav"
+    await _make_noisy_audio(source, duration="1.2")
+    output = tmp_path / f"cleaned-{mode}.wav"
+    context = ProcessorContext(
+        job_id=f"job_denoise_{mode}",
+        tool_id="noise-reduction",
+        options={"mode": mode, "strength": "medium"},
+        work_dir=tmp_path,
+    )
+    await get_processor("noise-reduction").process([source], output, context=context)
+    source_pcm = await _pcm_s16le(source, tmp_path / f"source-{mode}.pcm")
+    result_pcm = await _pcm_s16le(output, tmp_path / f"result-{mode}.pcm")
+    assert result_pcm != source_pcm
+    source_rms = _rms(source_pcm)
+    result_rms = _rms(result_pcm)
+    assert source_rms > 0
+    assert result_rms > source_rms * 0.12
+    assert result_rms < source_rms * 0.92
+
+
+@pytest.mark.skipif(needs_ffmpeg, reason="ffmpeg")
 async def test_noise_reduction_job(api: AsyncClient, tmp_path: Path) -> None:
     source = tmp_path / "noisy.wav"
     data = await _make_noisy_audio(source)
@@ -169,7 +268,7 @@ async def test_noise_reduction_job(api: AsyncClient, tmp_path: Path) -> None:
         json={
             "toolId": "noise-reduction",
             "input": {"fileKey": file_key},
-            "options": {"strength": "medium"},
+            "options": {"mode": "standard", "strength": "medium"},
         },
     )
     assert created.status_code == 202, created.text
@@ -178,6 +277,7 @@ async def test_noise_reduction_job(api: AsyncClient, tmp_path: Path) -> None:
     result = await api.get(f"/api/v1/jobs/{job['jobId']}/result")
     downloaded = await api.get(result.json()["data"]["result"]["downloadUrl"])
     assert downloaded.status_code == 200
+    assert downloaded.content != data
     output = tmp_path / "cleaned.mp3"
     output.write_bytes(downloaded.content)
     info = await probe(output)
@@ -269,6 +369,12 @@ async def test_video_metadata_is_json(tmp_path: Path) -> None:
 
 
 SRT_FIXTURE = "1\n00:00:00,000 --> 00:00:00,400\nHello\n"
+VTT_FIXTURE = "WEBVTT\n\n00:00:00.000 --> 00:00:00.400\nHello\n"
+ID_SRT_FIXTURE = (
+    "1\n00:00:00,000 --> 00:00:00,400\n"
+    "Selamat pagi, ini baris subtitle bahasa Indonesia yang sangat panjang sekali "
+    "dan harus tetap terbakar ke dalam video tanpa merusak berkas.\n"
+)
 
 
 def test_escape_subtitles_path_escapes_filter_metacharacters(tmp_path: Path) -> None:
@@ -297,8 +403,36 @@ def test_add_subtitle_ffmpeg_args_burn_and_mux(tmp_path: Path) -> None:
     assert "\\:" in vf
     assert "force_style=" in vf
     assert "FontSize=28" in vf
+    assert "PrimaryColour=" in vf
+    assert "Alignment=2" in vf
+    assert "MarginV=24" in vf
     assert "-c:a" in burned
     assert burned[burned.index("-c:a") + 1] == "copy"
+
+
+def test_burn_force_style_maps_user_options(tmp_path: Path) -> None:
+    subtitle = tmp_path / "captions.srt"
+    subtitle.write_text(SRT_FIXTURE, encoding="utf-8")
+    style = burn_force_style(
+        {
+            "fontSize": 32,
+            "fontColor": "#ffff00",
+            "outline": "background",
+            "position": "top",
+            "marginV": 48,
+        },
+        subtitle,
+    )
+    assert style is not None
+    assert "FontSize=32" in style
+    assert "Alignment=8" in style
+    assert "MarginV=48" in style
+    assert "BorderStyle=3" in style
+    ass = tmp_path / "styled.ass"
+    ass.write_text("[Script Info]\nDialogue: 0\n", encoding="utf-8")
+    assert burn_force_style({"fontSize": 32}, ass) is None
+    video = tmp_path / "clip.mp4"
+    video.write_bytes(b"not-a-real-video")
     muxed = ffmpeg_args(
         "add-subtitle",
         [subtitle, video],
@@ -330,6 +464,98 @@ async def test_add_subtitle_burns_srt_and_keeps_audio(tmp_path: Path) -> None:
     assert "video" in kinds
     assert "audio" in kinds
     assert "subtitle" not in kinds
+
+
+@pytest.mark.skipif(needs_ffmpeg, reason="ffmpeg")
+async def test_add_subtitle_burns_vtt_and_keeps_audio(tmp_path: Path) -> None:
+    clip = tmp_path / "clip.mp4"
+    await _make_clip(clip)
+    subtitle = tmp_path / "captions.vtt"
+    subtitle.write_text(VTT_FIXTURE, encoding="utf-8")
+    output = tmp_path / "burned.mp4"
+    context = ProcessorContext(
+        job_id="job_burn_vtt",
+        tool_id="add-subtitle",
+        options={"mode": "burn"},
+        work_dir=tmp_path,
+    )
+    await get_processor("add-subtitle").process([clip, subtitle], output, context=context)
+    info = await probe(output)
+    validate_media_output(info)
+    kinds = stream_types(info)
+    assert "video" in kinds
+    assert "audio" in kinds
+    assert "subtitle" not in kinds
+
+
+@pytest.mark.skipif(needs_ffmpeg, reason="ffmpeg")
+async def test_add_subtitle_burns_indonesian_long_lines(tmp_path: Path) -> None:
+    clip = tmp_path / "clip.mp4"
+    await _make_clip(clip)
+    subtitle = tmp_path / "captions.srt"
+    subtitle.write_text(ID_SRT_FIXTURE, encoding="utf-8")
+    output = tmp_path / "burned.mp4"
+    context = ProcessorContext(
+        job_id="job_burn_id",
+        tool_id="add-subtitle",
+        options={"mode": "burn", "fontSize": 20, "position": "bottom", "marginV": 16},
+        work_dir=tmp_path,
+    )
+    await get_processor("add-subtitle").process([clip, subtitle], output, context=context)
+    info = await probe(output)
+    validate_media_output(info)
+    assert "video" in stream_types(info)
+
+
+@pytest.mark.skipif(needs_ffmpeg, reason="ffmpeg")
+async def test_add_subtitle_rejects_invalid_and_unsupported_files(tmp_path: Path) -> None:
+    clip = tmp_path / "clip.mp4"
+    await _make_clip(clip)
+    empty = tmp_path / "empty.srt"
+    empty.write_text("", encoding="utf-8")
+    malformed = tmp_path / "bad.srt"
+    malformed.write_text("this is not a cue\n", encoding="utf-8")
+    unsupported = tmp_path / "notes.txt"
+    unsupported.write_text("just a note without timestamps", encoding="utf-8")
+    processor = get_processor("add-subtitle")
+
+    async def fail(subtitle: Path, code: str) -> None:
+        with pytest.raises(ProcessingError) as caught:
+            await processor.process(
+                [clip, subtitle],
+                tmp_path / f"{subtitle.stem}.mp4",
+                context=ProcessorContext(
+                    job_id=f"job_{subtitle.stem}",
+                    tool_id="add-subtitle",
+                    options={"mode": "burn"},
+                    work_dir=tmp_path,
+                ),
+            )
+        assert caught.value.code == code
+
+    await fail(empty, "INVALID_SUBTITLE_FILE")
+    await fail(malformed, "INVALID_SUBTITLE_FILE")
+    await fail(unsupported, "UNSUPPORTED_SUBTITLE_FORMAT")
+
+
+@pytest.mark.skipif(needs_ffmpeg, reason="ffmpeg")
+async def test_add_subtitle_rejects_audio_without_video(tmp_path: Path) -> None:
+    audio = tmp_path / "tone.wav"
+    await _make_audio(audio)
+    subtitle = tmp_path / "captions.srt"
+    subtitle.write_text(SRT_FIXTURE, encoding="utf-8")
+    with pytest.raises(ProcessingError) as caught:
+        await get_processor("add-subtitle").process(
+            [audio, subtitle],
+            tmp_path / "out.mp4",
+            context=ProcessorContext(
+                job_id="job_no_video",
+                tool_id="add-subtitle",
+                options={"mode": "burn"},
+                work_dir=tmp_path,
+            ),
+        )
+    assert caught.value.code == "NO_VIDEO_STREAM"
 
 
 @pytest.mark.skipif(needs_ffmpeg, reason="ffmpeg")
@@ -604,7 +830,7 @@ async def test_noise_reduction_accepts_audio_only_webm(api: AsyncClient, tmp_pat
         json={
             "toolId": "noise-reduction",
             "input": {"fileKey": file_key},
-            "options": {"strength": "medium"},
+            "options": {"mode": "standard", "strength": "medium"},
         },
     )
     assert created.status_code == 202, created.text
@@ -620,7 +846,7 @@ async def test_noise_reduction_rejects_video_only_webm(tmp_path: Path) -> None:
     context = ProcessorContext(
         job_id="job_no_audio",
         tool_id="noise-reduction",
-        options={"strength": "medium"},
+        options={"mode": "standard", "strength": "medium"},
         work_dir=tmp_path,
     )
     try:

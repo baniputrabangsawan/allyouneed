@@ -1,8 +1,10 @@
 import { Download, LoaderCircle, Square } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useT } from '../../i18n'
 import { resolveApiUrl } from '../../lib/api/client'
 import { cancelJob, createJob, getJob, getJobResult } from '../../lib/api/jobs'
+import { getTtsCapabilities } from '../../lib/api/tts'
 import type { Job } from '../../lib/api/types'
 import { formatBytes } from '../../lib/format'
 import { remoteJobPhase } from '../../lib/media/job-phase'
@@ -18,6 +20,7 @@ import {
   defaultTextToSpeechOptions,
   formatSeconds,
   languageLabel,
+  shortLanguage,
   type TtsFormat,
 } from './speech-options'
 
@@ -29,6 +32,7 @@ interface SpeechResult {
   duration?: number
   size?: number
   format?: string
+  speed?: number
 }
 
 function isTtsFormat(value: unknown): value is TtsFormat {
@@ -39,6 +43,7 @@ export function TextToSpeechWorkspace({ tool }: { tool: ToolDefinition }) {
   const copy = useT()
   const defaults = defaultTextToSpeechOptions()
   const [text, setText] = useState(defaults.text)
+  const [language, setLanguage] = useState(defaults.language)
   const [voice, setVoice] = useState(defaults.voice)
   const [speed, setSpeed] = useState(defaults.speed)
   const [format, setFormat] = useState<TtsFormat>(defaults.format as TtsFormat)
@@ -47,15 +52,33 @@ export function TextToSpeechWorkspace({ tool }: { tool: ToolDefinition }) {
   const [error, setError] = useState('')
   const [errorCode, setErrorCode] = useState<WorkflowErrorCode | null>(null)
   const [busy, setBusy] = useState(false)
-  const selected = useMemo(() => TTS_VOICES.find((item) => item.value === voice) ?? TTS_VOICES[0], [voice])
-  const options = { text, voice, language: selected.language, speed, format }
+  const capabilities = useQuery({ queryKey: ['tts-capabilities'], queryFn: () => getTtsCapabilities(), staleTime: 60_000, retry: false })
+  const fallbackVoices = TTS_VOICES.map((item) => ({ id: item.value, name: item.label, language: item.language, provider: 'piper', model: item.value, available: true }))
+  const voices = capabilities.data?.voices.filter((item) => item.available) ?? fallbackVoices
+  const languages = capabilities.data?.languages ?? Array.from(new Set(voices.map((item) => item.language)))
+  const filteredVoices = useMemo(() => voices.filter((item) => item.language === language), [language, voices])
+  const selected = filteredVoices.find((item) => item.id === voice) ?? filteredVoices[0] ?? voices[0]
+  const options = { text, voice: selected?.id ?? voice, language: selected?.language ?? language, speed, format }
+
+  useEffect(() => {
+    const nextLanguage = languages.includes(language) ? language : languages[0]
+    if (nextLanguage && nextLanguage !== language) {
+      setLanguage(nextLanguage)
+      return
+    }
+    const compatible = voices.filter((item) => item.language === (nextLanguage ?? language))
+    if (compatible.length > 0 && !compatible.some((item) => item.id === voice)) {
+      setVoice(compatible[0]!.id)
+    }
+  }, [language, languages, voice, voices])
 
   const session = useToolFileSession({
     slug: tool.id,
     applyFiles: () => undefined,
     applyOptions: (next) => {
       if (typeof next.text === 'string') setText(next.text.slice(0, TTS_MAX_CHARS))
-      if (typeof next.voice === 'string' && TTS_VOICES.some((item) => item.value === next.voice)) setVoice(next.voice)
+      if (typeof next.language === 'string') setLanguage(next.language)
+      if (typeof next.voice === 'string') setVoice(next.voice)
       if (typeof next.speed === 'number') setSpeed(next.speed)
       if (isTtsFormat(next.format)) setFormat(next.format)
     },
@@ -72,9 +95,8 @@ export function TextToSpeechWorkspace({ tool }: { tool: ToolDefinition }) {
     },
   })
 
-  function persistSpeechOptions(next: { text: string; voice: string; speed: number; format: TtsFormat }) {
-    const language = TTS_VOICES.find((item) => item.value === next.voice)?.language ?? selected.language
-    void session.persistOptions({ ...next, language })
+  function persistSpeechOptions(next: { text: string; language: string; voice: string; speed: number; format: TtsFormat }) {
+    void session.persistOptions(next)
   }
 
   async function run() {
@@ -144,6 +166,7 @@ export function TextToSpeechWorkspace({ tool }: { tool: ToolDefinition }) {
     unavailable: copy.jobs.unavailable,
   }[phase]
   const labels = { auto: copy.workspace.languageAuto, en: copy.workspace.languageEnglish, id: copy.workspace.languageIndonesian }
+  const voiceUnavailable = voices.length === 0
   return (
     <section className="workspace split-workspace">
       <div className="options-panel">
@@ -157,7 +180,7 @@ export function TextToSpeechWorkspace({ tool }: { tool: ToolDefinition }) {
             onChange={(event) => {
               const next = event.target.value.slice(0, TTS_MAX_CHARS)
               setText(next)
-              persistSpeechOptions({ text: next, voice, speed, format })
+              persistSpeechOptions({ text: next, language, voice, speed, format })
             }}
           />
           <small>{copy.workspace.characterCount(text.length)} / {TTS_MAX_CHARS}</small>
@@ -167,10 +190,10 @@ export function TextToSpeechWorkspace({ tool }: { tool: ToolDefinition }) {
           <span>{copy.workspace.voice}</span>
           <select aria-label={copy.workspace.voice} value={voice} onChange={(event) => {
             setVoice(event.target.value)
-            persistSpeechOptions({ text, voice: event.target.value, speed, format })
-          }}>
-            {TTS_VOICES.map((item) => (
-              <option key={item.value} value={item.value}>{copy.workspace[item.nameKey]}</option>
+            persistSpeechOptions({ text, language, voice: event.target.value, speed, format })
+          }} disabled={voiceUnavailable}>
+            {filteredVoices.map((item) => (
+              <option key={item.id} value={item.id}>{item.name}</option>
             ))}
           </select>
         </label>
@@ -178,25 +201,28 @@ export function TextToSpeechWorkspace({ tool }: { tool: ToolDefinition }) {
           <span>{copy.workspace.language}</span>
           <select
             aria-label={copy.workspace.language}
-            value={selected.language}
+            value={language}
             onChange={(event) => {
-              const next = TTS_VOICES.find((item) => item.language === event.target.value)
-              if (next) {
-                setVoice(next.value)
-                persistSpeechOptions({ text, voice: next.value, speed, format })
-              }
+              const nextLanguage = event.target.value
+              const nextVoice = voices.find((item) => item.language === nextLanguage)
+              setLanguage(nextLanguage)
+              if (nextVoice) setVoice(nextVoice.id)
+              persistSpeechOptions({ text, language: nextLanguage, voice: nextVoice?.id ?? '', speed, format })
             }}
+            disabled={languages.length === 0}
           >
-            <option value="en">{copy.workspace.languageEnglish}</option>
-            <option value="id">{copy.workspace.languageIndonesian}</option>
+            {languages.map((item) => (
+              <option key={item} value={item}>{languageLabel(item, labels)}</option>
+            ))}
           </select>
+          {!languages.some((item) => shortLanguage(item) === 'id') && <small>Bahasa Indonesia is unavailable until an Indonesian TTS model is installed.</small>}
         </label>
         <label className="field">
           <span>{copy.workspace.playbackSpeed}</span>
           <select aria-label={copy.workspace.playbackSpeed} value={speed} onChange={(event) => {
             const next = Number(event.target.value)
             setSpeed(next)
-            persistSpeechOptions({ text, voice, speed: next, format })
+            persistSpeechOptions({ text, language, voice, speed: next, format })
           }}>
             {TTS_SPEEDS.map((item) => (
               <option key={item} value={item}>{item}x</option>
@@ -208,7 +234,7 @@ export function TextToSpeechWorkspace({ tool }: { tool: ToolDefinition }) {
           <select aria-label={copy.workspace.outputFormat} value={format} onChange={(event) => {
             const next = event.target.value as TtsFormat
             setFormat(next)
-            persistSpeechOptions({ text, voice, speed, format: next })
+            persistSpeechOptions({ text, language, voice, speed, format: next })
           }}>
             {TTS_FORMATS.map((item) => (
               <option key={item} value={item}>{item.toUpperCase()}</option>
@@ -216,7 +242,7 @@ export function TextToSpeechWorkspace({ tool }: { tool: ToolDefinition }) {
           </select>
         </label>
         <div className="button-row">
-          <button className="button primary" type="button" disabled={!text.trim() || processing} onClick={() => void run()}>
+          <button className="button primary" type="button" disabled={!text.trim() || processing || voiceUnavailable} onClick={() => void run()}>
             {processing && <LoaderCircle size={17} />} {copy.workspace.process}
           </button>
           {processing && (
@@ -226,6 +252,7 @@ export function TextToSpeechWorkspace({ tool }: { tool: ToolDefinition }) {
           )}
         </div>
         {error && <p className="field-error" role="alert">{error}</p>}
+        {voiceUnavailable && <p className="field-error" role="alert">{copy.errors.modelUnavailable}</p>}
       </div>
       <div className="result-card">
         <div className="panel-label">
@@ -244,6 +271,8 @@ export function TextToSpeechWorkspace({ tool }: { tool: ToolDefinition }) {
             <dl className="result-stats">
               <div><dt>{copy.workspace.voice}</dt><dd>{result.voiceName ?? copy.workspace.voiceSarah}</dd></div>
               <div><dt>{copy.workspace.language}</dt><dd>{languageLabel(result.language, labels)}</dd></div>
+              <div><dt>{copy.workspace.playbackSpeed}</dt><dd>{result.speed ?? speed}x</dd></div>
+              <div><dt>{copy.workspace.outputFormat}</dt><dd>{(result.format ?? format).toUpperCase()}</dd></div>
               <div><dt>{copy.workspace.duration}</dt><dd>{formatSeconds(result.duration)}</dd></div>
               <div><dt>{copy.workspace.fileSize}</dt><dd>{formatBytes(result.size ?? 0)}</dd></div>
             </dl>

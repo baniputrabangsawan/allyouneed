@@ -5,7 +5,7 @@ import pytest
 from PIL import Image, ImageDraw
 
 from app.processors.base import ProcessingError, ProcessorContext
-from app.processors.image.face import clamp_box, detect_frontal_faces, image_to_bgr
+from app.processors.image.face import clamp_box, detect_frontal_faces, image_to_bgr, parse_face_options
 from app.processors.registry import get_processor
 from tests.helpers import png_bytes
 
@@ -58,22 +58,32 @@ async def test_blur_face_rejects_images_without_faces(tmp_path: Path) -> None:
     with pytest.raises(ProcessingError) as raised:
         await get_processor("blur-face").process([source], output, context=_context(tmp_path))
     assert raised.value.code == "NO_FACES_DETECTED"
-    assert "No faces detected" in str(raised.value)
+    assert str(raised.value) == "No face detected"
     assert not output.exists()
 
 
-async def test_blur_face_rejects_invalid_options(tmp_path: Path) -> None:
+def test_parse_face_options_is_mode_only() -> None:
+    assert parse_face_options({}) == "blur"
+    assert parse_face_options({"mode": "Blur"}) == "blur"
+    assert parse_face_options({"mode": "pixelate"}) == "pixelate"
+    assert parse_face_options({"mode": "blur", "strength": 99}) == "blur"
+    assert parse_face_options({"strength": 0}) == "blur"
+
+
+async def test_blur_face_rejects_invalid_mode_and_ignores_strength(tmp_path: Path) -> None:
     source = tmp_path / "blank.png"
     source.write_bytes(png_bytes((80, 60)))
     output = tmp_path / "out.png"
-    with pytest.raises(ProcessingError, match="Invalid strength"):
-        await get_processor("blur-face").process(
-            [source], output, context=_context(tmp_path, {"strength": 0})
-        )
     with pytest.raises(ProcessingError, match="Invalid mode"):
         await get_processor("blur-face").process(
             [source], output, context=_context(tmp_path, {"mode": "wipe"})
         )
+    with pytest.raises(ProcessingError) as raised:
+        await get_processor("blur-face").process(
+            [source], output, context=_context(tmp_path, {"strength": 0})
+        )
+    assert raised.value.code == "NO_FACES_DETECTED"
+    assert "Invalid strength" not in str(raised.value)
 
 
 def test_generated_or_fixture_face_is_detected_by_haar(tmp_path: Path) -> None:
@@ -95,7 +105,7 @@ async def test_blur_face_changes_detected_roi_and_keeps_size(tmp_path: Path) -> 
     assert boxes
     x, y, width, height = boxes[0]
     result = await get_processor("blur-face").process(
-        [source], output, context=_context(tmp_path, {"mode": "blur", "strength": 12})
+        [source], output, context=_context(tmp_path)
     )
     assert output.is_file()
     assert result.metadata["width"] == original_size[0]
@@ -123,7 +133,7 @@ async def test_pixelate_mode_changes_roi_and_keeps_size(tmp_path: Path) -> None:
     boxes = detect_frontal_faces(gray)
     x, y, width, height = boxes[0]
     result = await get_processor("blur-face").process(
-        [source], output, context=_context(tmp_path, {"mode": "pixelate", "strength": 10})
+        [source], output, context=_context(tmp_path, {"mode": "pixelate"})
     )
     assert result.metadata["width"] == original_size[0]
     assert result.metadata["height"] == original_size[1]

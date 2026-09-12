@@ -68,7 +68,7 @@ const implementedSlugs = new Set([
   'remove-silence', 'noise-reduction', 'extract-audio-from-video', 'voice-recorder', 'generate-thumbnail', 'video-screenshot',
   'video-metadata-viewer', 'video-compressor', 'video-converter', 'video-to-gif', 'gif-to-video',
   'video-cutter', 'video-trimmer', 'video-merger', 'resize-video', 'crop-video', 'rotate-video',
-  'remove-audio', 'extract-audio', 'add-audio', 'change-video-speed', 'add-watermark', 'compress-pdf',
+  'remove-audio', 'extract-audio', 'add-audio', 'change-video-speed', 'add-watermark', 'add-subtitle', 'compress-pdf',
   'merge-pdf',
   'split-pdf', 'jpg-to-pdf', 'png-to-pdf', 'pdf-to-jpg', 'pdf-to-png', 'rotate-pdf',
   'delete-pdf-pages', 'reorder-pdf-pages', 'extract-pdf-pages', 'watermark-pdf', 'page-number-pdf',
@@ -227,8 +227,8 @@ export const tools: readonly ToolDefinition[] = [
   t('Remove Silence', 'audio', ['edit'], 'remote-api', { acceptedFormats: audioFormats }),
   t('Noise Reduction', 'audio', ['optimize'], 'remote-api', {
     acceptedFormats: audioFormats,
-    shortDescription: 'Reduce broadband hiss and background noise from audio using FFmpeg.',
-    description: 'Reduce broadband hiss and background noise from audio using FFmpeg. This reduces broadband noise; it is not vocal isolation.',
+    shortDescription: 'Reduce hiss, fan, and background noise from speech recordings.',
+    description: 'Reduce hiss, fan, room, and keyboard noise from audio. Standard uses fast FFmpeg filtering. Smart uses local RNNoise for stronger voice-focused suppression.',
   }),
   t('Extract Audio From Video', 'audio', ['convert'], 'remote-api', { acceptedFormats: videoFormats }),
   t('Voice Recorder', 'audio', ['create'], 'browser-media'),
@@ -269,7 +269,12 @@ export const tools: readonly ToolDefinition[] = [
   t('Change Video Speed', 'video', ['edit'], 'remote-api', { acceptedFormats: videoFormats }),
   t('Generate Thumbnail', 'video', ['create'], 'browser-media'),
   t('Add Watermark', 'video', ['edit'], 'remote-api', { acceptedFormats: videoFormats }),
-  t('Add Subtitle', 'video', ['edit'], 'remote-api', { acceptedFormats: [...videoFormats, '.srt', '.vtt', '.ass', '.ssa', 'text/plain', 'text/vtt', 'application/x-subrip'] }),
+  t('Add Subtitle', 'video', ['edit'], 'remote-api', {
+    acceptedFormats: [...videoFormats, '.srt', '.vtt', '.ass', '.ssa', 'text/vtt', 'application/x-subrip', 'text/x-subrip', 'application/x-ass'],
+    outputFormats: ['video/mp4', 'video/webm'],
+    shortDescription: 'Burn an existing subtitle file into a video on the Kits server.',
+    description: 'Upload a video and an .srt, .vtt, or .ass file, style the captions, then burn them in. This tool does not generate subtitles.',
+  }),
   t('Video Screenshot', 'video', ['create'], 'browser-media'),
   t('Video Metadata Viewer', 'video', ['edit'], 'browser-media'),
 

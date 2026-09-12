@@ -185,7 +185,7 @@ Admin HTTP routes require the self-hosted owner session. Bootstrap the first own
 the migrations:
 
 ```bash
-uv run utility-admin --email owner@example.com
+uv run utility-admin bootstrap --email owner@example.com
 ```
 
 Open `/admin/login`; no admin credential is stored in frontend code or browser storage. See

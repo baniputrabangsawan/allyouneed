@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useRouterState } from '@tanstack/react-router'
 import { CommandPalette } from '@/components/common/CommandPalette'
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher'
-import { isPro, useEntitlement } from '@/features/licensing/entitlement'
+import { useEntitlement } from '@/features/licensing/entitlement'
 import { LocaleLink } from '@/i18n/link'
 import { useT } from '@/i18n'
 import { MobileNav } from '@/components/layout/MobileNav'
@@ -144,7 +144,14 @@ export function AppHeader() {
 function LicenseStatusLink() {
   const copy = useT()
   const entitlement = useEntitlement()
-  const entitled = isPro(entitlement.data)
+  if (entitlement.state === 'loading') {
+    return (
+      <span className="license-chip license-chip-loading" aria-busy="true" aria-label={copy.nav.proLicense}>
+        <span />
+      </span>
+    )
+  }
+  const entitled = entitlement.state === 'pro'
   return (
     <LocaleLink className={`license-chip${entitled ? ' active' : ''}`} to="/license">
       {entitled ? copy.availability.pro : copy.nav.license}
