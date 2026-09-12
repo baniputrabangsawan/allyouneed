@@ -45,7 +45,7 @@ export function ToolGuideView({ tool }: { tool: ToolDefinition }) {
           {tool.ai && <span className="badge">AI</span>}
         </div>
         {available
-          ? <LocaleLink className="button primary" to="/$tool" params={{ tool: tool.slug }}>{copy.docs.open(item.name)}</LocaleLink>
+          ? <LocaleLink className="button primary" to="/tools/$category" params={{ category: tool.slug }}>{copy.docs.open(item.name)}</LocaleLink>
           : <p className="docs-soon-copy">{copy.docs.comingSoonBody}</p>}
       </header>
 
@@ -135,7 +135,7 @@ export function ToolGuideView({ tool }: { tool: ToolDefinition }) {
 
       {available && (
         <p className="docs-try">
-          <LocaleLink className="button primary" to="/$tool" params={{ tool: tool.slug }}>{copy.docs.try(item.name)}</LocaleLink>
+          <LocaleLink className="button primary" to="/tools/$category" params={{ category: tool.slug }}>{copy.docs.try(item.name)}</LocaleLink>
         </p>
       )}
 

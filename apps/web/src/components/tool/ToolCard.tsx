@@ -41,6 +41,22 @@ export function ToolCard({ tool }: { tool: ToolDefinition }) {
         : null
   const categoryLabel = copy.category[tool.category] ?? tool.category
   const groupLabel = tool.groups[0] ? (copy.group[tool.groups[0]] ?? tool.groups[0]) : ''
-  const content = <><div className="tool-card-top"><span className={`tool-icon ${tool.category}`}><Icon size={21} /></span>{badge}</div><h3>{item.name}</h3><p>{item.shortDescription}</p><div className="tool-meta"><span>{categoryLabel}</span><span>·</span><span>{groupLabel}</span><span>·</span><span>{tool.processingMode === 'client' ? copy.availability.local : copy.availability.server}</span></div></>
-  return <LocaleLink to="/$tool" params={{ tool: tool.slug }} className={`tool-card${tool.available ? '' : ' disabled'}`} aria-disabled={tool.available ? undefined : true} aria-label={tool.available ? undefined : copy.availability.comingSoonAria(item.name)}>{content}</LocaleLink>
+  const content = (
+    <>
+      <div className="tool-card-top">
+        <span className={`tool-icon ${tool.category}`}><Icon size={21} /></span>
+        {badge}
+      </div>
+      <h3>{item.name}</h3>
+      <p>{item.shortDescription}</p>
+      <div className="tool-meta">
+        <span>{categoryLabel}</span>
+        <span>·</span>
+        <span>{groupLabel}</span>
+        <span>·</span>
+        <span>{tool.processingMode === 'client' ? copy.availability.local : copy.availability.server}</span>
+      </div>
+    </>
+  )
+  return <LocaleLink to="/tools/$category" params={{ category: tool.slug }} className={`tool-card${tool.available ? '' : ' disabled'}`} aria-disabled={tool.available ? undefined : true} aria-label={tool.available ? undefined : copy.availability.comingSoonAria(item.name)}>{content}</LocaleLink>
 }

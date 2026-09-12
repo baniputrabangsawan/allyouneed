@@ -41,7 +41,7 @@ function NotFound() {
   const copy = useT()
   const locale = useLocale()
   const popular = getPopularTools().slice(0, 4)
-  return <main className="empty-page"><p className="eyebrow">404</p><h1>{copy.notFound.toolTitle}</h1><p>{copy.notFound.body}</p><div className="empty-page-actions"><LocaleLink className="button primary" to="/" hash="search" search={{ category: 'all' }}>{copy.notFound.search}</LocaleLink><LocaleLink className="button" to="/" search={{ category: 'all' }}>{copy.notFound.backHome}</LocaleLink></div><div className="not-found-popular" aria-label={copy.notFound.popular}>{popular.map((tool) => { const item = localizeTool(tool, locale); return <LocaleLink key={tool.id} to="/$tool" params={{ tool: tool.slug }}>{item.name}</LocaleLink> })}</div></main>
+  return <main className="empty-page"><p className="eyebrow">404</p><h1>{copy.notFound.toolTitle}</h1><p>{copy.notFound.body}</p><div className="empty-page-actions"><LocaleLink className="button primary" to="/" hash="search" search={{ category: 'all' }}>{copy.notFound.search}</LocaleLink><LocaleLink className="button" to="/" search={{ category: 'all' }}>{copy.notFound.backHome}</LocaleLink></div><div className="not-found-popular" aria-label={copy.notFound.popular}>{popular.map((tool) => { const item = localizeTool(tool, locale); return <LocaleLink key={tool.id} to="/tools/$category" params={{ category: tool.slug }}>{item.name}</LocaleLink> })}</div></main>
 }
 
 function Root() {

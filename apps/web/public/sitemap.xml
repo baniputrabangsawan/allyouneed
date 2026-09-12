@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://usekits.online/</loc>
+    <lastmod>2026-09-12</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://usekits.online/" />
+    <xhtml:link rel="alternate" hreflang="id" href="https://usekits.online/id" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://usekits.online/" />
+  </url>
+  <url><loc>https://usekits.online/id</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/tools/image</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/tools/pdf</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/tools/audio</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/tools/video</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/tools/text</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/tools/developer</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/tools/generator</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/tools/compress-image</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/id/tools/compress-image</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/tools/remove-background</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/id/tools/remove-background</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/tools/resize-image</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/id/tools/resize-image</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/tools/image-converter</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/tools/png-to-jpg</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/id/tools/png-to-jpg</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/tools/jpg-to-png</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/id/tools/jpg-to-png</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/tools/pdf-to-png</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/tools/png-to-pdf</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/tools/qr-code-generator</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/tools/photo-editor</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/tools/speech-to-text</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/tools/text-to-speech</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/tools/pdf-to-text</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/tools/add-watermark</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/tools/blur-face</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/tools/add-subtitle</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/tools/noise-reduction</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/tools/word-counter</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/tools/meme-generator</loc><lastmod>2026-09-12</lastmod></url>
+  <url><loc>https://usekits.online/tools/favicon-generator</loc><lastmod>2026-09-12</lastmod></url>
+</urlset>
