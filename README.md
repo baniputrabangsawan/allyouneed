@@ -110,19 +110,16 @@ Do not set Output Directory to `apps/web/dist` or `apps/web/dist/client`.
 
 ## Deploy on Cloudflare
 
-Wrangler cannot run from this repo root: it is a pnpm workspace (`apps/web` + `apps/api`). That is the error:
+Workers Builds runs `npx wrangler versions upload` from the repository root. A root `wrangler.jsonc` points at the Vite SSR worker (`apps/web/dist/server/server.js`) and client assets.
 
-`The Cloudflare application detection logic has been run in the root of a workspace`
+In the Cloudflare Worker **Settings → Build**:
 
-In the Cloudflare project (Workers or Pages):
-
-1. **Root directory:** `apps/web` (required)
+1. **Root directory:** leave as the repository root (`.`)
 2. **Build command:** `pnpm build`
-3. **Deploy / Wrangler config:** `apps/web/wrangler.jsonc` (picked up automatically once the root directory is `apps/web`)
-4. **Install command** (if asked): `pnpm install` with “include files outside the root directory” enabled so the workspace lockfile at the repo root is used
+3. **Deploy command:** `npx wrangler deploy` (production) / default `npx wrangler versions upload` (preview)
+4. **Install command** (if asked): `pnpm install`
 
-Then redeploy. Do not leave the working directory as the repository root.
-
+Do not set Root directory to `apps/web` unless you also change the deploy command to `pnpm exec wrangler versions upload` so it uses `apps/web/wrangler.jsonc`.
 
 ### Docker (API)
 

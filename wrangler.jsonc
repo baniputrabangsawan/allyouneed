@@ -1,11 +1,11 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
+  "$schema": "apps/web/node_modules/wrangler/config-schema.json",
   "name": "allyouneed",
   "compatibility_date": "2025-09-10",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "dist/server/server.js",
+  "main": "apps/web/dist/server/server.js",
   "assets": {
-    "directory": "dist/client"
+    "directory": "apps/web/dist/client"
   },
   "observability": {
     "enabled": true
