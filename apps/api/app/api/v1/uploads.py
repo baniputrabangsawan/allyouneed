@@ -1,8 +1,9 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, Request, Response
+from fastapi import APIRouter, Depends, Header, Request, Response, status
 
 from app.api.deps import entitlement_service, job_service
+from app.core.exceptions import ApiError
 from app.schemas.common import DataResponse
 from app.schemas.uploads import (
     CompleteUploadRequest,
@@ -54,7 +55,18 @@ async def local_upload(
     request: Request,
     uploads: Annotated[UploadService, Depends(upload_service)],
 ) -> Response:
-    uploads.write(file_key, await request.body(), request.headers.get("content-type"))
+    expected_size = uploads.expected_size(file_key)
+    data = bytearray()
+    async for chunk in request.stream():
+        data.extend(chunk)
+        if len(data) > expected_size:
+            uploads.reject(file_key)
+            raise ApiError(
+                status.HTTP_413_CONTENT_TOO_LARGE,
+                "PAYLOAD_TOO_LARGE",
+                "Uploaded body exceeds the declared size.",
+            )
+    uploads.write(file_key, bytes(data), request.headers.get("content-type"))
     return Response(status_code=204)
 
 

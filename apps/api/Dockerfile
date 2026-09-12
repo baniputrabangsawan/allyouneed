@@ -18,7 +18,13 @@ COPY alembic.ini ./
 COPY alembic ./alembic
 COPY scripts ./scripts
 
+RUN addgroup --system kits \
+    && adduser --system --ingroup kits --home /app --no-create-home kits \
+    && mkdir -p /app/.data /app/data \
+    && chown -R kits:kits /app
+
 VOLUME ["/app/.data", "/app/data"]
 
 EXPOSE 8000
+USER kits
 CMD [".venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

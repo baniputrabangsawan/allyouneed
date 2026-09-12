@@ -1,6 +1,9 @@
 from functools import lru_cache
+from ipaddress import ip_address
 from pathlib import Path
+from urllib.parse import urlparse
 
+from cryptography.fernet import Fernet
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -42,6 +45,9 @@ class Settings(BaseSettings):
     max_batch_files: int = 20
     default_job_timeout_seconds: int = 300
     max_image_pixels: int = 100_000_000
+    max_pdf_pages: int = 500
+    max_media_duration_seconds: int = 7200
+    max_result_mb: int = 200
     enable_self_hosted_ai: bool = True
     enable_external_ai: bool = False
     stt_provider: str = "selfhosted"
@@ -59,6 +65,9 @@ class Settings(BaseSettings):
     download_signing_secret: str = "dev-download-secret"
     download_url_ttl_seconds: int = 900
     inline_jobs: bool = True
+    trust_cloudflare_ip_header: bool = False
+    api_rate_limit_enabled: bool = True
+    max_json_body_bytes: int = 1_048_576
     rnnoise_model_path: str = str(API_ROOT / "app" / "assets" / "rnnoise" / "cb.rnnn")
 
     @model_validator(mode="after")
@@ -72,12 +81,57 @@ class Settings(BaseSettings):
                 "ENTITLEMENT_PRIVATE_KEY": self.entitlement_private_key,
                 "LICENSE_DATABASE_URL": self.license_database_url,
                 "REDIS_URL": self.redis_url,
+                "DOWNLOAD_SIGNING_SECRET": self.download_signing_secret,
             }
             missing = [name for name, value in required.items() if not value]
             if missing:
                 raise ValueError(f"Missing production configuration: {', '.join(missing)}")
             if self.inline_jobs:
                 raise ValueError("INLINE_JOBS must be false in production for admin rate limiting")
+            origins = set(self.cors_origins + self.admin_cors_origins)
+            if "https://usekits.online" not in origins:
+                raise ValueError("Production CORS must allow https://usekits.online")
+            if any(
+                origin == "*"
+                or urlparse(origin).scheme != "https"
+                or (urlparse(origin).hostname or "") in {"localhost", "127.0.0.1", "::1"}
+                for origin in origins
+            ):
+                raise ValueError("Production CORS origins must be explicit HTTPS origins")
+            public = urlparse(self.public_base_url)
+            if public.scheme != "https" or not public.hostname:
+                raise ValueError("PUBLIC_BASE_URL must be an HTTPS origin in production")
+            redis = urlparse(self.redis_url)
+            if redis.hostname:
+                try:
+                    redis_is_loopback = ip_address(redis.hostname).is_loopback
+                except ValueError:
+                    redis_is_loopback = redis.hostname == "localhost"
+                if redis_is_loopback:
+                    raise ValueError("REDIS_URL must not use a loopback host in production")
+            if (
+                len(self.download_signing_secret) < 32
+                or self.download_signing_secret == "dev-download-secret"
+            ):
+                raise ValueError("DOWNLOAD_SIGNING_SECRET must be a strong production secret")
+            try:
+                Fernet(self.admin_totp_encryption_key.encode("ascii"))
+            except (UnicodeEncodeError, ValueError) as exc:
+                raise ValueError("ADMIN_TOTP_ENCRYPTION_KEY must be a valid Fernet key") from exc
+            if not self.api_rate_limit_enabled:
+                raise ValueError("API_RATE_LIMIT_ENABLED must be true in production")
+            if not 300 <= self.admin_session_ttl_seconds <= 86400:
+                raise ValueError("ADMIN_SESSION_TTL_SECONDS must be between 5 minutes and 24 hours")
+            if not 60 <= self.download_url_ttl_seconds <= 3600:
+                raise ValueError("DOWNLOAD_URL_TTL_SECONDS must be between 1 minute and 1 hour")
+        if (
+            self.max_json_body_bytes < 1024
+            or self.max_upload_mb < 1
+            or self.max_pdf_pages < 1
+            or self.max_media_duration_seconds < 1
+            or self.max_result_mb < 1
+        ):
+            raise ValueError("Request size limits must be positive")
         return self
 
 

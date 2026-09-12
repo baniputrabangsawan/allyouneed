@@ -11,7 +11,10 @@ from app.core.logging import configure_logging
 from app.db.session import create_schema, dispose_engine, ensure_sqlite_parent
 from app.middleware.admin_rate_limit import AdminRateLimitMiddleware
 from app.middleware.admin_security import AdminSecurityMiddleware
+from app.middleware.api_rate_limit import ApiRateLimitMiddleware
 from app.middleware.request_id import RequestIDMiddleware
+from app.middleware.request_limits import RequestBodyLimitMiddleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
 
 
 @asynccontextmanager
@@ -32,20 +35,25 @@ def create_app() -> FastAPI:
     settings = get_settings()
     api = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
     api.add_middleware(AdminRateLimitMiddleware)
+    api.add_middleware(ApiRateLimitMiddleware)
     api.add_middleware(AdminSecurityMiddleware)
+    api.add_middleware(RequestBodyLimitMiddleware)
     api.add_middleware(
         CORSMiddleware,
         allow_origins=sorted(set(settings.cors_origins + settings.admin_cors_origins)),
         allow_credentials=True,
-        allow_methods=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=[
             "Content-Type",
             "X-Entitlement-Token",
             "X-Request-ID",
             "X-CSRF-Token",
+            "Idempotency-Key",
         ],
+        expose_headers=["Location", "X-Request-ID", "Retry-After"],
     )
     api.add_middleware(RequestIDMiddleware)
+    api.add_middleware(SecurityHeadersMiddleware)
     install_exception_handlers(api)
     api.include_router(v1_router, prefix="/api/v1")
     return api
