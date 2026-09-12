@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ImageResultPreview } from '../image/ImageResultPreview'
 import type { ToolDefinition } from '../tools/tool-registry'
 import { buildQrPayload, getQrKind, type QrCorrection, type QrFields, type QrKind } from './focused-workspace-utils'
 import { downloadBlob, triggerDownload } from '@/lib/media/download'
@@ -31,6 +32,7 @@ export function QrWorkspace({ tool }: { tool: ToolDefinition }) {
   const [margin, setMargin] = useState(4)
   const [correction, setCorrection] = useState<QrCorrection>('M')
   const [png, setPng] = useState('')
+  const [resultId, setResultId] = useState('')
   const [svg, setSvg] = useState('')
   const [error, setError] = useState('')
   const [copyStatus, setCopyStatus] = useState('')
@@ -41,7 +43,7 @@ export function QrWorkspace({ tool }: { tool: ToolDefinition }) {
       const qr = await import('qrcode')
       const options = { width: size, margin, errorCorrectionLevel: correction, color: { dark: foreground, light: background } }
       const [nextPng, nextSvg] = await Promise.all([qr.toDataURL(payload, options), qr.toString(payload, { ...options, type: 'svg' })])
-      setPng(nextPng); setSvg(nextSvg); setError('')
+      setPng(nextPng); setSvg(nextSvg); setResultId(`${tool.slug}:${nextPng.length}:${nextPng.slice(-24)}`); setError('')
     } catch (reason) { setPng(''); setSvg(''); setError(reason instanceof Error ? reason.message : 'The QR code could not be generated.') }
   }
 
@@ -65,6 +67,6 @@ export function QrWorkspace({ tool }: { tool: ToolDefinition }) {
       <label className="field"><span>Margin</span><input aria-label="QR margin" type="number" min="0" max="20" value={margin} onChange={(event) => setMargin(event.target.valueAsNumber)}/></label>
       <label className="field"><span>Error correction</span><select aria-label="Error correction" value={correction} onChange={(event) => setCorrection(event.target.value as QrCorrection)}><option value="L">Low</option><option value="M">Medium</option><option value="Q">Quartile</option><option value="H">High</option></select></label>
     </div><button className="button primary action-button" type="button" onClick={() => void generate()}>Generate QR code</button>{error && <p className="field-error" role="alert">{error}</p>}</div>
-    <div className="result-card qr-result"><div className="panel-label">Preview</div>{png ? <img src={png} alt="Generated QR code" width={size} height={size}/> : <p>Configure and generate a QR code.</p>}{copyStatus && <p aria-live="polite">{copyStatus}</p>}<div className="button-row"><button className="button secondary" type="button" disabled={!png} onClick={() => download(png, 'qr-code.png')}>Download PNG</button><button className="button secondary" type="button" disabled={!png} onClick={() => void copyPng()}>Copy PNG</button><button className="button secondary" type="button" disabled={!svg} onClick={() => download(svg, 'qr-code.svg', 'image/svg+xml')}>Download SVG</button><button className="button secondary" type="button" disabled={!svg} onClick={() => void copySvg()}>Copy SVG</button></div></div>
+    <div className="result-card qr-result"><div className="panel-label">Preview</div>{<ImageResultPreview resultSrc={png || undefined} compare={false} resultAlt="Generated QR code" downloadId={resultId || undefined} downloadSource={png || undefined} downloadFilename="qr-code.png" meta={png ? { filename: 'qr-code.png', mime: 'image/png', width: size, height: size } : undefined} />}{copyStatus && <p aria-live="polite">{copyStatus}</p>}<div className="button-row"><button className="button secondary" type="button" disabled={!png} onClick={() => void copyPng()}>Copy PNG</button><button className="button secondary" type="button" disabled={!svg} onClick={() => download(svg, 'qr-code.svg', 'image/svg+xml')}>Download SVG</button><button className="button secondary" type="button" disabled={!svg} onClick={() => void copySvg()}>Copy SVG</button></div></div>
   </section>
 }

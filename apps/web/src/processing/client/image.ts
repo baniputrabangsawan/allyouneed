@@ -3,7 +3,8 @@ import {
   type ImageCrop, type WatermarkPosition,
 } from '@/features/image/image-utils'
 import { photoEditorFilter } from '@/features/image/photo-editor-utils'
-
+import type { ProcessingProgress } from '@/processing/types/processing'
+import { reportProcessStage, reportProcessTask } from './process-stage'
 export type { ImageCrop, WatermarkPosition } from '@/features/image/image-utils'
 
 export type ImageFormat = 'image/jpeg' | 'image/png' | 'image/webp'
@@ -37,12 +38,18 @@ export interface ImageOptions extends ImageDrawOptions {
   watermarkRotation?: number
 }
 
-export async function processImage(file: File, options: ImageOptions): Promise<Blob> {
+export async function processImage(file: File, options: ImageOptions, onProgress?: (progress: ProcessingProgress) => void): Promise<Blob> {
+  await reportProcessStage(onProgress, 'preparing', 0)
   const bitmap = await createImageBitmap(file)
   try {
+    await reportProcessStage(onProgress, 'preparing', 1)
+    await reportProcessStage(onProgress, 'compressing', 0)
     const canvas = drawProcessedImage(bitmap, options)
     await drawWatermark(getContext(canvas), canvas, options)
-    return await canvasToBlob(canvas, options.format, options.quality)
+    await reportProcessTask(onProgress, 'compressing', 1, 2)
+    const blob = await canvasToBlob(canvas, options.format, options.quality)
+    await reportProcessTask(onProgress, 'compressing', 2, 2)
+    return blob
   } finally {
     bitmap.close()
   }

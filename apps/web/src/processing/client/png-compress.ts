@@ -1,4 +1,6 @@
 import { assertValidImageSize } from '@/features/image/image-utils'
+import { reportProcessStage, reportProcessTask } from './process-stage'
+import type { ProcessingProgress } from '@/processing/types/processing'
 import {
   collectUniquePalette,
   countUniqueColors,
@@ -44,47 +46,65 @@ interface HistColor {
 
 const PHOTO_UNIQUE_LIMIT = 4096
 
-export function compressPng(bytes: Uint8Array, options: { mode?: PngCompressMode } = {}): PngCompressResult {
+export async function compressPng(bytes: Uint8Array, options: { mode?: PngCompressMode; onProgress?: (progress: ProcessingProgress) => void } = {}): Promise<PngCompressResult> {
   const mode = options.mode ?? 'balanced'
   const originalSize = bytes.byteLength
+  const report = options.onProgress
+  await reportProcessStage(report, 'preparing', 0)
   const stripped = stripPngMetadata(bytes)
   if (pngHasAnimation(bytes)) {
     const size = readPngSize(bytes)
+    await reportProcessStage(report, 'preparing', 1)
+    await reportProcessStage(report, 'finalizing', 1)
     return summarize(bytes, pickSmaller(bytes, stripped), originalSize, size.width, size.height, false, false, false)
   }
   const image = decodePngRgba(bytes)
   assertValidImageSize(image.width, image.height)
+  await reportProcessStage(report, 'preparing', 1)
+  const exactPalette = collectUniquePalette(image.rgba)
+  const compressSteps = exactPalette ? 2 : 1
+  await reportProcessStage(report, 'compressing', 0)
   const candidates: Candidate[] = [
     { bytes, quantized: false },
     { bytes: stripped, quantized: false },
     { bytes: encodePngRgba(image), quantized: false },
   ]
-  const exactPalette = collectUniquePalette(image.rgba)
+  await reportProcessTask(report, 'compressing', 1, compressSteps)
   if (exactPalette) {
     candidates.push({
       bytes: encodePngIndexed(image.width, image.height, mapRgbaToIndices(image.rgba, exactPalette), exactPalette),
       quantized: false,
     })
+    await reportProcessTask(report, 'compressing', 2, compressSteps)
   } else if (mode !== 'lossless') {
     const counts = mode === 'strong' ? [256, 128, 64] : [256]
+    await reportProcessStage(report, 'optimizing', 0)
+    let done = 0
     for (const colors of counts) {
       const palette = medianCutPalette(image.rgba, colors)
-      if (palette.length < 2) continue
-      const unditheredError = paletteError(image.rgba, palette)
-      if (mode === 'strong' && colors < 256 && unditheredError > 40) continue
-      if (mode === 'balanced' && unditheredError > 28 && countUniqueColors(image.rgba, 1024) <= 1024) continue
-      const dither = unditheredError > 6
-      const indices = dither
-        ? ditherToPalette(image, palette)
-        : mapRgbaToIndices(image.rgba, palette)
-      candidates.push({
-        bytes: encodePngIndexed(image.width, image.height, indices, palette),
-        quantized: true,
-      })
+      if (palette.length >= 2) {
+        const unditheredError = paletteError(image.rgba, palette)
+        const skipStrong = mode === 'strong' && colors < 256 && unditheredError > 40
+        const skipBalanced = mode === 'balanced' && unditheredError > 28 && countUniqueColors(image.rgba, 1024) <= 1024
+        if (!skipStrong && !skipBalanced) {
+          const dither = unditheredError > 6
+          const indices = dither
+            ? ditherToPalette(image, palette)
+            : mapRgbaToIndices(image.rgba, palette)
+          candidates.push({
+            bytes: encodePngIndexed(image.width, image.height, indices, palette),
+            quantized: true,
+          })
+        }
+      }
+      done += 1
+      await reportProcessTask(report, 'optimizing', done, counts.length)
     }
   }
+  await reportProcessStage(report, 'finalizing', 0)
   const best = pickBest(candidates, originalSize)
   const unique = countUniqueColors(image.rgba, PHOTO_UNIQUE_LIMIT)
+  await reportProcessStage(report, 'finalizing', 1)
   return summarize(
     bytes,
     best.bytes,

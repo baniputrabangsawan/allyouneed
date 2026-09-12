@@ -1,4 +1,4 @@
-import { Download, FileImage, Redo2, RefreshCcw, RotateCcw, RotateCw, Trash2, Undo2 } from 'lucide-react'
+import { FileImage, Redo2, RefreshCcw, RotateCcw, RotateCw, Trash2, Undo2 } from 'lucide-react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { FileDropzone } from '@/components/file/FileDropzone'
 import {
@@ -21,18 +21,26 @@ import {
 } from '@/features/image/photo-editor-utils'
 import { assertValidImageSize, type ImageCrop, type Size } from '@/features/image/image-utils'
 import { formatBytes, outputFilename } from '@/lib/format'
+import { ImageResultPreview } from '@/features/image/ImageResultPreview'
 import { motion } from '@/lib/motion/config'
 import { gsap, useGSAP } from '@/lib/motion/gsap'
 import { prefersReducedMotion } from '@/lib/motion/prefers-reduced-motion'
-import { canvasToBlob, drawProcessedImage } from '@/processing/client/image'
+import { drawProcessedImage } from '@/processing/client/image'
+import { exportCanvasImage, type ImageOptimizeMode } from '@/processing/client/image-optimize'
+import { withProcessStages, type ProcessStage } from '@/processing/client/process-stage'
+import { ProcessingProgressPanel } from '@/features/workspaces/processing-progress'
 
 interface ExportResult {
+  id: string
   blob: Blob
   url: string
   width: number
   height: number
   mime: PhotoEditorFormat
   durationMs: number
+  originalSize: number
+  optimizedSize: number
+  recommendWebp: boolean
 }
 
 interface CropDrag {
@@ -61,6 +69,8 @@ export function PhotoEditorWorkspace() {
   const dragRef = useRef<CropDrag | null>(null)
   const liveRef = useRef<PhotoEditorState | null>(null)
   const stopDragRef = useRef<(() => void) | null>(null)
+  const runningRef = useRef(false)
+  const [processStage, setProcessStage] = useState<ProcessStage>('preparing')
   const [file, setFile] = useState<File | null>(null)
   const [source, setSource] = useState<Size>({ width: 0, height: 0 })
   const [history, setHistory] = useState<PhotoEditorHistory>(() => createPhotoEditorHistory(identityPhotoEditorState({ width: 1, height: 1 })))
@@ -68,6 +78,8 @@ export function PhotoEditorWorkspace() {
   const [cropMode, setCropMode] = useState(false)
   const [format, setFormat] = useState<PhotoEditorFormat>('image/jpeg')
   const [quality, setQuality] = useState(90)
+  const [autoOptimize, setAutoOptimize] = useState(true)
+  const [optimizeMode, setOptimizeMode] = useState<ImageOptimizeMode>('auto')
   const [result, setResult] = useState<ExportResult | null>(null)
   const [status, setStatus] = useState<'idle' | 'ready' | 'processing' | 'completed' | 'failed'>('idle')
   const [error, setError] = useState('')
@@ -157,6 +169,8 @@ export function PhotoEditorWorkspace() {
     setCropMode(false)
     setFormat(sourceFormat(file))
     setQuality(90)
+    setAutoOptimize(true)
+    setOptimizeMode('auto')
     setStatus(file ? 'ready' : 'idle')
     setError('')
     clearResult()
@@ -269,39 +283,64 @@ export function PhotoEditorWorkspace() {
 
   async function exportImage() {
     const bitmap = bitmapRef.current
-    if (!file || !bitmap || source.width < 1) return
+    if (!file || !bitmap || source.width < 1 || runningRef.current) return
+    runningRef.current = true
     const selection = selectionRef.current
     setStatus('processing')
     setError('')
     const startedAt = performance.now()
     try {
       const spec = photoEditorExportSpec(present, source, format, quality)
-      const canvas = drawProcessedImage(bitmap, {
-        crop: present.crop,
-        rotation: present.rotation,
-        flipX: present.flipX,
-        flipY: present.flipY,
-        brightness: present.brightness,
-        contrast: present.contrast,
-        saturation: present.saturation,
-        grayscale: present.grayscale,
-        blur: present.blur,
-        ...(format === 'image/jpeg' ? { backgroundColor: '#fff' } : {}),
-      })
-      const blob = await canvasToBlob(canvas, spec.mime, spec.quality ?? 1)
+      const output = await withProcessStages(setProcessStage, async () => {
+        const canvas = drawProcessedImage(bitmap, {
+          crop: present.crop,
+          rotation: present.rotation,
+          flipX: present.flipX,
+          flipY: present.flipY,
+          brightness: present.brightness,
+          contrast: present.contrast,
+          saturation: present.saturation,
+          grayscale: present.grayscale,
+          blur: present.blur,
+          ...(format === 'image/jpeg' ? { backgroundColor: '#fff' } : {}),
+        })
+        return exportCanvasImage(canvas, spec.mime, {
+          ...(autoOptimize ? {} : { enabled: false }),
+          mode: optimizeMode,
+          ...(spec.quality == null ? {} : { quality: spec.quality }),
+        })
+      }, { optimize: autoOptimize && format === 'image/png' })
       if (selection !== selectionRef.current) return
       clearResult()
-      const url = URL.createObjectURL(blob)
+      const url = URL.createObjectURL(output.blob)
       resultUrlRef.current = url
-      setResult({ blob, url, width: spec.width, height: spec.height, mime: spec.mime, durationMs: performance.now() - startedAt })
+      setResult({
+        id: crypto.randomUUID(),
+        blob: output.blob,
+        url,
+        width: spec.width,
+        height: spec.height,
+        mime: spec.mime,
+        durationMs: performance.now() - startedAt,
+        originalSize: output.originalSize,
+        optimizedSize: output.optimizedSize,
+        recommendWebp: output.recommendWebp,
+      })
       setStatus('completed')
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Image export failed.')
       setStatus('failed')
+      setProcessStage('failed')
+    } finally {
+      runningRef.current = false
     }
   }
 
   const extension = format === 'image/jpeg' ? 'jpg' : format === 'image/png' ? 'png' : 'webp'
+  const savedPercent = result && result.originalSize > 0
+    ? Math.round((1 - result.optimizedSize / result.originalSize) * 100)
+    : 0
+
   const cropStyle = source.width > 0 && source.height > 0 ? {
     left: `${(present.crop.x / source.width) * 100}%`,
     top: `${(present.crop.y / source.height) * 100}%`,
@@ -350,6 +389,21 @@ export function PhotoEditorWorkspace() {
                 </small>
               </span>
             </div>
+            {result && (
+              <ImageResultPreview
+                resultSrc={result.url}
+                compare={false}
+                checkerboard={result.mime === 'image/png' || result.mime === 'image/webp'}
+                processing={status === 'processing'}
+                failed={status === 'failed'}
+                originalAlt="Selected input"
+                resultAlt="Edited result"
+                downloadId={result.id}
+                downloadSource={result.blob}
+                downloadFilename={outputFilename(file.name, 'edited', extension)}
+                meta={{ filename: outputFilename(file.name, 'edited', extension), mime: result.mime, width: result.width, height: result.height, size: result.blob.size, originalSize: result.originalSize, savedPct: savedPercent, durationMs: result.durationMs }}
+              />
+            )}
           </div>
           <div className="options-panel">
             <div className="panel-label">
@@ -415,15 +469,25 @@ export function PhotoEditorWorkspace() {
               <p className="option-help">PNG export is lossless, so there is no quality setting.</p>
             )}
             {format === 'image/jpeg' && <p className="option-help">Transparent areas are filled with white for JPG output.</p>}
-            <button className={`button ${status === 'completed' ? 'success' : 'primary'} action-button`} type="button" disabled={status === 'processing'} onClick={() => void exportImage()}>
-              {status === 'processing' ? 'Exporting...' : status === 'completed' ? 'Export again' : 'Export image'}
-            </button>
-            {error && <p className="field-error" role="alert">{error}</p>}
-            {result && (
-              <a className="button secondary action-button" href={result.url} download={outputFilename(file.name, 'edited', extension)}>
-                <Download size={17}/> Download {formatLabels[result.mime]}
-              </a>
+            <label className="check-row">
+              <input type="checkbox" checked={autoOptimize} onChange={(event) => { setAutoOptimize(event.target.checked); clearResult(); setStatus('ready') }}/>
+              Auto optimize output
+            </label>
+            {autoOptimize && (
+              <div className="segmented" role="group" aria-label="Auto optimize output">
+                {(['auto', 'lossless', 'strong'] as const).map((value) => (
+                  <button key={value} type="button" className={optimizeMode === value ? 'active' : ''} aria-pressed={optimizeMode === value} onClick={() => { setOptimizeMode(value); clearResult(); setStatus('ready') }}>
+                    {value === 'auto' ? 'Auto' : value === 'lossless' ? 'Lossless' : 'Strong'}
+                  </button>
+                ))}
+              </div>
             )}
+            {status === 'processing' && <ProcessingProgressPanel stage={processStage} title="Processing..." />}
+            {status === 'failed' && <ProcessingProgressPanel stage="failed" title="Processing failed" detail={error || 'Processing failed'} />}
+            <button className={`button ${status === 'completed' ? 'success' : 'primary'} action-button`} type="button" disabled={status === 'processing'} onClick={() => void exportImage()}>
+              {status === 'processing' ? 'Exporting...' : status === 'completed' ? 'Export again' : status === 'failed' ? 'Try again' : 'Export image'}
+            </button>
+            {error && status !== 'failed' && <p className="field-error" role="alert">{error}</p>}
           </div>
         </div>
       )}

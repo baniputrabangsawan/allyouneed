@@ -1,15 +1,22 @@
 import { assertValidImageSize } from '@/features/image/image-utils'
 import { drawMemeLayers, type MemeFormat, type MemeTextLayer } from '@/features/image/meme-utils'
+import { exportCanvasImage, type ImageOptimizeMode } from './image-optimize'
 
 export interface MemeRenderOptions {
   format: MemeFormat
   quality?: number
+  optimize?: boolean
+  optimizeMode?: ImageOptimizeMode
 }
 
 export interface MemeRenderResult {
   blob: Blob
   width: number
   height: number
+  originalSize: number
+  optimizedSize: number
+  savedRatio: number
+  recommendWebp: boolean
 }
 
 export async function renderMeme(
@@ -31,17 +38,21 @@ export async function renderMeme(
     }
     context.drawImage(bitmap, 0, 0)
     drawMemeLayers(context, canvas, layers)
-    const blob = await canvasToBlob(canvas, options.format, options.quality ?? 0.92)
-    return { blob, width: canvas.width, height: canvas.height }
+    const output = await exportCanvasImage(canvas, options.format, {
+      ...(options.optimize === undefined ? {} : { enabled: options.optimize }),
+      ...(options.optimizeMode === undefined ? {} : { mode: options.optimizeMode }),
+      ...(options.quality === undefined ? {} : { quality: options.quality }),
+    })
+    return {
+      blob: output.blob,
+      width: canvas.width,
+      height: canvas.height,
+      originalSize: output.originalSize,
+      optimizedSize: output.optimizedSize,
+      savedRatio: output.savedRatio,
+      recommendWebp: output.recommendWebp,
+    }
   } finally {
     bitmap.close()
   }
-}
-
-function canvasToBlob(canvas: HTMLCanvasElement, format: MemeFormat, quality: number): Promise<Blob> {
-  return new Promise((resolve, reject) => canvas.toBlob(
-    (blob) => blob ? resolve(blob) : reject(new Error('Meme export failed.')),
-    format,
-    Math.min(1, Math.max(0, quality)),
-  ))
 }

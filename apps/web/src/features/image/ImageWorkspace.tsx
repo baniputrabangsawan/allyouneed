@@ -1,19 +1,22 @@
-import { Download, FileImage, RefreshCcw, RotateCcw, RotateCw, Trash2 } from 'lucide-react'
+import { CheckCircle2, Download, FileImage, RefreshCcw, RotateCcw, RotateCw, Trash2 } from 'lucide-react'
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react'
 import { FileDropzone } from '@/components/file/FileDropzone'
 import { FAVICON_ACCEPT, FAVICON_PNG_MIME, type FaviconFit } from '@/features/image/favicon-utils'
 import { getImageWorkspaceMode, type ImageWorkspaceMode } from '@/features/image/image-utils'
 import type { ToolDefinition } from '@/features/tools/tool-registry'
+import { ProcessingProgressPanel } from '@/features/workspaces/processing-progress'
 import { CopyButton } from '@/features/workspaces/workspace-ui'
 import { LocaleLink } from '@/i18n/link'
 import { formatBytes, outputFilename } from '@/lib/format'
-import { autoDownloadOnce } from '@/lib/media/auto-download'
+import { ImageResultPreview } from '@/features/image/ImageResultPreview'
 import { motion } from '@/lib/motion/config'
 import { gsap, useGSAP } from '@/lib/motion/gsap'
 import { prefersReducedMotion } from '@/lib/motion/prefers-reduced-motion'
 import { decodeSourceImage, generateFaviconPack } from '@/processing/client/favicon'
 import { processImage, type ImageCrop, type ImageFormat, type WatermarkPosition } from '@/processing/client/image'
+import { optimizeImageOutput, rasterEncodeQuality, type ImageOptimizeMode } from '@/processing/client/image-optimize'
 import { compressPng, type PngCompressMode } from '@/processing/client/png-compress'
+import { isProcessStage, stagePercent, yieldToUi, type ProcessStage } from '@/processing/client/process-stage'
 
 type ResizeUnit = 'pixels' | 'percent'
 
@@ -22,6 +25,8 @@ interface ImageResult {
   url: string
   durationMs: number
   id: string
+  originalSize: number
+  optimizedSize: number
   recommendWebp?: boolean
 }
 
@@ -89,6 +94,7 @@ function inputFormats(tool: ToolDefinition): readonly string[] {
   return tool.acceptedFormats ?? defaultAccept
 }
 
+
 export function ImageWorkspace({ tool }: { tool: ToolDefinition }) {
   if (tool.slug === 'svg-to-png') return <Suspense fallback={null}><SvgToPngWorkspace /></Suspense>
   if (tool.slug === 'meme-generator') return <Suspense fallback={null}><MemeWorkspace /></Suspense>
@@ -104,6 +110,9 @@ function RasterImageWorkspace({ tool }: { tool: ToolDefinition }) {
   const packUrlsRef = useRef<string[]>([])
   const workspaceRef = useRef<HTMLElement>(null)
   const selectionRef = useRef(0)
+  const runningRef = useRef(false)
+  const [processStage, setProcessStage] = useState<ProcessStage>('preparing')
+  const [processPercent, setProcessPercent] = useState<number | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [sourceUrl, setSourceUrl] = useState('')
   const [result, setResult] = useState<ImageResult | null>(null)
@@ -115,6 +124,8 @@ function RasterImageWorkspace({ tool }: { tool: ToolDefinition }) {
   const [format, setFormat] = useState<ImageFormat>(() => initialFormat(tool))
   const [quality, setQuality] = useState(mode === 'compress' ? 80 : 90)
   const [compressMode, setCompressMode] = useState<PngCompressMode>('balanced')
+  const [autoOptimize, setAutoOptimize] = useState(true)
+  const [optimizeMode, setOptimizeMode] = useState<ImageOptimizeMode>('auto')
   const [width, setWidth] = useState(1200)
   const [height, setHeight] = useState(800)
   const [resizeUnit, setResizeUnit] = useState<ResizeUnit>('pixels')
@@ -156,6 +167,8 @@ function RasterImageWorkspace({ tool }: { tool: ToolDefinition }) {
     setFormat(initialFormat(tool, currentFile ?? undefined))
     setQuality(mode === 'compress' ? 80 : 90)
     setCompressMode('balanced')
+    setAutoOptimize(true)
+    setOptimizeMode('auto')
     setWidth(naturalWidth || 1200)
     setHeight(naturalHeight || 800)
     setResizeUnit('pixels')
@@ -247,15 +260,29 @@ function RasterImageWorkspace({ tool }: { tool: ToolDefinition }) {
   }
 
   async function run() {
-    if (!file) return
+    if (!file || runningRef.current) return
+    runningRef.current = true
     const selection = selectionRef.current
     setStatus('processing')
+    setProcessStage('preparing')
+    setProcessPercent(0)
     setError('')
     const startedAt = performance.now()
+    const onProgress = (progress: { stage?: string; progress?: number | null }) => {
+      if (isProcessStage(progress.stage) && progress.stage !== 'completed' && progress.stage !== 'failed') setProcessStage(progress.stage)
+      if (progress.progress != null) setProcessPercent(progress.progress)
+    }
     try {
+      await yieldToUi()
       if (mode === 'favicon') {
+        setProcessStage('compressing')
+        setProcessPercent(stagePercent('compressing'))
+        await yieldToUi()
         const generated = await generateFaviconPack(file, { fit })
         if (selection !== selectionRef.current) return
+        setProcessStage('finalizing')
+        setProcessPercent(stagePercent('finalizing'))
+        await yieldToUi()
         clearResult()
         const urls: string[] = []
         const files = generated.files.map((entry) => {
@@ -273,6 +300,7 @@ function RasterImageWorkspace({ tool }: { tool: ToolDefinition }) {
           html: generated.html,
           durationMs: performance.now() - startedAt,
         })
+        setProcessPercent(100)
         setStatus('completed')
         return
       }
@@ -283,14 +311,24 @@ function RasterImageWorkspace({ tool }: { tool: ToolDefinition }) {
         : undefined
       let blob: Blob
       let recommendWebp = false
+      let originalSize = file.size
+      let optimizedSize = 0
       if (mode === 'compress' && format === 'image/png') {
-        const compressed = compressPng(new Uint8Array(await file.arrayBuffer()), { mode: compressMode })
+        const compressed = await compressPng(new Uint8Array(await file.arrayBuffer()), { mode: compressMode, onProgress })
         blob = new Blob([compressed.bytes.slice()], { type: 'image/png' })
         recommendWebp = compressed.recommendWebp
+        originalSize = compressed.originalSize
+        optimizedSize = compressed.compressedSize
       } else {
+        const hasQualitySlider = (mode === 'compress' || mode === 'converter') && format !== 'image/png'
+        const encodeQuality = format === 'image/png'
+          ? 1
+          : hasQualitySlider
+            ? quality / 100
+            : rasterEncodeQuality(format, autoOptimize ? optimizeMode : 'lossless')
         blob = await processImage(file, {
           format,
-          quality: quality / 100,
+          quality: encodeQuality,
           ...(format === 'image/jpeg' ? { backgroundColor: '#fff' } : {}),
           ...(mode === 'resize' ? { width: outputWidth, height: outputHeight } : {}),
           ...(crop ? { crop } : {}),
@@ -303,7 +341,17 @@ function RasterImageWorkspace({ tool }: { tool: ToolDefinition }) {
             watermarkPadding,
             watermarkRotation,
           } : {}),
+        }, onProgress)
+        const optimized = await optimizeImageOutput(blob, {
+          mime: format,
+          enabled: autoOptimize,
+          mode: optimizeMode,
+          onProgress,
         })
+        blob = optimized.blob
+        recommendWebp = optimized.recommendWebp
+        originalSize = optimized.originalSize
+        optimizedSize = optimized.optimizedSize
       }
       if (selection !== selectionRef.current) return
       clearResult()
@@ -314,12 +362,19 @@ function RasterImageWorkspace({ tool }: { tool: ToolDefinition }) {
         url,
         durationMs: performance.now() - startedAt,
         id: crypto.randomUUID(),
+        originalSize,
+        optimizedSize,
         ...(recommendWebp ? { recommendWebp: true } : {}),
       })
+      setProcessStage('completed')
+      setProcessPercent(100)
       setStatus('completed')
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Image processing failed.')
       setStatus('failed')
+      setProcessStage('failed')
+    } finally {
+      runningRef.current = false
     }
   }
 
@@ -340,20 +395,22 @@ function RasterImageWorkspace({ tool }: { tool: ToolDefinition }) {
     ?? sourceUrl
 
   useGSAP(() => {
-    if (status !== 'completed' || prefersReducedMotion()) return
+    if (prefersReducedMotion()) return
+    const progress = workspaceRef.current?.querySelector('.processing-progress')
+    const outcome = workspaceRef.current?.querySelector('.compress-result')
+    const target = outcome ?? progress
+    if (target) {
+      gsap.fromTo(target, { autoAlpha: 0, y: 8 }, { autoAlpha: 1, y: 0, duration: motion.duration.instant, ease: motion.ease.enter })
+    }
+    if (status !== 'completed') return
     const panel = workspaceRef.current?.querySelector('.preview-panel')
     if (!panel || (!result && !pack)) return
     gsap.fromTo(panel, { autoAlpha: 0, y: 20, scale: 0.98, filter: 'blur(8px)' }, {
-      autoAlpha: 1, y: 0, scale: 1, filter: 'blur(0px)', duration: 0.45, ease: motion.ease.enter, clearProps: 'filter',
+      autoAlpha: 1, y: 0, scale: 1, filter: 'blur(0px)', duration: motion.duration.fast, ease: motion.ease.enter, clearProps: 'filter',
     })
-  }, { dependencies: [status, result?.url, pack?.zipUrl], scope: workspaceRef })
+  }, { dependencies: [status, processStage, result?.url, pack?.zipUrl], scope: workspaceRef })
 
-  useEffect(() => {
-    if (mode !== 'compress' || status !== 'completed' || !result || !file) return
-    autoDownloadOnce(result.id, result.blob, outputFilename(file.name, suffix, extension))
-  }, [mode, status, result, file, suffix, extension])
-
-  return <section ref={workspaceRef} className="workspace">{!file ? <FileDropzone accept={inputFormats(tool)} onFileSelected={chooseFile}/> : <div className="image-workspace"><div className="preview-panel"><div className="panel-label"><span>Preview</span><button type="button" className="text-button" onClick={removeFile}><Trash2 size={15}/> Remove</button></div><div className="image-stage"><img src={previewUrl} alt={pack || result ? 'Processed result' : 'Selected input'}/></div><div className="file-summary"><FileImage size={20}/><span><strong>{file.name}</strong><small>{formatBytes(file.size)}{result ? ` -> ${formatBytes(result.blob.size)} · ${savings !== null && savings >= 0 ? `${savings}% saved` : `${Math.abs(savings ?? 0)}% larger`} · ${Math.round(result.durationMs)} ms` : pack ? ` -> ${pack.files.length} files · ${Math.round(pack.durationMs)} ms` : ''}</small></span></div></div><div className="options-panel"><div className="panel-label"><span>Settings</span><button type="button" className="text-button" onClick={() => resetSettings()}><RefreshCcw size={14}/> Reset</button></div>{showFormat && <Field label="Output format"><select value={format} onChange={(event) => setFormat(event.target.value as ImageFormat)}>{selectableFormats.map((value) => <option key={value} value={value}>{formatLabels[value]}</option>)}</select></Field>}{showQuality && <><Field label="Quality" value={`${quality}%`}><input type="range" min="10" max="100" value={quality} onChange={(event) => setQuality(Number(event.target.value))}/></Field><p className="option-help">Quality applies to {formatLabels[format]} encoding. The original is never changed.</p></>}{mode === 'compress' && format === 'image/png' && <PngCompressModeField value={compressMode} onChange={(value) => { setCompressMode(value); clearResult(); setStatus('ready') }}/>}{mode === 'converter' && format === 'image/png' && <p className="option-help">PNG export is lossless, so there is no quality setting.</p>}{mode === 'resize' && <><Field label="Resize mode"><select value={resizeUnit} onChange={(event) => setResizeUnit(event.target.value as ResizeUnit)}><option value="pixels">Pixels</option><option value="percent">Percentage</option></select></Field><label className="check-row"><input type="checkbox" checked={lockAspectRatio} onChange={(event) => setLockAspectRatio(event.target.checked)}/>Lock aspect ratio</label><div className="field-grid">{resizeUnit === 'pixels' ? <><Field label="Width" value="px"><input type="number" min="1" max="16384" value={width} onChange={(event) => updateWidth(Number(event.target.value))}/></Field><Field label="Height" value="px"><input type="number" min="1" max="16384" value={height} onChange={(event) => updateHeight(Number(event.target.value))}/></Field></> : <><Field label="Width" value="%"><input type="number" min="1" max="400" value={widthPercent} onChange={(event) => updateWidthPercent(Number(event.target.value))}/></Field><Field label="Height" value="%"><input type="number" min="1" max="400" value={heightPercent} onChange={(event) => updateHeightPercent(Number(event.target.value))}/></Field></>}</div></>}{mode === 'crop' && <><p className="option-help">Crop uses pixel coordinates from the top-left of the original image.</p><div className="field-grid"><Field label="Left" value="px"><input aria-label="Crop left" type="number" min="0" max={Math.max(0, naturalWidth - 1)} value={cropX} onChange={(event) => setCropX(Number(event.target.value))}/></Field><Field label="Top" value="px"><input aria-label="Crop top" type="number" min="0" max={Math.max(0, naturalHeight - 1)} value={cropY} onChange={(event) => setCropY(Number(event.target.value))}/></Field><Field label="Width" value="px"><input aria-label="Crop width" type="number" min="1" max={naturalWidth} value={cropWidth} onChange={(event) => setCropWidth(Number(event.target.value))}/></Field><Field label="Height" value="px"><input aria-label="Crop height" type="number" min="1" max={naturalHeight} value={cropHeight} onChange={(event) => setCropHeight(Number(event.target.value))}/></Field></div></>}{mode === 'transform' && <><div className="segmented"><button type="button" className={rotation === -90 ? 'active' : ''} onClick={() => setRotation(-90)}><RotateCcw size={17}/> 90° left</button><button type="button" className={rotation === 90 ? 'active' : ''} onClick={() => setRotation(90)}><RotateCw size={17}/> 90° right</button><button type="button" className={rotation === 180 ? 'active' : ''} onClick={() => setRotation(180)}>180°</button></div><label className="check-row"><input type="checkbox" checked={flipX} onChange={(event) => setFlipX(event.target.checked)}/>Flip horizontally</label><label className="check-row"><input type="checkbox" checked={flipY} onChange={(event) => setFlipY(event.target.checked)}/>Flip vertically</label></>}{mode === 'watermark' && <><Field label="Watermark text"><input value={watermark} maxLength={120} onChange={(event) => setWatermark(event.target.value)}/></Field><Field label="Position"><select value={watermarkPosition} onChange={(event) => setWatermarkPosition(event.target.value as WatermarkPosition)}>{positions.map((value) => <option key={value} value={value}>{value.replace('-', ' ')}</option>)}</select></Field><Field label="Opacity" value={`${watermarkOpacity}%`}><input type="range" min="0" max="100" value={watermarkOpacity} onChange={(event) => setWatermarkOpacity(Number(event.target.value))}/></Field><Field label="Size" value={`${watermarkSize}px`}><input type="range" min="8" max="240" value={watermarkSize} onChange={(event) => setWatermarkSize(Number(event.target.value))}/></Field><Field label="Padding" value={`${watermarkPadding}px`}><input type="range" min="0" max="200" value={watermarkPadding} onChange={(event) => setWatermarkPadding(Number(event.target.value))}/></Field><Field label="Rotation" value={`${watermarkRotation}°`}><input type="range" min="-180" max="180" value={watermarkRotation} onChange={(event) => setWatermarkRotation(Number(event.target.value))}/></Field></>}{mode === 'metadata' && <p className="option-help">Re-encoding removes embedded metadata while keeping the image in its current format.</p>}{mode === 'favicon' && <><Field label="Crop behavior"><select aria-label="Crop behavior" value={fit} onChange={(event) => setFit(event.target.value as FaviconFit)}><option value="cover">Cover</option><option value="contain">Contain</option></select></Field><p className="option-help">{fit === 'cover' ? 'Cover fills each square and may crop the edges. Transparent pixels stay transparent.' : 'Contain fits the whole image inside each square. Unused space stays transparent.'}</p></>}{format === 'image/jpeg' && mode !== 'favicon' && <p className="option-help">Transparent areas are filled with white for JPG output.</p>}<button className={`button ${status === 'completed' ? 'success' : 'primary'} action-button`} type="button" disabled={status === 'processing' || (mode === 'watermark' && !watermark.trim())} onClick={run}>{status === 'processing' ? 'Processing...' : status === 'completed' ? 'Process again' : action}</button>{error && <p className="field-error" role="alert">{error}</p>}{mode === 'compress' && result && file && <CompressOutcome originalSize={file.size} compressedSize={result.blob.size} savedBytes={savedBytes} savedPct={savedPct} durationMs={result.durationMs} recommendWebp={Boolean(result.recommendWebp)}/>}{result && <a className="button secondary action-button" href={result.url} download={outputFilename(file.name, suffix, extension)}><Download size={17}/> {mode === 'compress' ? 'Download again' : `Download ${formatLabels[format]}`}</a>}{pack && <><a className="button secondary action-button" href={pack.zipUrl} download={pack.zipName}><Download size={17}/> Download ZIP pack</a><p className="option-help">The pack includes PNG sizes plus favicon.ico. Transparency is preserved.</p><div className="favicon-downloads">{pack.files.map((entry) => <a key={entry.filename} className="button ghost" href={entry.url} download={entry.filename}>{entry.filename}</a>)}</div><label className="field"><span>HTML snippet</span><textarea aria-label="HTML snippet" readOnly rows={7} value={pack.html}/></label><div className="button-row favicon-copy"><CopyButton value={pack.html}/></div></>}</div></div>}</section>
+  return <section ref={workspaceRef} className="workspace">{!file ? <FileDropzone accept={inputFormats(tool)} onFileSelected={chooseFile}/> : <div className="image-workspace"><div className="preview-panel"><div className="panel-label"><span>Preview</span><button type="button" className="text-button" onClick={removeFile}><Trash2 size={15}/> Remove</button></div><ImageResultPreview originalSrc={sourceUrl} resultSrc={result?.url ?? (pack ? previewUrl : undefined)} compare={!pack} checkerboard={format === 'image/png' || format === 'image/webp'} processing={status === 'processing'} failed={status === 'failed'} originalAlt="Selected input" resultAlt={pack || result ? 'Processed result' : 'Selected input'} downloadId={result?.id ?? pack?.zipName} downloadSource={result?.blob ?? pack?.zipUrl} downloadFilename={result ? outputFilename(file.name, suffix, extension) : pack?.zipName} meta={result ? { filename: outputFilename(file.name, suffix, extension), mime: format, size: result.blob.size, originalSize: file.size, savedPct: savedPct, durationMs: result.durationMs, ...(naturalWidth && naturalHeight ? { width: naturalWidth, height: naturalHeight } : {}) } : { filename: file.name, size: file.size, ...(naturalWidth && naturalHeight ? { width: naturalWidth, height: naturalHeight } : {}) }} /><div className="file-summary"><FileImage size={20}/><span><strong>{file.name}</strong><small>{formatBytes(file.size)}{result ? ` -> ${formatBytes(result.blob.size)} · ${savings !== null && savings >= 0 ? `${savings}% saved` : `${Math.abs(savings ?? 0)}% larger`} · ${Math.round(result.durationMs)} ms` : pack ? ` -> ${pack.files.length} files · ${Math.round(pack.durationMs)} ms` : ''}</small></span></div></div><div className="options-panel"><div className="panel-label"><span>Settings</span><button type="button" className="text-button" onClick={() => resetSettings()}><RefreshCcw size={14}/> Reset</button></div>{showFormat && <Field label="Output format"><select value={format} onChange={(event) => setFormat(event.target.value as ImageFormat)}>{selectableFormats.map((value) => <option key={value} value={value}>{formatLabels[value]}</option>)}</select></Field>}{showQuality && <><Field label="Quality" value={`${quality}%`}><input type="range" min="10" max="100" value={quality} onChange={(event) => setQuality(Number(event.target.value))}/></Field><p className="option-help">Quality applies to {formatLabels[format]} encoding. The original is never changed.</p></>}{mode === 'compress' && format === 'image/png' && <PngCompressModeField value={compressMode} onChange={(value) => { setCompressMode(value); clearResult(); setStatus('ready') }}/>}{mode === 'converter' && format === 'image/png' && <p className="option-help">PNG export is lossless, so there is no quality setting.</p>}{mode === 'resize' && <><Field label="Resize mode"><select value={resizeUnit} onChange={(event) => setResizeUnit(event.target.value as ResizeUnit)}><option value="pixels">Pixels</option><option value="percent">Percentage</option></select></Field><label className="check-row"><input type="checkbox" checked={lockAspectRatio} onChange={(event) => setLockAspectRatio(event.target.checked)}/>Lock aspect ratio</label><div className="field-grid">{resizeUnit === 'pixels' ? <><Field label="Width" value="px"><input type="number" min="1" max="16384" value={width} onChange={(event) => updateWidth(Number(event.target.value))}/></Field><Field label="Height" value="px"><input type="number" min="1" max="16384" value={height} onChange={(event) => updateHeight(Number(event.target.value))}/></Field></> : <><Field label="Width" value="%"><input type="number" min="1" max="400" value={widthPercent} onChange={(event) => updateWidthPercent(Number(event.target.value))}/></Field><Field label="Height" value="%"><input type="number" min="1" max="400" value={heightPercent} onChange={(event) => updateHeightPercent(Number(event.target.value))}/></Field></>}</div></>}{mode === 'crop' && <><p className="option-help">Crop uses pixel coordinates from the top-left of the original image.</p><div className="field-grid"><Field label="Left" value="px"><input aria-label="Crop left" type="number" min="0" max={Math.max(0, naturalWidth - 1)} value={cropX} onChange={(event) => setCropX(Number(event.target.value))}/></Field><Field label="Top" value="px"><input aria-label="Crop top" type="number" min="0" max={Math.max(0, naturalHeight - 1)} value={cropY} onChange={(event) => setCropY(Number(event.target.value))}/></Field><Field label="Width" value="px"><input aria-label="Crop width" type="number" min="1" max={naturalWidth} value={cropWidth} onChange={(event) => setCropWidth(Number(event.target.value))}/></Field><Field label="Height" value="px"><input aria-label="Crop height" type="number" min="1" max={naturalHeight} value={cropHeight} onChange={(event) => setCropHeight(Number(event.target.value))}/></Field></div></>}{mode === 'transform' && <><div className="segmented"><button type="button" className={rotation === -90 ? 'active' : ''} onClick={() => setRotation(-90)}><RotateCcw size={17}/> 90° left</button><button type="button" className={rotation === 90 ? 'active' : ''} onClick={() => setRotation(90)}><RotateCw size={17}/> 90° right</button><button type="button" className={rotation === 180 ? 'active' : ''} onClick={() => setRotation(180)}>180°</button></div><label className="check-row"><input type="checkbox" checked={flipX} onChange={(event) => setFlipX(event.target.checked)}/>Flip horizontally</label><label className="check-row"><input type="checkbox" checked={flipY} onChange={(event) => setFlipY(event.target.checked)}/>Flip vertically</label></>}{mode === 'watermark' && <><Field label="Watermark text"><input value={watermark} maxLength={120} onChange={(event) => setWatermark(event.target.value)}/></Field><Field label="Position"><select value={watermarkPosition} onChange={(event) => setWatermarkPosition(event.target.value as WatermarkPosition)}>{positions.map((value) => <option key={value} value={value}>{value.replace('-', ' ')}</option>)}</select></Field><Field label="Opacity" value={`${watermarkOpacity}%`}><input type="range" min="0" max="100" value={watermarkOpacity} onChange={(event) => setWatermarkOpacity(Number(event.target.value))}/></Field><Field label="Size" value={`${watermarkSize}px`}><input type="range" min="8" max="240" value={watermarkSize} onChange={(event) => setWatermarkSize(Number(event.target.value))}/></Field><Field label="Padding" value={`${watermarkPadding}px`}><input type="range" min="0" max="200" value={watermarkPadding} onChange={(event) => setWatermarkPadding(Number(event.target.value))}/></Field><Field label="Rotation" value={`${watermarkRotation}°`}><input type="range" min="-180" max="180" value={watermarkRotation} onChange={(event) => setWatermarkRotation(Number(event.target.value))}/></Field></>}{mode === 'metadata' && <p className="option-help">Re-encoding removes embedded metadata while keeping the image in its current format.</p>}{mode === 'favicon' && <><Field label="Crop behavior"><select aria-label="Crop behavior" value={fit} onChange={(event) => setFit(event.target.value as FaviconFit)}><option value="cover">Cover</option><option value="contain">Contain</option></select></Field><p className="option-help">{fit === 'cover' ? 'Cover fills each square and may crop the edges. Transparent pixels stay transparent.' : 'Contain fits the whole image inside each square. Unused space stays transparent.'}</p></>}{format === 'image/jpeg' && mode !== 'favicon' && <p className="option-help">Transparent areas are filled with white for JPG output.</p>}{mode !== 'compress' && mode !== 'favicon' && <><label className="check-row"><input type="checkbox" checked={autoOptimize} onChange={(event) => { setAutoOptimize(event.target.checked); clearResult(); setStatus('ready') }}/>Auto optimize output</label>{autoOptimize && <div className="segmented" role="group" aria-label="Auto optimize output">{(['auto', 'lossless', 'strong'] as const).map((value) => <button key={value} type="button" className={optimizeMode === value ? 'active' : ''} aria-pressed={optimizeMode === value} onClick={() => { setOptimizeMode(value); clearResult(); setStatus('ready') }}>{value === 'auto' ? 'Auto' : value === 'lossless' ? 'Lossless' : 'Strong'}</button>)}</div>}</>}{status === 'processing' && <ProcessingProgressPanel stage={processStage} title={mode === 'compress' ? 'Compressing image...' : 'Processing...'} percent={processPercent} />}{status === 'failed' && mode === 'compress' && <ProcessingProgressPanel stage="failed" title="Compression failed" detail={error || 'Compression failed'} />}{status === 'failed' && mode !== 'compress' && <ProcessingProgressPanel stage="failed" title="Processing failed" detail={error || 'Processing failed'} />}<button className={`button ${status === 'completed' ? 'success' : 'primary'} action-button`} type="button" disabled={status === 'processing' || (mode === 'watermark' && !watermark.trim())} onClick={() => void run()}>{status === 'processing' ? (mode === 'compress' ? 'Compressing...' : 'Processing...') : status === 'completed' ? 'Process again' : status === 'failed' ? 'Try again' : action}</button>{error && status !== 'failed' && <p className="field-error" role="alert">{error}</p>}{mode === 'compress' && result && file && <CompressOutcome originalSize={file.size} compressedSize={result.blob.size} savedBytes={savedBytes} savedPct={savedPct} durationMs={result.durationMs} recommendWebp={Boolean(result.recommendWebp)}/>}{result && mode !== 'compress' && mode !== 'favicon' && <dl className="result-stats"><div><dt>Generated size</dt><dd>{formatBytes(result.originalSize)}</dd></div><div><dt>Optimized size</dt><dd>{formatBytes(result.optimizedSize)}</dd></div>{result.originalSize > result.optimizedSize && <div><dt>Saved</dt><dd>{Math.round((1 - result.optimizedSize / result.originalSize) * 100)}%</dd></div>}</dl>}{result?.recommendWebp && mode !== 'compress' && <p className="option-help">Need an even smaller file? <LocaleLink to="/$tool" params={{ tool: 'png-to-webp' }}>Convert this photo to WebP.</LocaleLink></p>}{pack && <><a className="button secondary action-button" href={pack.zipUrl} download={pack.zipName}><Download size={17}/> Download ZIP pack</a><p className="option-help">The pack includes PNG sizes plus favicon.ico. Transparency is preserved.</p><div className="favicon-downloads">{pack.files.map((entry) => <a key={entry.filename} className="button ghost" href={entry.url} download={entry.filename}>{entry.filename}</a>)}</div><label className="field"><span>HTML snippet</span><textarea aria-label="HTML snippet" readOnly rows={7} value={pack.html}/></label><div className="button-row favicon-copy"><CopyButton value={pack.html}/></div></>}</div></div>}</section>
 }
 
 function Field({ label, value, children }: { label: string; value?: string; children: ReactNode }) {
@@ -384,6 +441,8 @@ function CompressOutcome({
   recommendWebp: boolean
 }) {
   return <div className="compress-result">
+    <strong className="compress-complete"><CheckCircle2 size={18} aria-hidden="true" /> Compression complete</strong>
+    <p>100%</p>
     <strong>{savedPct > 0 ? `${savedPct}% smaller` : 'Already optimized'}</strong>
     <p>{formatBytes(originalSize)} → {formatBytes(compressedSize)}</p>
     <dl className="result-stats">
@@ -392,7 +451,6 @@ function CompressOutcome({
       <div><dt>Saved</dt><dd>{formatBytes(savedBytes)} ({savedPct}%)</dd></div>
       <div><dt>Processing time</dt><dd>{Math.round(durationMs)} ms</dd></div>
     </dl>
-    <p className="option-help" aria-live="polite">Auto-downloading your compressed image...</p>
     {recommendWebp && <p className="option-help">Need an even smaller file? <LocaleLink to="/$tool" params={{ tool: 'png-to-webp' }}>Convert this photo to WebP.</LocaleLink></p>}
   </div>
 }
