@@ -1,13 +1,10 @@
 import { assertValidImageSize } from '@/features/image/image-utils'
-import { reportProcessStage, reportProcessTask } from './process-stage'
+import { createWorkReporter, type WorkReporter } from './process-stage'
 import type { ProcessingProgress } from '@/processing/types/processing'
 import {
-  collectUniquePalette,
-  countUniqueColors,
   decodePngRgba,
-  encodePngIndexed,
-  encodePngRgba,
-  mapRgbaToIndices,
+  encodePngIndexedProgress,
+  encodePngRgbaProgress,
   nearestPaletteIndex,
   pngHasAnimation,
   readPngSize,
@@ -49,62 +46,58 @@ const PHOTO_UNIQUE_LIMIT = 4096
 export async function compressPng(bytes: Uint8Array, options: { mode?: PngCompressMode; onProgress?: (progress: ProcessingProgress) => void } = {}): Promise<PngCompressResult> {
   const mode = options.mode ?? 'balanced'
   const originalSize = bytes.byteLength
-  const report = options.onProgress
-  await reportProcessStage(report, 'preparing', 0)
+  const reporter = createWorkReporter(options.onProgress)
+  reporter.setPlan(1)
+  await reporter.setPhase('preparing', 'Preparing image...')
   const stripped = stripPngMetadata(bytes)
   if (pngHasAnimation(bytes)) {
     const size = readPngSize(bytes)
-    await reportProcessStage(report, 'preparing', 1)
-    await reportProcessStage(report, 'finalizing', 1)
+    await reporter.complete()
     return summarize(bytes, pickSmaller(bytes, stripped), originalSize, size.width, size.height, false, false, false)
   }
   const image = decodePngRgba(bytes)
   assertValidImageSize(image.width, image.height)
-  await reportProcessStage(report, 'preparing', 1)
-  const exactPalette = collectUniquePalette(image.rgba)
-  const compressSteps = exactPalette ? 2 : 1
-  await reportProcessStage(report, 'compressing', 0)
+  const height = image.height
+  const quantizeCounts = mode === 'strong' ? [256, 128, 64] : mode === 'lossless' ? [] : [256]
+  const quantizePasses = quantizeCounts.length
+  reporter.setPlan(4 + 4 * height + quantizePasses * (5 * height + 2))
+  await reporter.add(1)
+  const exactPalette = await analyzeColors(image, reporter)
   const candidates: Candidate[] = [
     { bytes, quantized: false },
     { bytes: stripped, quantized: false },
-    { bytes: encodePngRgba(image), quantized: false },
+    { bytes: await encodeRgbaCandidate(image, reporter), quantized: false },
   ]
-  await reportProcessTask(report, 'compressing', 1, compressSteps)
   if (exactPalette) {
-    candidates.push({
-      bytes: encodePngIndexed(image.width, image.height, mapRgbaToIndices(image.rgba, exactPalette), exactPalette),
-      quantized: false,
-    })
-    await reportProcessTask(report, 'compressing', 2, compressSteps)
-  } else if (mode !== 'lossless') {
-    const counts = mode === 'strong' ? [256, 128, 64] : [256]
-    await reportProcessStage(report, 'optimizing', 0)
-    let done = 0
-    for (const colors of counts) {
-      const palette = medianCutPalette(image.rgba, colors)
-      if (palette.length >= 2) {
-        const unditheredError = paletteError(image.rgba, palette)
-        const skipStrong = mode === 'strong' && colors < 256 && unditheredError > 40
-        const skipBalanced = mode === 'balanced' && unditheredError > 28 && countUniqueColors(image.rgba, 1024) <= 1024
-        if (!skipStrong && !skipBalanced) {
-          const dither = unditheredError > 6
-          const indices = dither
-            ? ditherToPalette(image, palette)
-            : mapRgbaToIndices(image.rgba, palette)
-          candidates.push({
-            bytes: encodePngIndexed(image.width, image.height, indices, palette),
-            quantized: true,
-          })
-        }
+    const indices = await mapPixels(image, exactPalette, reporter)
+    candidates.push({ bytes: await encodeIndexedCandidate(image, indices, exactPalette, reporter), quantized: false })
+  } else {
+    for (const colors of quantizeCounts) {
+      const palette = await medianCutPalette(image, colors, reporter)
+      if (palette.length < 2) {
+        await reporter.add(height + height + height + height + 1)
+        continue
       }
-      done += 1
-      await reportProcessTask(report, 'optimizing', done, counts.length)
+      const unditheredError = await measurePaletteError(image, palette, reporter)
+      const skipLowColorStrong = mode === 'strong' && colors < 256 && unditheredError > 40
+      if (skipLowColorStrong) {
+        await reporter.add(height + height + height + 1)
+        continue
+      }
+      const indices = await mapPixels(image, palette, reporter)
+      candidates.push({ bytes: await encodeIndexedCandidate(image, indices, palette, reporter), quantized: true })
+      if (unditheredError > 6) {
+        const dithered = await ditherToPalette(image, palette, reporter)
+        candidates.push({ bytes: await encodeIndexedCandidate(image, dithered, palette, reporter), quantized: true })
+      } else {
+        await reporter.add(height + height + 1)
+      }
     }
   }
-  await reportProcessStage(report, 'finalizing', 0)
+  await reporter.setPhase('finalizing', 'Optimizing result...')
   const best = pickBest(candidates, originalSize)
-  const unique = countUniqueColors(image.rgba, PHOTO_UNIQUE_LIMIT)
-  await reportProcessStage(report, 'finalizing', 1)
+  const unique = await countUniqueLive(image, reporter)
+  await reporter.complete()
   return summarize(
     bytes,
     best.bytes,
@@ -116,6 +109,95 @@ export async function compressPng(bytes: Uint8Array, options: { mode?: PngCompre
     image.hasAlpha,
   )
 }
+
+async function analyzeColors(image: PngRgbaImage, reporter: WorkReporter): Promise<PngPaletteColor[] | null> {
+  await reporter.setPhase('compressing', 'Analyzing colors...')
+  const { width, height, rgba } = image
+  const map = new Map<number, PngPaletteColor>()
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = (y * width + x) * 4
+      const r = rgba[index] ?? 0
+      const g = rgba[index + 1] ?? 0
+      const b = rgba[index + 2] ?? 0
+      const a = rgba[index + 3] ?? 255
+      const key = r << 24 | g << 16 | b << 8 | a
+      if (!map.has(key)) {
+        if (map.size === 256) {
+          await reporter.tickRows(y, height)
+          await reporter.add(height - 1 - y)
+          return null
+        }
+        map.set(key, { r, g, b, a })
+      }
+    }
+    await reporter.tickRows(y, height)
+  }
+  return [...map.values()]
+}
+
+async function encodeRgbaCandidate(image: PngRgbaImage, reporter: WorkReporter): Promise<Uint8Array> {
+  await reporter.setPhase('compressing', 'Encoding PNG...')
+  const bytes = await encodePngRgbaProgress(image, {
+    onFilterRow: (row, rows) => reporter.tickRows(row, rows),
+    onBeforeDeflate: () => reporter.setPhase('compressing', 'Encoding PNG...'),
+  })
+  await reporter.add(1)
+  return bytes
+}
+
+async function encodeIndexedCandidate(
+  image: PngRgbaImage,
+  indices: Uint8Array,
+  palette: readonly PngPaletteColor[],
+  reporter: WorkReporter,
+): Promise<Uint8Array> {
+  await reporter.setPhase('optimizing', 'Encoding PNG...')
+  const bytes = await encodePngIndexedProgress(image.width, image.height, indices, palette, {
+    onFilterRow: (row, rows) => reporter.tickRows(row, rows),
+    onBeforeDeflate: () => reporter.setPhase('optimizing', 'Encoding PNG...'),
+  })
+  await reporter.add(1)
+  return bytes
+}
+
+async function mapPixels(image: PngRgbaImage, palette: readonly PngPaletteColor[], reporter: WorkReporter): Promise<Uint8Array> {
+  await reporter.setPhase('optimizing', 'Mapping pixels...')
+  const { width, height, rgba } = image
+  const lookup = new Map<number, number>()
+  palette.forEach((color, index) => {
+    lookup.set(color.r << 24 | color.g << 16 | color.b << 8 | color.a, index)
+  })
+  const indices = new Uint8Array(width * height)
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = (y * width + x) * 4
+      const key = (rgba[index] ?? 0) << 24 | (rgba[index + 1] ?? 0) << 16 | (rgba[index + 2] ?? 0) << 8 | (rgba[index + 3] ?? 255)
+      indices[y * width + x] = lookup.get(key) ?? nearestPaletteIndex(rgba[index] ?? 0, rgba[index + 1] ?? 0, rgba[index + 2] ?? 0, rgba[index + 3] ?? 255, palette)
+    }
+    await reporter.tickRows(y, height)
+  }
+  return indices
+}
+
+async function countUniqueLive(image: PngRgbaImage, reporter: WorkReporter): Promise<number> {
+  const { width, height, rgba } = image
+  const seen = new Set<number>()
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = (y * width + x) * 4
+      seen.add((rgba[index] ?? 0) << 24 | (rgba[index + 1] ?? 0) << 16 | (rgba[index + 2] ?? 0) << 8 | (rgba[index + 3] ?? 255))
+      if (seen.size > PHOTO_UNIQUE_LIMIT) {
+        await reporter.tickRows(y, height)
+        await reporter.add(height - 1 - y)
+        return PHOTO_UNIQUE_LIMIT + 1
+      }
+    }
+    await reporter.tickRows(y, height)
+  }
+  return seen.size
+}
+
 
 function summarize(
   original: Uint8Array,
@@ -157,17 +239,23 @@ function pickSmaller(first: Uint8Array, second: Uint8Array): Uint8Array {
   return second.byteLength < first.byteLength ? second : first
 }
 
-function medianCutPalette(rgba: Uint8Array, maxColors: number): PngPaletteColor[] {
+async function medianCutPalette(image: PngRgbaImage, maxColors: number, reporter: WorkReporter): Promise<PngPaletteColor[]> {
+  await reporter.setPhase('optimizing', 'Quantizing colors...')
+  const { width, height, rgba } = image
   const histogram = new Map<number, HistColor>()
-  for (let index = 0; index < rgba.length; index += 4) {
-    const r = rgba[index] ?? 0
-    const g = rgba[index + 1] ?? 0
-    const b = rgba[index + 2] ?? 0
-    const a = rgba[index + 3] ?? 255
-    const key = r << 24 | g << 16 | b << 8 | a
-    const existing = histogram.get(key)
-    if (existing) existing.count += 1
-    else histogram.set(key, { r, g, b, a, count: 1 })
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = (y * width + x) * 4
+      const r = rgba[index] ?? 0
+      const g = rgba[index + 1] ?? 0
+      const b = rgba[index + 2] ?? 0
+      const a = rgba[index + 3] ?? 255
+      const key = r << 24 | g << 16 | b << 8 | a
+      const existing = histogram.get(key)
+      if (existing) existing.count += 1
+      else histogram.set(key, { r, g, b, a, count: 1 })
+    }
+    await reporter.tickRows(y, height)
   }
   let colors = [...histogram.values()]
   if (colors.length > 32_768) {
@@ -184,6 +272,7 @@ function medianCutPalette(rgba: Uint8Array, maxColors: number): PngPaletteColor[
     }
     colors = [...reduced.values()]
   }
+  await reporter.add(1)
   if (colors.length <= maxColors) return colors.map(({ r, g, b, a }) => ({ r, g, b, a }))
   const boxes: HistColor[][] = [colors]
   while (boxes.length < maxColors) {
@@ -274,23 +363,31 @@ function averageBox(box: readonly HistColor[]): PngPaletteColor {
   }
 }
 
-function paletteError(rgba: Uint8Array, palette: readonly PngPaletteColor[]): number {
-  if (rgba.length === 0) return 0
+async function measurePaletteError(image: PngRgbaImage, palette: readonly PngPaletteColor[], reporter: WorkReporter): Promise<number> {
+  const { width, height, rgba } = image
+  if (rgba.length === 0) {
+    await reporter.add(height || 1)
+    return 0
+  }
   let total = 0
-  const pixels = rgba.length / 4
-  for (let index = 0; index < rgba.length; index += 4) {
-    const nearest = palette[nearestPaletteIndex(rgba[index] ?? 0, rgba[index + 1] ?? 0, rgba[index + 2] ?? 0, rgba[index + 3] ?? 255, palette)]
-    if (!nearest) continue
-    total += Math.abs((rgba[index] ?? 0) - nearest.r)
-      + Math.abs((rgba[index + 1] ?? 0) - nearest.g)
-      + Math.abs((rgba[index + 2] ?? 0) - nearest.b)
-      + Math.abs((rgba[index + 3] ?? 255) - nearest.a)
+  const pixels = width * height
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = (y * width + x) * 4
+      const nearest = palette[nearestPaletteIndex(rgba[index] ?? 0, rgba[index + 1] ?? 0, rgba[index + 2] ?? 0, rgba[index + 3] ?? 255, palette)]
+      if (!nearest) continue
+      total += Math.abs((rgba[index] ?? 0) - nearest.r)
+        + Math.abs((rgba[index + 1] ?? 0) - nearest.g)
+        + Math.abs((rgba[index + 2] ?? 0) - nearest.b)
+        + Math.abs((rgba[index + 3] ?? 255) - nearest.a)
+    }
+    await reporter.tickRows(y, height)
   }
   return total / pixels / 4
 }
 
-
-function ditherToPalette(image: PngRgbaImage, palette: readonly PngPaletteColor[]): Uint8Array {
+async function ditherToPalette(image: PngRgbaImage, palette: readonly PngPaletteColor[], reporter: WorkReporter): Promise<Uint8Array> {
+  await reporter.setPhase('optimizing', 'Mapping pixels...')
   const { width, height, rgba } = image
   const indices = new Uint8Array(width * height)
   const current = new Int16Array(width * 4)
@@ -319,6 +416,7 @@ function ditherToPalette(image: PngRgbaImage, palette: readonly PngPaletteColor[
     }
     current.set(next)
     next.fill(0)
+    await reporter.tickRows(y, height)
   }
   return indices
 }

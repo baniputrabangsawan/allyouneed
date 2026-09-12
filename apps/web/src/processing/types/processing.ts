@@ -13,6 +13,7 @@ export type ProcessingStatus =
 export interface ProcessingProgress {
   progress: number | null
   stage?: string
+  label?: string
   current?: number
   total?: number
 }

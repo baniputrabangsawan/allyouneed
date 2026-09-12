@@ -152,7 +152,7 @@ export function wrapMemeText(measure: { measureText(text: string): { width: numb
 }
 
 export function drawMemeLayers(
-  context: CanvasRenderingContext2D,
+  context: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
   canvas: { width: number; height: number },
   layers: readonly MemeTextLayer[],
 ): void {

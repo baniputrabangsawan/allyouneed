@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, ty
 import { ImageResultPreview } from '@/features/image/ImageResultPreview'
 import { SharedImageUpload } from '@/features/image/SharedImageUpload'
 import { ProcessingProgressPanel } from '@/features/workspaces/processing-progress'
-import { withProcessStages, type ProcessStage } from '@/processing/client/process-stage'
+import { useImageProcessor } from '@/processing/client/use-image-processor'
 import {
   addMemeLayer,
   createMemeLayer,
@@ -21,7 +21,6 @@ import {
   type MemeTextLayer,
 } from '@/features/image/meme-utils'
 import { formatBytes, outputFilename } from '@/lib/format'
-import { renderMeme } from '@/processing/client/meme'
 import { type ImageOptimizeMode } from '@/processing/client/image-optimize'
 
 interface MemeResult {
@@ -48,7 +47,7 @@ export function MemeWorkspace() {
   const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null)
   const selectionRef = useRef(0)
   const runningRef = useRef(false)
-  const [processStage, setProcessStage] = useState<ProcessStage>('preparing')
+  const processor = useImageProcessor()
   const [file, setFile] = useState<File | null>(null)
   const [sourceUrl, setSourceUrl] = useState('')
   const [result, setResult] = useState<MemeResult | null>(null)
@@ -190,12 +189,14 @@ export function MemeWorkspace() {
     setError('')
     const startedAt = performance.now()
     try {
-      const output = await withProcessStages(setProcessStage, () => renderMeme(file, layers, {
+      const output = await processor.run({
+        op: 'renderMeme',
+        file,
+        layers,
         format,
         quality: quality / 100,
-        optimize: autoOptimize,
-        optimizeMode,
-      }), { optimize: autoOptimize && format === 'image/png' })
+        optimize: { enabled: autoOptimize, mode: optimizeMode },
+      })
       if (selection !== selectionRef.current) return
       clearResult()
       const url = URL.createObjectURL(output.blob)
@@ -215,7 +216,7 @@ export function MemeWorkspace() {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Meme rendering failed.')
       setStatus('failed')
-      setProcessStage('failed')
+      processor.setStage('failed')
     } finally {
       runningRef.current = false
     }
@@ -279,8 +280,7 @@ export function MemeWorkspace() {
                 <strong>{file.name}</strong>
                 <small>
                   {formatBytes(file.size)}
-                  {naturalWidth ? ` · ${naturalWidth}×${naturalHeight}px` : ''}
-                  {result ? ` -> ${formatBytes(result.blob.size)} · ${result.width}×${result.height}px · ${Math.round(result.durationMs)} ms` : ''}
+                  {naturalWidth ? ` · ${naturalWidth}×${naturalHeight}` : ''}
                 </small>
               </span>
             </div>
@@ -383,7 +383,7 @@ export function MemeWorkspace() {
                 ))}
               </div>
             )}
-            {status === 'processing' && <ProcessingProgressPanel stage={processStage} title="Processing image..." />}
+            {status === 'processing' && <ProcessingProgressPanel stage={processor.stage} title="Processing image..." percent={processor.percent} />}
             {status === 'failed' && <ProcessingProgressPanel stage="failed" title="Processing failed" detail={error || 'Processing failed'} />}
             <button className={`button ${status === 'completed' ? 'success' : 'primary'} action-button`} type="button" disabled={status === 'processing' || !hasMemeText(layers)} onClick={() => void run()}>
               {status === 'processing' ? 'Rendering...' : status === 'completed' ? 'Generate again' : status === 'failed' ? 'Try again' : 'Generate meme'}

@@ -1,4 +1,5 @@
 import type { ProcessingProgress } from '@/processing/types/processing'
+import type { AnyCanvas } from './canvas-utils'
 import { canvasToBlob, type ImageFormat } from './image'
 import { compressPng, type PngCompressMode } from './png-compress'
 
@@ -71,9 +72,7 @@ export async function optimizeImageOutput(source: Blob, options: ImageOptimizeOp
     const outer = options.onProgress
     const result = await compressPng(new Uint8Array(await source.arrayBuffer()), {
       mode: pngModeFromOptimize(mode),
-      ...(outer ? {
-        onProgress: (progress: ProcessingProgress) => outer({ ...progress, progress: null }),
-      } : {}),
+      ...(outer ? { onProgress: outer } : {}),
     })
     const compressed = new Blob([result.bytes.slice()], { type: 'image/png' })
     const blob = pickSmaller(source, compressed)
@@ -95,9 +94,9 @@ export async function optimizeImageOutput(source: Blob, options: ImageOptimizeOp
 }
 
 export async function exportCanvasImage(
-  canvas: HTMLCanvasElement,
+  canvas: AnyCanvas,
   mime: ImageFormat,
-  options: { enabled?: boolean; mode?: ImageOptimizeMode; quality?: number } = {},
+  options: { enabled?: boolean; mode?: ImageOptimizeMode; quality?: number; onProgress?: (progress: ProcessingProgress) => void } = {},
 ): Promise<OptimizedImage> {
   const mode = options.mode ?? 'auto'
   const quality = mime === 'image/png' ? 1 : (options.quality ?? rasterEncodeQuality(mime, mode))
@@ -108,5 +107,6 @@ export async function exportCanvasImage(
     width: canvas.width,
     height: canvas.height,
     ...(options.enabled === undefined ? {} : { enabled: options.enabled }),
+    ...(options.onProgress ? { onProgress: options.onProgress } : {}),
   })
 }

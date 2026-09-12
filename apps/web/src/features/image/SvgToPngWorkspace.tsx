@@ -211,7 +211,7 @@ export function SvgToPngWorkspace() {
                 <strong>{file.name}</strong>
                 <small>
                   {formatBytes(file.size)}
-                  {result ? ` -> ${formatBytes(result.blob.size)} · ${result.width}×${result.height}px · ${Math.round(result.durationMs)} ms` : ` · ${naturalWidth}×${naturalHeight}px`}
+                  {naturalWidth ? ` · ${naturalWidth}×${naturalHeight}` : ''}
                 </small>
               </span>
             </div>

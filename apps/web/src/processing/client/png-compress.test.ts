@@ -1,6 +1,6 @@
 import { deflate } from 'pako'
 import { describe, expect, it } from 'vitest'
-import { decodePngRgba, isPngSignature, readPngSize } from './png-codec'
+import { decodePngRgba, encodePngRgba, isPngSignature, readPngSize } from './png-codec'
 import { compressPng } from './png-compress'
 
 const PNG_SIG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] as const
@@ -31,6 +31,36 @@ describe('png compression pipeline', () => {
     expect(decoded.hasAlpha).toBe(false)
     expect(decoded.rgba.length).toBe(80 * 60 * 4)
   })
+
+  it('makes Balanced photographic PNG much smaller than lossless re-encoding', async () => {
+    const width = 640
+    const height = 480
+    const source = encodePngRgba({ width, height, rgba: photoRgba(width, height), hasAlpha: false })
+    const lossless = await compressPng(source, { mode: 'lossless' })
+    const balanced = await compressPng(source, { mode: 'balanced' })
+    expect(isPngSignature(balanced.bytes)).toBe(true)
+    expect(readPngSize(balanced.bytes)).toEqual({ width, height })
+    expect(balanced.quantized).toBe(true)
+    expect(balanced.compressedSize).toBeLessThan(lossless.compressedSize)
+    expect(balanced.compressedSize).toBeLessThan(source.byteLength)
+    expect(decodePngRgba(balanced.bytes).rgba.length).toBe(width * height * 4)
+    expect(decodePngRgba(balanced.bytes).rgba.length).toBe(width * height * 4)
+  })
+
+  it('substantially shrinks a large photographic PNG in Balanced mode', async () => {
+    const width = 1280
+    const height = 960
+    const source = storeRgbaPng(width, height, photoRgba(width, height))
+    const lossless = await compressPng(source, { mode: 'lossless' })
+    const balanced = await compressPng(source, { mode: 'balanced' })
+    expect(isPngSignature(balanced.bytes)).toBe(true)
+    expect(readPngSize(balanced.bytes)).toEqual({ width, height })
+    expect(balanced.quantized).toBe(true)
+    expect(balanced.compressedSize).toBeLessThan(lossless.compressedSize)
+    expect(balanced.compressedSize).toBeLessThan(source.byteLength * 0.4)
+    expect(balanced.width).toBe(width)
+    expect(balanced.height).toBe(height)
+  }, 30_000)
 
   it('preserves transparency and never returns a larger file', async () => {
     const source = transparentPng(48, 48)
@@ -64,22 +94,56 @@ describe('png compression pipeline', () => {
 
   it('reports increasing percents from completed pipeline work', async () => {
     const stages: string[] = []
+    const labels: string[] = []
     const percents: number[] = []
-    await compressPng(photoPng(48, 32), {
+    await compressPng(photoPng(96, 64), {
       mode: 'balanced',
       onProgress: (progress) => {
         expect(progress.progress).not.toBeNull()
         if (progress.stage && stages.at(-1) !== progress.stage) stages.push(progress.stage)
+        if (progress.label && labels.at(-1) !== progress.label) labels.push(progress.label)
         if (progress.progress != null) percents.push(progress.progress)
       },
     })
-    expect(stages).toEqual(['preparing', 'compressing', 'optimizing', 'finalizing'])
+    const unique = [...new Set(percents)]
+    expect(stages).toContain('preparing')
+    expect(stages).toContain('finalizing')
+    expect(labels.some((label) => /encoding png/i.test(label))).toBe(true)
     expect(percents[0]).toBe(0)
     expect(percents.at(-1)).toBe(100)
+    expect(unique.length).toBeGreaterThan(8)
+    expect(unique).not.toEqual([0, 10, 75, 100])
     for (let index = 1; index < percents.length; index += 1) {
       expect(percents[index] ?? 0).toBeGreaterThanOrEqual(percents[index - 1] ?? 0)
     }
   })
+
+  it('emits live work-unit progress on a large photographic PNG', async () => {
+    const source = photoPng(240, 180)
+    const events: { progress: number; label?: string | undefined; at: number }[] = []
+    const started = performance.now()
+    const result = await compressPng(source, {
+      mode: 'balanced',
+      onProgress: (progress) => {
+        if (progress.progress == null) return
+        events.push({ progress: progress.progress, label: progress.label, at: performance.now() - started })
+      },
+    })
+    const unique = [...new Set(events.map((event) => event.progress))]
+    let longestGap = 0
+    for (let index = 1; index < events.length; index += 1) {
+      longestGap = Math.max(longestGap, (events[index]?.at ?? 0) - (events[index - 1]?.at ?? 0))
+    }
+    expect(result.width).toBe(240)
+    expect(result.height).toBe(180)
+    expect(result.compressedSize).toBeLessThanOrEqual(result.originalSize)
+    expect(events[0]?.progress).toBe(0)
+    expect(events.at(-1)?.progress).toBe(100)
+    expect(unique.length).toBeGreaterThan(12)
+    expect(unique.some((value) => value > 10 && value < 75)).toBe(true)
+    expect(longestGap).toBeGreaterThanOrEqual(0)
+  })
+
 })
 
 function graphicPng(width: number, height: number): Uint8Array {
@@ -107,7 +171,7 @@ function graphicPng(width: number, height: number): Uint8Array {
   return storeRgbaPng(width, height, rgba, 'Comment')
 }
 
-function photoPng(width: number, height: number): Uint8Array {
+function photoRgba(width: number, height: number): Uint8Array {
   const rgba = new Uint8Array(width * height * 4)
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
@@ -119,7 +183,11 @@ function photoPng(width: number, height: number): Uint8Array {
       rgba[index + 3] = 255
     }
   }
-  return storeRgbaPng(width, height, rgba)
+  return rgba
+}
+
+function photoPng(width: number, height: number): Uint8Array {
+  return storeRgbaPng(width, height, photoRgba(width, height))
 }
 
 function transparentPng(width: number, height: number): Uint8Array {

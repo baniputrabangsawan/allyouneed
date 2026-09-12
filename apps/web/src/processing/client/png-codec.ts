@@ -1,6 +1,7 @@
 import { convertIndexedToRgb, decode, hasPngSignature } from 'fast-png'
 import { deflate } from 'pako'
 import { isPngSignature, readPngSize } from './svg'
+import { forEachRow, type RowProgress } from './process-stage'
 
 export { isPngSignature, readPngSize }
 
@@ -130,6 +131,62 @@ export function encodePngIndexed(width: number, height: number, indices: Uint8Ar
   return serializePng(chunks)
 }
 
+export interface PngEncodeProgress {
+  onFilterRow?: RowProgress
+  onBeforeDeflate?: () => void | Promise<void>
+}
+
+export async function encodePngRgbaProgress(image: PngRgbaImage, progress?: PngEncodeProgress): Promise<Uint8Array> {
+  if (image.hasAlpha) return encodeRawProgress(image.width, image.height, image.rgba, 4, progress)
+  const rgb = new Uint8Array(image.width * image.height * 3)
+  for (let index = 0, rgbIndex = 0; index < image.rgba.length; index += 4, rgbIndex += 3) {
+    rgb[rgbIndex] = image.rgba[index] ?? 0
+    rgb[rgbIndex + 1] = image.rgba[index + 1] ?? 0
+    rgb[rgbIndex + 2] = image.rgba[index + 2] ?? 0
+  }
+  if (isGrayscale(image.rgba)) {
+    const gray = new Uint8Array(image.width * image.height)
+    for (let index = 0, pixel = 0; index < image.rgba.length; index += 4, pixel += 1) gray[pixel] = image.rgba[index] ?? 0
+    return encodeRawProgress(image.width, image.height, gray, 1, progress)
+  }
+  return encodeRawProgress(image.width, image.height, rgb, 3, progress)
+}
+
+export async function encodePngIndexedProgress(
+  width: number,
+  height: number,
+  indices: Uint8Array,
+  palette: readonly PngPaletteColor[],
+  progress?: PngEncodeProgress,
+): Promise<Uint8Array> {
+  if (indices.length !== width * height) throw new Error('Indexed PNG data does not match dimensions.')
+  if (palette.length === 0 || palette.length > 256) throw new Error('PNG palette must have 1 to 256 colors.')
+  const plte = new Uint8Array(palette.length * 3)
+  const alpha = new Uint8Array(palette.length)
+  let hasAlpha = false
+  for (let index = 0; index < palette.length; index += 1) {
+    const color = palette[index]
+    if (!color) continue
+    plte[index * 3] = color.r
+    plte[index * 3 + 1] = color.g
+    plte[index * 3 + 2] = color.b
+    alpha[index] = color.a
+    if (color.a !== 255) hasAlpha = true
+  }
+  const extra: PngChunk[] = [{ name: 'PLTE', data: plte }]
+  if (hasAlpha) {
+    let last = alpha.length
+    while (last > 0 && alpha[last - 1] === 255) last -= 1
+    extra.push({ name: 'tRNS', data: alpha.subarray(0, Math.max(1, last)) })
+  }
+  const filtered = await filterRowsProgress(indices, width, height, 1, progress?.onFilterRow)
+  await progress?.onBeforeDeflate?.()
+  extra.push({ name: 'IDAT', data: deflate(filtered, { level: 9 }) })
+  extra.push({ name: 'IEND', data: new Uint8Array(0) })
+  return serializePng([{ name: 'IHDR', data: ihdr(width, height, 3) }, ...extra])
+}
+
+
 export function hasUsefulAlpha(rgba: Uint8Array): boolean {
   for (let index = 3; index < rgba.length; index += 4) if (rgba[index] !== 255) return true
   return false
@@ -237,6 +294,24 @@ function encodeRaw(width: number, height: number, data: Uint8Array, channels: nu
   ])
 }
 
+async function encodeRawProgress(
+  width: number,
+  height: number,
+  data: Uint8Array,
+  channels: number,
+  progress?: PngEncodeProgress,
+): Promise<Uint8Array> {
+  const colorType = channels === 4 ? 6 : channels === 3 ? 2 : channels === 2 ? 4 : 0
+  const filtered = await filterRowsProgress(data, width, height, channels, progress?.onFilterRow)
+  await progress?.onBeforeDeflate?.()
+  return serializePng([
+    { name: 'IHDR', data: ihdr(width, height, colorType) },
+    { name: 'IDAT', data: deflate(filtered, { level: 9 }) },
+    { name: 'IEND', data: new Uint8Array(0) },
+  ])
+}
+
+
 function ihdr(width: number, height: number, colorType: number): Uint8Array {
   const data = new Uint8Array(13)
   const view = new DataView(data.buffer)
@@ -271,6 +346,38 @@ function filterRows(data: Uint8Array, width: number, height: number, bpp: number
   }
   return output
 }
+
+async function filterRowsProgress(
+  data: Uint8Array,
+  width: number,
+  height: number,
+  bpp: number,
+  onRow?: RowProgress,
+): Promise<Uint8Array> {
+  const rowBytes = width * bpp
+  const output = new Uint8Array(height * (rowBytes + 1))
+  const trial = new Uint8Array(rowBytes)
+  const best = new Uint8Array(rowBytes)
+  await forEachRow(height, (row) => {
+    const current = data.subarray(row * rowBytes, (row + 1) * rowBytes)
+    const prev = row === 0 ? null : data.subarray((row - 1) * rowBytes, row * rowBytes)
+    let bestType = 0
+    let bestScore = Infinity
+    for (let type = 0; type < 5; type += 1) {
+      const score = applyFilter(type, current, prev, bpp, trial)
+      if (score < bestScore) {
+        bestScore = score
+        bestType = type
+        best.set(trial)
+      }
+    }
+    const offset = row * (rowBytes + 1)
+    output[offset] = bestType
+    output.set(best, offset + 1)
+  }, onRow)
+  return output
+}
+
 
 function applyFilter(type: number, row: Uint8Array, prev: Uint8Array | null, bpp: number, out: Uint8Array): number {
   let score = 0
