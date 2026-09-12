@@ -5,6 +5,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import get_settings
 from app.core.exceptions import error_response
+from app.security.admin import token_hash
 
 
 class AdminSecurityMiddleware(BaseHTTPMiddleware):
@@ -21,6 +22,29 @@ class AdminSecurityMiddleware(BaseHTTPMiddleware):
                     status.HTTP_403_FORBIDDEN,
                     "ADMIN_FORBIDDEN",
                     "The request origin is not allowed.",
+                )
+            settings = get_settings()
+            session_cookie = request.cookies.get(settings.admin_session_cookie_name)
+            csrf_cookie = request.cookies.get(settings.admin_csrf_cookie_name)
+            csrf_header = request.headers.get("X-CSRF-Token")
+            exempt = request.url.path in {
+                "/api/v1/admin/auth/login",
+                "/api/v1/admin/auth/totp/verify",
+            }
+            if (
+                session_cookie
+                and not exempt
+                and (
+                    not csrf_cookie
+                    or not csrf_header
+                    or token_hash(csrf_cookie) != token_hash(csrf_header)
+                )
+            ):
+                return error_response(
+                    request,
+                    status.HTTP_403_FORBIDDEN,
+                    "CSRF_INVALID",
+                    "The CSRF token is invalid.",
                 )
         response = await call_next(request)
         if is_admin:

@@ -16,7 +16,7 @@ from app.core.enums import JobStatus
 from app.core.exceptions import ApiError
 from app.core.state_machine import TERMINAL, ensure_transition
 from app.processors.base import ProcessingError, ProcessorContext
-from app.processors.media import MEDIA_TOOLS
+from app.processors.media import MEDIA_TOOLS, resolve_audio_convert_format
 from app.processors.registry import IMAGE_TOOLS, PDF_TOOLS, get_processor
 from app.repositories.jobs import JobRepository
 from app.schemas.jobs import CreateJobRequest, Job
@@ -24,6 +24,7 @@ from app.services.entitlement_service import EntitlementService
 from app.services.job_concurrency import JobConcurrencyLimiter, get_job_concurrency_limiter
 from app.services.upload_service import get_upload_service
 from app.tools.registry import Tool, tool_registry
+from app.utils.media_accept import content_type_accepted
 from app.utils.signing import signed_download_path
 from app.utils.temp import cleanup_work_dir, job_work_dir
 
@@ -150,13 +151,16 @@ class JobService:
         content_type: str,
         size: int,
         *,
+        filename: str = "",
         entitlement_token: str | None = None,
         entitlements: EntitlementService | None = None,
     ) -> Tool:
         tool = self._tool(tool_id)
         await self._require_premium(tool, entitlement_token, entitlements)
         maximum = min(tool.max_file_size, get_settings().max_upload_mb * 1024 * 1024)
-        if tool.accepted_mimes and content_type not in tool.accepted_mimes:
+        if tool.accepted_mimes and not content_type_accepted(
+            tool.accepted_mimes, content_type, filename
+        ):
             raise ApiError(
                 status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
                 "UNSUPPORTED_FORMAT",
@@ -326,6 +330,15 @@ class JobService:
                 "VALIDATION_ERROR",
                 "Tool must run client-side.",
             )
+        if tool.id == "audio-converter":
+            try:
+                resolve_audio_convert_format(payload.options)
+            except ProcessingError as exc:
+                raise ApiError(
+                    status.HTTP_422_UNPROCESSABLE_CONTENT,
+                    "UNSUPPORTED_FORMAT",
+                    str(exc),
+                ) from exc
         keys = input_keys(payload.input)
         allow_empty = (tool.id == "text-to-speech" and bool(payload.options.get("text"))) or (
             tool.id == "html-to-image" and bool(str(payload.options.get("html") or "").strip())
@@ -424,6 +437,15 @@ def output_format(tool_id: str, options: dict[str, Any], source: Path) -> tuple[
         extension = "pdf"
     if extension is None and tool_id == "add-subtitle":
         extension = str(options.get("format", "mp4")).split("/")[-1].lower().lstrip(".")
+    if extension is None and tool_id == "audio-converter":
+        try:
+            extension = resolve_audio_convert_format(options).ext
+        except ProcessingError as exc:
+            raise ApiError(
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                "UNSUPPORTED_FORMAT",
+                str(exc),
+            ) from exc
     if extension is None and tool_id in MEDIA_TOOLS:
         extension = str(options.get("format", "mp4" if "video" in tool_id else "mp3")).lstrip(".")
     if extension is None and tool_id in IMAGE_TOOLS:
@@ -438,6 +460,9 @@ def output_format(tool_id: str, options: dict[str, Any], source: Path) -> tuple[
         "mp3",
         "wav",
         "ogg",
+        "m4a",
+        "flac",
+        "opus",
         "mp4",
         "webm",
         "gif",

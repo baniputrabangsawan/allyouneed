@@ -110,19 +110,16 @@ Do not set Output Directory to `apps/web/dist` or `apps/web/dist/client`.
 
 ## Deploy on Cloudflare
 
-Wrangler cannot run from this repo root: it is a pnpm workspace (`apps/web` + `apps/api`). That is the error:
+Workers Builds runs `npx wrangler versions upload` from the repository root. A root `wrangler.jsonc` points at the Cloudflare Vite worker (`apps/web/dist/server/index.js`) and client assets.
 
-`The Cloudflare application detection logic has been run in the root of a workspace`
+In the Cloudflare Worker **Settings → Build**:
 
-In the Cloudflare project (Workers or Pages):
-
-1. **Root directory:** `apps/web` (required)
+1. **Root directory:** leave as the repository root (`.`)
 2. **Build command:** `pnpm build`
-3. **Deploy / Wrangler config:** `apps/web/wrangler.jsonc` (picked up automatically once the root directory is `apps/web`)
-4. **Install command** (if asked): `pnpm install` with “include files outside the root directory” enabled so the workspace lockfile at the repo root is used
+3. **Deploy command:** `npx wrangler deploy` (production) / default `npx wrangler versions upload` (preview)
+4. **Install command** (if asked): `pnpm install`
 
-Then redeploy. Do not leave the working directory as the repository root.
-
+Do not set Root directory to `apps/web` unless you also change the deploy command to `pnpm exec wrangler versions upload` so it uses `apps/web/wrangler.jsonc`.
 
 ### Docker (API)
 
@@ -184,7 +181,15 @@ uv run utility-license revoke KITS-…
 uv run utility-license reset-activations KITS-…
 ```
 
-Admin HTTP routes use the `X-Admin-Key` header (`ADMIN_API_KEY`).
+Admin HTTP routes require the self-hosted owner session. Bootstrap the first owner after running
+the migrations:
+
+```bash
+uv run utility-admin --email owner@example.com
+```
+
+Open `/admin/login`; no admin credential is stored in frontend code or browser storage. See
+`docs/admin-security.md` for TOTP and production setup.
 
 Users paste the key in the UI (**Activate Pro**). Do not put live keys in git.
 
@@ -197,7 +202,8 @@ Copy `.env.example`. Important variables:
 | `VITE_API_BASE_URL` | web | API origin the browser calls |
 | `VITE_APP_URL` | web | Public app URL |
 | `LICENSE_DATABASE_URL` / `DATABASE_URL` | API | License SQLite/Postgres URL |
-| `ADMIN_API_KEY` | API | Admin license endpoints |
+| `ADMIN_TOTP_ENCRYPTION_KEY` | API | Encrypts the owner's TOTP seed |
+| `ADMIN_SESSION_TTL_SECONDS` | API | Finite admin session lifetime |
 | `ENTITLEMENT_PRIVATE_KEY` / `PUBLIC_KEY` | API | Entitlement tokens (generate for anything beyond local play) |
 | `REDIS_URL` | API | Job queue (when not using inline jobs) |
 | `R2_*` | API | Object storage for uploads |

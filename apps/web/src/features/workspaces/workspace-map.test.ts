@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { tools } from '../tools/tool-registry'
 import {
+  AudioConverterWorkspace,
   browserMediaWorkspaceSlugs, colorWorkspaceSlugs, cryptoWorkspaceSlugs, cssWorkspaceSlugs,
   dateTimeWorkspaceSlugs, encodingWorkspaceSlugs, genericTextWorkspaceSlugs, getSpecialWorkspace,
   getWorkspaceComponent, HtmlWorkspace, JavaScriptWorkspace, QrisParserWorkspace, QrWorkspace, randomWorkspaceSlugs, WordCounterWorkspace,
@@ -40,5 +41,7 @@ describe('workspace component mapping', () => {
     expect(getSpecialWorkspace(get('word-counter')!)).toBe(WordCounterWorkspace)
     expect(getSpecialWorkspace(get('qris-payload-parser')!)).toBe(QrisParserWorkspace)
     expect(getSpecialWorkspace(get('basic-background-removal')!)).toBeTypeOf('function')
+    expect(getSpecialWorkspace(get('audio-converter')!)).toBe(AudioConverterWorkspace)
+    expect(getWorkspaceComponent(get('audio-converter')!)).toBe(AudioConverterWorkspace)
   })
 })

@@ -15,6 +15,7 @@ import { JsonWorkspace } from './JsonWorkspace'
 import { QrisParserWorkspace } from './QrisParserWorkspace'
 import { QrWorkspace } from './QrWorkspace'
 import { RandomWorkspace } from './RandomWorkspace'
+import { AudioConverterWorkspace } from './AudioConverterWorkspace'
 import { RemoteFileWorkspace } from './RemoteFileWorkspace'
 import { WordCounterWorkspace } from './WordCounterWorkspace'
 import { XmlWorkspace } from './XmlWorkspace'
@@ -34,6 +35,7 @@ export { JsonWorkspace } from './JsonWorkspace'
 export { QrisParserWorkspace } from './QrisParserWorkspace'
 export { QrWorkspace } from './QrWorkspace'
 export { RandomWorkspace } from './RandomWorkspace'
+export { AudioConverterWorkspace } from './AudioConverterWorkspace'
 export { RemoteFileWorkspace } from './RemoteFileWorkspace'
 export { WordCounterWorkspace } from './WordCounterWorkspace'
 export { XmlWorkspace } from './XmlWorkspace'
@@ -66,6 +68,7 @@ export function getSpecialWorkspace(tool: ToolDefinition): WorkspaceComponent | 
   if (tool.slug === 'html-formatter') return HtmlWorkspace
   if (tool.slug === 'html-to-image') return HtmlToImageWorkspace
   if (tool.slug === 'basic-background-removal') return BasicBackgroundWorkspace
+  if (tool.slug === 'audio-converter') return AudioConverterWorkspace
 }
 
 export function getWorkspaceComponent(tool: ToolDefinition): WorkspaceComponent | undefined {

@@ -40,6 +40,10 @@ export const licenseHeaders = (): HeadersInit => {
   const headers: Record<string, string> = {}
   const token = getStoredEntitlementToken()
   if (token) headers['X-Entitlement-Token'] = token
+  if (typeof document !== 'undefined') {
+    const csrf = document.cookie.split('; ').find((item) => item.startsWith('kits_admin_csrf='))?.split('=')[1]
+    if (csrf) headers['X-CSRF-Token'] = decodeURIComponent(csrf)
+  }
   return headers
 }
 
@@ -82,9 +86,11 @@ const errorPayload = (value: unknown): ApiErrorPayload => {
 }
 
 const urlFor = (baseUrl: string, path: string) => {
-  if (/^https?:\/\//i.test(path)) return path
+  if (/^https?:\/\//i.test(path) || path.startsWith('blob:')) return path
   return `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`
 }
+
+export const resolveApiUrl = (path: string) => urlFor(API_BASE_URL, path)
 
 export const createApiClient = (config: ApiClientConfig = {}): ApiClient => {
   const baseUrl = (config.baseUrl ?? API_BASE_URL).replace(/\/+$/, '')

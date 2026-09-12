@@ -23,10 +23,12 @@ dependencies = [
     "python-multipart>=0.0.12",
     "opencv-python-headless>=4.10,<5",
     "playwright>=1.48.0",
+    "argon2-cffi>=23.1.0",
 ]
 
 [project.scripts]
 utility-license = "app.cli.licenses:main"
+utility-admin = "app.cli.admin:main"
 
 [dependency-groups]
 dev = [

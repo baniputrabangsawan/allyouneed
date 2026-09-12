@@ -1,3 +1,5 @@
+import { fileMatchesMediaAccept } from '@/lib/media/accept'
+
 export const MAX_IMAGE_PIXELS = 40_000_000
 export const MAX_IMAGE_DIMENSION = 16_384
 
@@ -142,16 +144,7 @@ export function watermarkPoint(
 }
 
 export function fileMatchesAccept(file: FileLike, accept: readonly string[]): boolean {
-  if (accept.length === 0) return true
-  const type = file.type.toLowerCase()
-  const name = file.name.toLowerCase()
-  return accept.some((rawRule) => {
-    const rule = rawRule.trim().toLowerCase()
-    if (!rule) return false
-    if (rule.startsWith('.')) return name.endsWith(rule)
-    if (rule.endsWith('/*')) return type.startsWith(rule.slice(0, -1))
-    return type === rule
-  })
+  return fileMatchesMediaAccept(file, accept)
 }
 
 export function validateFiles<T extends FileLike>(

@@ -17,17 +17,30 @@ class AdminRateLimitMiddleware(BaseHTTPMiddleware):
         if not request.url.path.startswith("/api/v1/admin/") or request.method == "OPTIONS":
             return await call_next(request)
 
-        token = request.headers.get("Cf-Access-Jwt-Assertion") or request.cookies.get(
-            "CF_Authorization", "anonymous"
+        token = request.cookies.get(get_settings().admin_session_cookie_name) or (
+            request.client.host if request.client else "anonymous"
         )
         subject = sha256(token.encode()).hexdigest()[:24]
         destructive = request.url.path.endswith(("/revoke", "/reset-activations"))
-        limit = 10 if destructive else 30 if request.method not in {"GET", "HEAD"} else 120
-        window = int(time() // 60)
+        login = request.url.path in {
+            "/api/v1/admin/auth/login",
+            "/api/v1/admin/auth/totp/verify",
+        }
+        limit = (
+            5
+            if login
+            else 10
+            if destructive
+            else 30
+            if request.method not in {"GET", "HEAD"}
+            else 120
+        )
+        window_seconds = 600 if login else 60
+        window = int(time() // window_seconds)
         key = f"admin-rate:{subject}:{request.method}:{window}"
         count = await redis_call("incr", key)
         if count == 1:
-            await redis_call("expire", key, 61)
+            await redis_call("expire", key, window_seconds + 1)
         if count is None and get_settings().app_env == "production":
             return error_response(
                 request,
@@ -42,6 +55,6 @@ class AdminRateLimitMiddleware(BaseHTTPMiddleware):
                 "RATE_LIMITED",
                 "Too many administrative requests. Try again shortly.",
             )
-            response.headers["Retry-After"] = "60"
+            response.headers["Retry-After"] = str(window_seconds)
             return response
         return await call_next(request)

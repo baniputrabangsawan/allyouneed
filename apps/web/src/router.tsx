@@ -1,12 +1,18 @@
 import { createRouter } from '@tanstack/react-router'
 import { QueryClient } from '@tanstack/react-query'
 import { routeTree } from './routeTree.gen'
+import { peekKeepScroll } from '@/lib/motion/restore'
+
+function shouldRestoreScroll({ location }: { location: { hash?: string } }) {
+  if (typeof window !== 'undefined' && peekKeepScroll()) return false
+  return !location.hash && (typeof window === 'undefined' || !window.location.hash)
+}
 
 export function getRouter() {
   const queryClient = new QueryClient()
   return createRouter({
     routeTree,
-    scrollRestoration: ({ location }) => !location.hash && (typeof window === 'undefined' || !window.location.hash),
+    scrollRestoration: shouldRestoreScroll,
     scrollRestorationBehavior: 'instant',
     defaultHashScrollIntoView: { behavior: 'instant', block: 'start' },
     getScrollRestorationKey: (location) => `${location.pathname}${typeof location.searchStr === 'string' ? location.searchStr : ''}`,

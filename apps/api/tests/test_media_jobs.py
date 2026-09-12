@@ -9,9 +9,12 @@ from httpx import AsyncClient
 from app.processors.base import ProcessingError, ProcessorContext
 from app.processors.media import (
     NOISE_REDUCTION_PRESETS,
+    audio_converter_args,
     escape_subtitles_path,
     ffmpeg_args,
+    first_audio_stream,
     noise_reduction_filter,
+    resolve_audio_convert_format,
     stream_types,
 )
 from app.processors.registry import get_processor
@@ -375,3 +378,260 @@ async def test_add_subtitle_job(api: AsyncClient, tmp_path: Path) -> None:
     kinds = stream_types(info)
     assert "video" in kinds
     assert "audio" in kinds
+
+
+def test_audio_converter_args_lossy_and_lossless(tmp_path: Path) -> None:
+    source = tmp_path / "tone.wav"
+    source.write_bytes(b"RIFF")
+    mp3 = audio_converter_args([source], {"format": "mp3", "bitrate": "192k"}, tmp_path / "out.mp3")
+    assert mp3[:8] == ["ffmpeg", "-y", "-i", str(source), "-vn", "-map", "0:a:0", "-c:a"]
+    assert "libmp3lame" in mp3
+    assert "-b:a" in mp3 and mp3[mp3.index("-b:a") + 1] == "192k"
+    wav = audio_converter_args([source], {"format": "wav", "bitrate": "320k"}, tmp_path / "out.wav")
+    assert "pcm_s16le" in wav
+    assert "-b:a" not in wav
+    with pytest.raises(ProcessingError, match="MP3, WAV, M4A"):
+        resolve_audio_convert_format({"format": "wma"})
+
+
+@pytest.mark.skipif(needs_ffmpeg, reason="ffmpeg")
+async def test_audio_converter_preserves_duration_across_formats(tmp_path: Path) -> None:
+    source = tmp_path / "tone.wav"
+    await _make_audio(source)
+    source_duration = duration_seconds(await probe(source))
+    assert source_duration is not None
+    for fmt, codec in (
+        ("mp3", "mp3"),
+        ("flac", "flac"),
+        ("m4a", "aac"),
+        ("ogg", "vorbis"),
+        ("opus", "opus"),
+        ("wav", "pcm_s16le"),
+    ):
+        output = tmp_path / f"out.{fmt if fmt != 'm4a' else 'm4a'}"
+        context = ProcessorContext(
+            job_id=f"job_ac_{fmt}",
+            tool_id="audio-converter",
+            options={"format": fmt, "bitrate": "128k"},
+            work_dir=tmp_path,
+        )
+        result = await get_processor("audio-converter").process([source], output, context=context)
+        assert output.is_file() and output.stat().st_size > 0
+        info = await probe(output)
+        audio = first_audio_stream(info)
+        assert audio is not None
+        assert audio.get("codec_name") == codec
+        duration = duration_seconds(info)
+        assert duration is not None
+        assert abs(duration - source_duration) < 0.15
+        assert result.extension == ("m4a" if fmt == "m4a" else fmt)
+
+
+@pytest.mark.skipif(needs_ffmpeg, reason="ffmpeg")
+async def test_audio_converter_extracts_from_video(tmp_path: Path) -> None:
+    clip = tmp_path / "clip.mp4"
+    await _make_clip(clip)
+    source_duration = duration_seconds(await probe(clip))
+    output = tmp_path / "out.mp3"
+    context = ProcessorContext(
+        job_id="job_ac_video",
+        tool_id="audio-converter",
+        options={"format": "mp3", "bitrate": "192k", "sampleRate": 44100, "channels": 1},
+        work_dir=tmp_path,
+    )
+    await get_processor("audio-converter").process([clip], output, context=context)
+    info = await probe(output)
+    audio = first_audio_stream(info)
+    assert audio is not None
+    assert audio.get("codec_name") == "mp3"
+    assert int(audio.get("sample_rate", 0)) == 44100
+    assert int(audio.get("channels", 0)) == 1
+    assert abs((duration_seconds(info) or 0) - (source_duration or 0)) < 0.15
+
+
+@pytest.mark.skipif(needs_ffmpeg, reason="ffmpeg")
+async def test_audio_converter_rejects_unreadable_and_silent_inputs(tmp_path: Path) -> None:
+    junk = tmp_path / "broken.wav"
+    junk.write_bytes(b"not an audio file")
+    silent = tmp_path / "silent.mp4"
+    await run_command(
+        [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=red:s=64x48:d=0.4",
+            "-an",
+            "-pix_fmt",
+            "yuv420p",
+            str(silent),
+        ]
+    )
+    context = ProcessorContext(
+        job_id="job_ac_bad",
+        tool_id="audio-converter",
+        options={"format": "mp3"},
+        work_dir=tmp_path,
+    )
+    with pytest.raises(ProcessingError, match="could not be read"):
+        await get_processor("audio-converter").process(
+            [junk], tmp_path / "out.mp3", context=context
+        )
+    with pytest.raises(ProcessingError, match="no audio stream"):
+        await get_processor("audio-converter").process(
+            [silent], tmp_path / "silent.mp3", context=context
+        )
+
+
+@pytest.mark.skipif(needs_ffmpeg, reason="ffmpeg")
+async def test_audio_converter_job(api: AsyncClient, tmp_path: Path) -> None:
+    source = tmp_path / "tone.wav"
+    data = await _make_audio(source)
+    source_duration = duration_seconds(await probe(source))
+    file_key = await upload_bytes(
+        api, data, filename="tone.wav", content_type="audio/wav", tool_id="audio-converter"
+    )
+    created = await api.post(
+        "/api/v1/jobs",
+        json={
+            "toolId": "audio-converter",
+            "input": {"fileKey": file_key},
+            "options": {"format": "mp3", "bitrate": "192k"},
+        },
+    )
+    assert created.status_code == 202, created.text
+    job = await _wait_for_job(api, created.json()["data"]["jobId"])
+    assert job["status"] == "completed", job
+    result = await api.get(f"/api/v1/jobs/{job['jobId']}/result")
+    payload = result.json()["data"]["result"]
+    assert payload["filename"].endswith(".mp3")
+    assert payload["outputFormat"] == "mp3"
+    downloaded = await api.get(payload["downloadUrl"])
+    assert downloaded.status_code == 200
+    output = tmp_path / "converted.mp3"
+    output.write_bytes(downloaded.content)
+    info = await probe(output)
+    audio = first_audio_stream(info)
+    assert audio is not None
+    assert audio.get("codec_name") == "mp3"
+    assert abs((duration_seconds(info) or 0) - (source_duration or 0)) < 0.15
+
+
+async def test_audio_converter_rejects_unknown_format(api: AsyncClient, tmp_path: Path) -> None:
+    source = tmp_path / "tone.wav"
+    if needs_ffmpeg:
+        pytest.skip("ffmpeg")
+    data = await _make_audio(source)
+    file_key = await upload_bytes(
+        api, data, filename="tone.wav", content_type="audio/wav", tool_id="audio-converter"
+    )
+    created = await api.post(
+        "/api/v1/jobs",
+        json={
+            "toolId": "audio-converter",
+            "input": {"fileKey": file_key},
+            "options": {"format": "wma"},
+        },
+    )
+    assert created.status_code == 422
+    assert created.json()["error"]["code"] == "UNSUPPORTED_FORMAT"
+
+
+async def _make_audio_webm(path: Path) -> bytes:
+    await run_command(
+        [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440:duration=0.3",
+            "-c:a",
+            "libopus",
+            str(path),
+        ]
+    )
+    return path.read_bytes()
+
+
+async def _make_video_only_webm(path: Path) -> bytes:
+    await run_command(
+        [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=red:s=32x32:d=0.2",
+            "-an",
+            "-c:v",
+            "libvpx",
+            "-b:v",
+            "50k",
+            str(path),
+        ]
+    )
+    return path.read_bytes()
+
+
+@pytest.mark.skipif(needs_ffmpeg, reason="ffmpeg")
+async def test_noise_reduction_accepts_audio_only_webm(api: AsyncClient, tmp_path: Path) -> None:
+    source = tmp_path / "recording.webm"
+    data = await _make_audio_webm(source)
+    info = await probe(source)
+    assert first_audio_stream(info) is not None
+    file_key = await upload_bytes(
+        api,
+        data,
+        filename="recording-20260911-180608.webm",
+        content_type="video/webm;codecs=opus",
+        tool_id="noise-reduction",
+    )
+    created = await api.post(
+        "/api/v1/jobs",
+        json={
+            "toolId": "noise-reduction",
+            "input": {"fileKey": file_key},
+            "options": {"strength": "medium"},
+        },
+    )
+    assert created.status_code == 202, created.text
+    job = await _wait_for_job(api, str(created.json()["data"]["jobId"]))
+    assert job["status"] == "completed"
+
+
+@pytest.mark.skipif(needs_ffmpeg, reason="ffmpeg")
+async def test_noise_reduction_rejects_video_only_webm(tmp_path: Path) -> None:
+    source = tmp_path / "silent.webm"
+    await _make_video_only_webm(source)
+    output = tmp_path / "out.mp3"
+    context = ProcessorContext(
+        job_id="job_no_audio",
+        tool_id="noise-reduction",
+        options={"strength": "medium"},
+        work_dir=tmp_path,
+    )
+    try:
+        await get_processor("noise-reduction").process([source], output, context=context)
+        raise AssertionError("expected missing audio stream")
+    except ProcessingError as exc:
+        assert exc.code == "AUDIO_STREAM_NOT_FOUND"
+
+
+@pytest.mark.skipif(needs_ffmpeg, reason="ffmpeg")
+async def test_video_compressor_rejects_audio_only_webm(tmp_path: Path) -> None:
+    source = tmp_path / "recording.webm"
+    await _make_audio_webm(source)
+    output = tmp_path / "out.mp4"
+    context = ProcessorContext(
+        job_id="job_no_video",
+        tool_id="video-compressor",
+        options={},
+        work_dir=tmp_path,
+    )
+    try:
+        await get_processor("video-compressor").process([source], output, context=context)
+        raise AssertionError("expected missing video stream")
+    except ProcessingError as exc:
+        assert exc.code == "VIDEO_STREAM_NOT_FOUND"

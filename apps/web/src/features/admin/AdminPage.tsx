@@ -1,16 +1,21 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Activity, Clipboard, FileClock, KeyRound, LayoutDashboard, LogOut, Plus, Search, ShieldCheck, X } from 'lucide-react'
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { ApiError } from '@/lib/api/client'
 import {
   createAdminLicense,
+  changeAdminPassword,
+  confirmAdminTotp,
+  disableAdminTotp,
   getAdminIdentity,
   getAdminOverview,
   getAdminSystemHealth,
   listAdminAudit,
   listAdminLicenses,
   mutateAdminLicense,
+  logoutAdmin,
+  setupAdminTotp,
   type AdminDisplayStatus,
   type AdminLicense,
   type DurationMonths,
@@ -30,22 +35,25 @@ const displayStatus = (license: AdminLicense): AdminDisplayStatus => license.sta
 const errorMessage = (error: unknown) => error instanceof ApiError ? error.message : 'The request could not be completed.'
 
 export function AdminPage({ view }: { view: AdminView }) {
-  const identity = useQuery({ queryKey: ['admin', 'identity'], queryFn: () => getAdminIdentity() })
+  const navigate = useNavigate()
+  const identity = useQuery({ queryKey: ['admin', 'identity'], queryFn: () => getAdminIdentity(), retry: false })
+  const logout = useMutation({ mutationFn: () => logoutAdmin(), onSuccess: () => void navigate({ to: '/admin/login' }) })
+  useEffect(() => { if (identity.isError) void navigate({ to: '/admin/login', replace: true }) }, [identity.isError, navigate])
   return <div className="admin-app">
     <aside className="admin-sidebar">
       <Link to="/admin" className="admin-brand"><span><ShieldCheck size={18} /></span><strong>Kits</strong><small>Admin</small></Link>
       <nav aria-label="Admin navigation">{nav.map(([key, to, Icon]) => <Link key={key} to={to} className={view === key ? 'active' : ''}><Icon size={17} />{labels[key]}</Link>)}</nav>
-      <div className="admin-identity"><span>Signed in as</span><strong>{identity.data?.email ?? 'Verifying identity...'}</strong>{identity.data && <a href={identity.data.logoutUrl}><LogOut size={15} />Sign out</a>}</div>
+      <div className="admin-identity"><span>Signed in as</span><strong>{identity.data?.email ?? 'Checking session...'}</strong>{identity.data && <button type="button" onClick={() => logout.mutate()}><LogOut size={15} />Sign out</button>}</div>
     </aside>
     <main className="admin-main">
-      <header className="admin-topbar"><div><p className="eyebrow">Owner operations</p><h1>{labels[view]}</h1></div><span className="admin-verified"><ShieldCheck size={15} /> Access verified</span></header>
+      <header className="admin-topbar"><div><p className="eyebrow">Owner operations</p><h1>{labels[view]}</h1></div><span className="admin-verified"><ShieldCheck size={15} /> Admin session active</span></header>
       {identity.isError ? <AccessDenied error={identity.error} /> : identity.isPending ? <Loading /> : view === 'overview' ? <Overview /> : view === 'licenses' ? <Licenses /> : view === 'audit' ? <Audit /> : <System />}
     </main>
   </div>
 }
 
 function Loading() { return <div className="admin-state" aria-live="polite">Loading secure workspace...</div> }
-function AccessDenied({ error }: { error: unknown }) { return <div className="admin-state" role="alert"><ShieldCheck size={28} /><h2>Access denied</h2><p>{errorMessage(error)}</p></div> }
+function AccessDenied({ error }: { error: unknown }) { return <div className="admin-state" role="alert"><ShieldCheck size={28} /><h2>Admin access unavailable</h2><p>{errorMessage(error)}</p></div> }
 
 function Overview() {
   const query = useQuery({ queryKey: ['admin', 'overview'], queryFn: () => getAdminOverview() })
@@ -108,12 +116,28 @@ function Audit() {
   const query = useQuery({ queryKey: ['admin', 'audit'], queryFn: () => listAdminAudit() })
   if (query.isPending) return <Loading />
   if (query.isError) return <AccessDenied error={query.error} />
-  return <div className="admin-table-wrap"><table><thead><tr><th>Action</th><th>Administrator</th><th>License</th><th>Request ID</th><th>Time</th></tr></thead><tbody>{query.data.items.map((event) => <tr key={event.id}><th>{event.action.replaceAll('_', ' ')}</th><td>{event.adminEmail}</td><td><code>{event.targetLicenseId.slice(0, 8)}</code></td><td><code>{event.requestId}</code></td><td><time dateTime={event.at}>{date(event.at)}</time></td></tr>)}</tbody></table></div>
+  return <div className="admin-table-wrap"><table><thead><tr><th>Action</th><th>Administrator</th><th>License</th><th>Request ID</th><th>Time</th></tr></thead><tbody>{query.data.items.map((event) => <tr key={event.id}><th>{event.action.replaceAll('_', ' ')}</th><td>{event.adminEmail}</td><td><code>{event.targetLicenseId?.slice(0, 8) ?? 'Admin'}</code></td><td><code>{event.requestId}</code></td><td><time dateTime={event.at}>{date(event.at)}</time></td></tr>)}</tbody></table></div>
 }
 
 function System() {
+  const identity = useQuery({ queryKey: ['admin', 'identity'], queryFn: () => getAdminIdentity(), retry: false })
   const query = useQuery({ queryKey: ['admin', 'system'], queryFn: () => getAdminSystemHealth(), refetchInterval: 30_000 })
   if (query.isPending) return <Loading />
   if (query.isError) return <AccessDenied error={query.error} />
-  return <div className="admin-health">{Object.entries(query.data).map(([name, state]) => <article key={name}><span>{name}</span><strong className={String(state)}>{String(state)}</strong></article>)}</div>
+  return <><div className="admin-health">{Object.entries(query.data).map(([name, state]) => <article key={name}><span>{name}</span><strong className={String(state)}>{String(state)}</strong></article>)}</div><SecuritySettings totpEnabled={identity.data?.totpEnabled ?? false} /></>
+}
+
+function SecuritySettings({ totpEnabled }: { totpEnabled: boolean }) {
+  const client = useQueryClient()
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [code, setCode] = useState('')
+  const [setup, setSetup] = useState<{ secret: string; provisioningUri: string } | null>(null)
+  const [recovery, setRecovery] = useState<string[]>([])
+  const password = useMutation({ mutationFn: () => changeAdminPassword(currentPassword, newPassword), onSuccess: () => { setCurrentPassword(''); setNewPassword('') } })
+  const startTotp = useMutation({ mutationFn: () => setupAdminTotp(currentPassword), onSuccess: setSetup })
+  const confirmTotp = useMutation({ mutationFn: () => confirmAdminTotp(code), onSuccess: async (result) => { setRecovery(result.recoveryCodes); setSetup(null); setCode(''); await client.invalidateQueries({ queryKey: ['admin', 'identity'] }) } })
+  const disableTotp = useMutation({ mutationFn: () => disableAdminTotp(currentPassword, code), onSuccess: async () => { setCurrentPassword(''); setCode(''); await client.invalidateQueries({ queryKey: ['admin', 'identity'] }) } })
+  const error = password.error ?? startTotp.error ?? confirmTotp.error ?? disableTotp.error
+  return <section className="admin-security-settings"><div><p className="eyebrow">Credentials</p><h2>Security settings</h2><p>FastAPI manages this browser's opaque server-side session.</p></div><form onSubmit={(event) => { event.preventDefault(); password.mutate() }}><h3>Change password</h3><label>Current password<input type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required /></label><label>New password<input type="password" minLength={12} maxLength={128} autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required /></label><button className="button" disabled={password.isPending}>Change password</button></form><form onSubmit={(event) => { event.preventDefault(); if (setup) confirmTotp.mutate(); else if (totpEnabled) disableTotp.mutate(); else startTotp.mutate() }}><h3>Authenticator app</h3><p>{totpEnabled ? 'TOTP is enabled.' : 'Add a second factor using any TOTP authenticator.'}</p><label>Current password<input type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required /></label>{setup && <><code>{setup.secret}</code><small>{setup.provisioningUri}</small></>}{(setup || totpEnabled) && <label>Authentication code<input value={code} onChange={(event) => setCode(event.target.value)} autoComplete="one-time-code" required /></label>}<button className="button" disabled={startTotp.isPending || confirmTotp.isPending || disableTotp.isPending}>{setup ? 'Confirm TOTP' : totpEnabled ? 'Disable TOTP' : 'Set up TOTP'}</button></form>{recovery.length > 0 && <div className="admin-recovery"><strong>Recovery codes</strong><p>Shown once. Store them safely.</p>{recovery.map((item) => <code key={item}>{item}</code>)}</div>}{error && <p className="admin-error" role="alert">{errorMessage(error)}</p>}</section>
 }

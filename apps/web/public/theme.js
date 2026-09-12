@@ -13,12 +13,23 @@
   try {
     globalThis.history.scrollRestoration = 'manual'
     var nav = globalThis.performance && globalThis.performance.getEntriesByType('navigation')[0]
-    if (globalThis.location.hash || (nav && (nav.type === 'reload' || nav.type === 'back_forward'))) {
+    var keep = false
+    try { keep = !!globalThis.sessionStorage.getItem('kits:keep-scroll') } catch {}
+    if (keep || globalThis.location.hash || (nav && (nav.type === 'reload' || nav.type === 'back_forward'))) {
       html.setAttribute('data-kits-restore', '1')
       html.style.visibility = 'hidden'
       html.style.background = dark ? '#111114' : '#f5f5fa'
     }
   } catch {
-    return
+    /* ignore */
   }
+  document.addEventListener('pointerdown', function (event) {
+    var target = event.target
+    if (!target || !target.closest || !target.closest('.language-switcher-button, .language-choices a')) return
+    try {
+      sessionStorage.setItem('kits:keep-scroll', JSON.stringify({ x: scrollX, y: scrollY }))
+    } catch {
+      /* private mode */
+    }
+  }, true)
 })()

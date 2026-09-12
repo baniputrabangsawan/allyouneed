@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,16 +14,13 @@ class Settings(BaseSettings):
     )
     database_url: str = ""
     license_database_url: str = "sqlite+aiosqlite:///./data/licenses.db"
-    admin_api_key: str = "dev-admin-key"
-    admin_dev_bypass: bool = False
-    admin_allowed_emails: list[str] = Field(default_factory=list)
     admin_cors_origins: list[str] = Field(
         default_factory=lambda: ["http://localhost:3000", "http://127.0.0.1:3000"]
     )
-    cloudflare_access_issuer: str = ""
-    cloudflare_access_audience: str = ""
-    cloudflare_access_jwks_url: str = ""
-    cloudflare_access_logout_url: str = "/cdn-cgi/access/logout"
+    admin_session_cookie_name: str = "kits_admin_session"
+    admin_csrf_cookie_name: str = "kits_admin_csrf"
+    admin_session_ttl_seconds: int = 28800
+    admin_totp_encryption_key: str = ""
     redis_url: str = "redis://localhost:6379/0"
     entitlement_private_key: str = ""
     entitlement_public_key: str = ""
@@ -56,11 +53,6 @@ class Settings(BaseSettings):
     download_url_ttl_seconds: int = 900
     inline_jobs: bool = True
 
-    @field_validator("admin_allowed_emails")
-    @classmethod
-    def normalize_admin_emails(cls, value: list[str]) -> list[str]:
-        return sorted({email.strip().lower() for email in value if email.strip()})
-
     @model_validator(mode="after")
     def alias_database_url(self) -> "Settings":
         if (
@@ -69,14 +61,9 @@ class Settings(BaseSettings):
         ):
             self.license_database_url = self.database_url
         if self.app_env == "production":
-            if self.admin_dev_bypass:
-                raise ValueError("ADMIN_DEV_BYPASS cannot be enabled in production")
             required = {
-                "ADMIN_ALLOWED_EMAILS": self.admin_allowed_emails,
-                "CLOUDFLARE_ACCESS_ISSUER": self.cloudflare_access_issuer,
-                "CLOUDFLARE_ACCESS_AUDIENCE": self.cloudflare_access_audience,
-                "CLOUDFLARE_ACCESS_JWKS_URL": self.cloudflare_access_jwks_url,
                 "ADMIN_CORS_ORIGINS": self.admin_cors_origins,
+                "ADMIN_TOTP_ENCRYPTION_KEY": self.admin_totp_encryption_key,
                 "ENTITLEMENT_PRIVATE_KEY": self.entitlement_private_key,
                 "LICENSE_DATABASE_URL": self.license_database_url,
                 "REDIS_URL": self.redis_url,

@@ -1,12 +1,15 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
 
 const API_BASE_URL = (process.env.E2E_API_BASE_URL ?? 'http://127.0.0.1:8000').replace(/\/+$/, '')
-const ADMIN_API_KEY = process.env.E2E_ADMIN_API_KEY ?? 'dev-admin-key'
-
 async function issueLicense(request: APIRequestContext): Promise<{ licenseId: string; licenseKey: string }> {
+  const login = await request.post(`${API_BASE_URL}/api/v1/admin/auth/login`, {
+    data: { email: 'owner@example.com', password: 'correct horse battery staple' },
+  })
+  expect(login.ok(), await login.text()).toBeTruthy()
+  const csrf = (await request.storageState()).cookies.find((cookie) => cookie.name === 'kits_admin_csrf')?.value
   const response = await request.post(`${API_BASE_URL}/api/v1/admin/licenses`, {
     data: { durationMonths: 1 },
-    headers: { 'X-Admin-Key': ADMIN_API_KEY },
+    headers: { 'X-CSRF-Token': csrf ?? '' },
   })
   expect(response.ok(), await response.text()).toBeTruthy()
   const body = (await response.json()) as { data: { licenseId: string; licenseKey: string } }
@@ -14,8 +17,9 @@ async function issueLicense(request: APIRequestContext): Promise<{ licenseId: st
 }
 
 async function revokeLicense(request: APIRequestContext, licenseId: string) {
+  const csrf = (await request.storageState()).cookies.find((cookie) => cookie.name === 'kits_admin_csrf')?.value
   const response = await request.post(`${API_BASE_URL}/api/v1/admin/licenses/${licenseId}/revoke`, {
-    headers: { 'X-Admin-Key': ADMIN_API_KEY },
+    headers: { 'X-CSRF-Token': csrf ?? '' },
   })
   expect(response.ok(), await response.text()).toBeTruthy()
 }
@@ -81,7 +85,7 @@ test.describe('licensing', () => {
     await page.goto('/remove-background')
     await waitForClient(page)
     await expectLocked(page)
-    await expect(page.getByRole('link', { name: 'Activate Pro' })).toBeVisible()
+    await expect(page.getByRole('banner').getByRole('link', { name: 'Activate Pro' })).toBeVisible()
 
     await activateOnPage(page, issued.licenseKey)
     await expectUnlocked(page)
@@ -124,7 +128,7 @@ test.describe('licensing', () => {
     await other.reload()
     await waitForClient(other)
     await expectLocked(other)
-    await expect(other.getByRole('link', { name: 'Activate Pro' })).toBeVisible()
+    await expect(other.getByRole('banner').getByRole('link', { name: 'Activate Pro' })).toBeVisible()
 
     await second.close()
   })
