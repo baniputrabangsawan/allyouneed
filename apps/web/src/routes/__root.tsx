@@ -10,6 +10,7 @@ import { localeFromPathname, useLocale, useT } from '@/i18n'
 import { localizeTool } from '@/i18n/tools'
 import { refreshScroll } from '@/lib/motion/scroll'
 import { restoreKeepScroll, clearKeepScroll } from '@/lib/motion/restore'
+import { consumeGoHomeTop, scrollWindowTop } from '@/lib/navigation/home-top'
 import { cleanupExpiredFiles } from '@/lib/storage/file-persistence'
 import { ensureInstallationId } from '@/lib/storage/installation'
 import '@/styles/app.css'
@@ -62,7 +63,13 @@ function Root() {
       const raf = window.requestAnimationFrame(() => restoreKeepScroll())
       return () => window.cancelAnimationFrame(raf)
     }
-    const id = (hash || window.location.hash).replace(/^#/, '')
+    if (consumeGoHomeTop()) {
+      scrollWindowTop()
+      reveal()
+      const raf = window.requestAnimationFrame(scrollWindowTop)
+      return () => window.cancelAnimationFrame(raf)
+    }
+    const id = String(hash ?? '').replace(/^#/, '')
     const snap = () => {
       if (!id) return
       const el = document.getElementById(id)

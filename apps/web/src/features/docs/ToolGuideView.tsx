@@ -178,7 +178,7 @@ function LimitsCopy({ tool }: { tool: ToolDefinition }) {
   if (tool.acceptedFormats?.length) lines.push(copy.docs.acceptedFormats(formatMimeList(tool.acceptedFormats).join(', ')))
   if (tool.implementation === 'remote-api') lines.push(copy.docs.remoteLimit)
   if (tool.implementation === 'image-canvas') lines.push(copy.docs.imageLimit)
-  if (tool.accessTier === 'pro' || tool.premium) lines.push(copy.docs.proRequired)
+  if (tool.requiresPro) lines.push(copy.docs.proRequired)
   if (!lines.length) return <p>{copy.docs.noLimits}</p>
   return <ul>{lines.map((line) => <li key={line}>{line}</li>)}</ul>
 }

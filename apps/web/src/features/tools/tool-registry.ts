@@ -41,14 +41,16 @@ export interface ToolDefinition {
   available: boolean
   implementation: ToolImplementation
   popular?: boolean
+  popularOrder?: number
   new?: boolean
+  requiresPro: boolean
   accessTier?: AccessTier
   requiredCapability?: string
   premium?: boolean
 }
 
 type ToolOptions = Partial<Pick<ToolDefinition,
-  'acceptedFormats' | 'outputFormats' | 'ai' | 'popular' | 'new' | 'processingMode' | 'accessTier' | 'requiredCapability' | 'shortDescription' | 'description'
+  'acceptedFormats' | 'outputFormats' | 'ai' | 'popular' | 'popularOrder' | 'new' | 'processingMode' | 'accessTier' | 'requiredCapability' | 'shortDescription' | 'description'
 >> & { aliases?: string[]; tags?: string[] }
 
 const icons: Record<ToolCategory, string> = {
@@ -113,7 +115,9 @@ const defineTool = (
     seo: { title: `${name} Online`, description },
     available,
     implementation,
+    requiresPro: options.accessTier === 'pro',
     ...(options.popular !== undefined ? { popular: options.popular } : {}),
+    ...(options.popularOrder !== undefined ? { popularOrder: options.popularOrder } : {}),
     ...(options.new !== undefined ? { new: options.new } : {}),
     ...(options.accessTier !== undefined ? { accessTier: options.accessTier } : {}),
     ...(options.requiredCapability !== undefined ? { requiredCapability: options.requiredCapability } : {}),
@@ -129,16 +133,16 @@ const qrOutputs = ['image/png', 'image/svg+xml']
 const t = defineTool
 
 export const tools: readonly ToolDefinition[] = [
-  t('Compress Image', 'image', ['optimize'], 'image-canvas', { acceptedFormats: imageFormats, processingMode: 'hybrid', aliases: ['compress photo', 'shrink image', 'kompres gambar'], popular: true }),
-  t('Resize Image', 'image', ['edit'], 'image-canvas', { acceptedFormats: imageFormats, popular: true }),
+  t('Compress Image', 'image', ['optimize'], 'image-canvas', { acceptedFormats: imageFormats, processingMode: 'hybrid', aliases: ['compress photo', 'shrink image', 'kompres gambar'], popular: true, popularOrder: 1 }),
+  t('Resize Image', 'image', ['edit'], 'image-canvas', { acceptedFormats: imageFormats, popular: true, popularOrder: 2 }),
   t('Crop Image', 'image', ['edit'], 'image-canvas', { acceptedFormats: imageFormats }),
   t('Rotate Image', 'image', ['edit'], 'image-canvas'),
   t('Flip Image', 'image', ['edit'], 'image-canvas'),
   t('Convert to JPG', 'image', ['convert'], 'image-canvas', { outputFormats: ['image/jpeg'] }),
   t('Convert from JPG', 'image', ['convert'], 'image-canvas', { acceptedFormats: ['image/jpeg'] }),
-  t('Image Converter', 'image', ['convert'], 'image-canvas', { acceptedFormats: imageFormats, outputFormats: imageFormats, aliases: ['convert photo'], popular: true }),
-  t('JPG to PNG', 'image', ['convert'], 'image-canvas', { acceptedFormats: ['image/jpeg'], outputFormats: ['image/png'] }),
-  t('PNG to JPG', 'image', ['convert'], 'image-canvas', { acceptedFormats: ['image/png'], outputFormats: ['image/jpeg'] }),
+  t('Image Converter', 'image', ['convert'], 'image-canvas', { acceptedFormats: imageFormats, outputFormats: imageFormats, aliases: ['convert photo'], popular: true, popularOrder: 3 }),
+  t('JPG to PNG', 'image', ['convert'], 'image-canvas', { acceptedFormats: ['image/jpeg'], outputFormats: ['image/png'], popular: true, popularOrder: 20 }),
+  t('PNG to JPG', 'image', ['convert'], 'image-canvas', { acceptedFormats: ['image/png'], outputFormats: ['image/jpeg'], popular: true, popularOrder: 21 }),
   t('JPG to WebP', 'image', ['convert'], 'image-canvas'),
   t('PNG to WebP', 'image', ['convert'], 'image-canvas'),
   t('WebP to JPG', 'image', ['convert'], 'image-canvas'),
@@ -146,9 +150,9 @@ export const tools: readonly ToolDefinition[] = [
   t('HEIC Converter', 'image', ['convert'], 'dependency-required'),
   t('SVG to PNG', 'image', ['convert'], 'image-canvas', { acceptedFormats: ['image/svg+xml', '.svg'], outputFormats: ['image/png'] }),
   t('TIFF Converter', 'image', ['convert'], 'dependency-required'),
-  t('Photo Editor', 'image', ['edit'], 'image-canvas', { acceptedFormats: ['image/jpeg', 'image/png', 'image/webp'], outputFormats: ['image/jpeg', 'image/png', 'image/webp'] }),
+  t('Photo Editor', 'image', ['edit'], 'image-canvas', { acceptedFormats: ['image/jpeg', 'image/png', 'image/webp'], outputFormats: ['image/jpeg', 'image/png', 'image/webp'], popular: true, popularOrder: 11 }),
   t('Watermark Image', 'image', ['edit', 'security'], 'image-canvas'),
-  t('Blur Face', 'image', ['edit'], 'remote-api', { acceptedFormats: imageFormats, processingMode: 'remote' }),
+  t('Blur Face', 'image', ['edit'], 'remote-api', { acceptedFormats: imageFormats, processingMode: 'remote', accessTier: 'pro', requiredCapability: 'image.face_blur' }),
   t('Blur Area', 'image', ['edit'], 'image-canvas'),
   t('Pixelate Image', 'image', ['edit'], 'image-canvas'),
   t('Remove Background', 'image', ['edit'], 'remote-api', { acceptedFormats: imageFormats, outputFormats: ['image/png'], ai: true, accessTier: 'pro', requiredCapability: 'image.ai.background_removal', aliases: ['remove bg', 'hapus background'], shortDescription: 'Remove a photo background with server-side AI.', description: 'Upload an image, choose faster or higher-quality background removal, then download a transparent PNG at the original size.' }),
@@ -163,10 +167,12 @@ export const tools: readonly ToolDefinition[] = [
   t('Background Blur', 'image', ['edit'], 'remote-api', { ai: true }),
   t('Upscale Image', 'image', ['optimize'], 'remote-api', { ai: true, accessTier: 'pro', requiredCapability: 'image.ai.upscale' }),
   t('Image Enhancement', 'image', ['optimize'], 'remote-api', { ai: true }),
-  t('Meme Generator', 'image', ['create'], 'image-canvas', { acceptedFormats: imageFormats, outputFormats: ['image/png', 'image/jpeg'] }),
+  t('Meme Generator', 'image', ['create'], 'image-canvas', { acceptedFormats: imageFormats, outputFormats: ['image/png', 'image/jpeg'], popular: true, popularOrder: 13 }),
   t('Merge PNG', 'image', ['edit', 'create'], 'image-canvas', {
     acceptedFormats: ['image/png', '.png'],
     outputFormats: ['image/png'],
+    popular: true,
+    popularOrder: 14,
     aliases: ['combine png', 'stack png', 'gabung png', 'png stitch'],
     shortDescription: 'Combine PNG images into one file in your browser.',
     description: 'Merge PNG images vertically, horizontally, or in a grid. Reorder files, set gap, padding, alignment, and background, then download one PNG. Processing stays in this browser.',
@@ -179,13 +185,13 @@ export const tools: readonly ToolDefinition[] = [
   t('Remove Metadata', 'image', ['security'], 'image-canvas'),
   t('Color Picker', 'image', ['create'], 'color'),
   t('Palette Generator', 'image', ['create'], 'color'),
-  t('Favicon Generator', 'image', ['create'], 'image-canvas', { acceptedFormats: ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'], outputFormats: ['image/png', 'image/x-icon', 'application/zip'] }),
+  t('Favicon Generator', 'image', ['create'], 'image-canvas', { acceptedFormats: ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'], outputFormats: ['image/png', 'image/x-icon', 'application/zip'], popular: true, popularOrder: 17 }),
   t('Profile Picture Maker', 'image', ['create'], 'image-canvas'),
   t('Passport Photo Maker', 'image', ['create'], 'image-canvas'),
   t('Thumbnail Generator', 'image', ['create'], 'image-canvas'),
   t('Social Media Image Resizer', 'image', ['edit'], 'image-canvas'),
 
-  t('QR Code Generator', 'qr', ['create'], 'qr-code', { outputFormats: qrOutputs, aliases: ['make qr'], popular: true }),
+  t('QR Code Generator', 'qr', ['create'], 'qr-code', { outputFormats: qrOutputs, aliases: ['make qr'], popular: true, popularOrder: 4 }),
   t('URL QR Code', 'qr', ['create'], 'qr-code', { outputFormats: qrOutputs }),
   t('Text QR Code', 'qr', ['create'], 'qr-code', { outputFormats: qrOutputs }),
   t('WiFi QR Code', 'qr', ['create'], 'qr-code', { outputFormats: qrOutputs }),
@@ -203,7 +209,9 @@ export const tools: readonly ToolDefinition[] = [
   t('Text to Speech', 'audio', ['convert'], 'remote-api', {
     ai: true,
     accessTier: 'pro',
-    requiredCapability: 'audio.tts.premium',
+    requiredCapability: 'audio.text_to_speech',
+    popular: true,
+    popularOrder: 8,
     outputFormats: ['audio/mpeg', 'audio/wav'],
     shortDescription: 'Turn text into speech on the Kits server.',
     description: 'Convert text into spoken audio on the Kits server. Content is processed on Kits, not third-party AI APIs.',
@@ -212,6 +220,8 @@ export const tools: readonly ToolDefinition[] = [
     ai: true,
     accessTier: 'pro',
     requiredCapability: 'audio.speech_to_text',
+    popular: true,
+    popularOrder: 7,
     acceptedFormats: [...audioFormats, ...videoFormats],
     outputFormats: ['text/plain', 'application/x-subrip', 'text/vtt'],
     shortDescription: 'Transcribe audio and video on the Kits server.',
@@ -227,6 +237,10 @@ export const tools: readonly ToolDefinition[] = [
   t('Remove Silence', 'audio', ['edit'], 'remote-api', { acceptedFormats: audioFormats }),
   t('Noise Reduction', 'audio', ['optimize'], 'remote-api', {
     acceptedFormats: audioFormats,
+    accessTier: 'pro',
+    requiredCapability: 'audio.noise_reduction',
+    popular: true,
+    popularOrder: 10,
     shortDescription: 'Reduce hiss, fan, and background noise from speech recordings.',
     description: 'Reduce hiss, fan, room, and keyboard noise from audio. Standard uses fast FFmpeg filtering. Smart uses local RNNoise for stronger voice-focused suppression.',
   }),
@@ -237,9 +251,9 @@ export const tools: readonly ToolDefinition[] = [
   t('Merge PDF', 'pdf', ['edit'], 'remote-api', { acceptedFormats: pdfFormat }),
   t('Split PDF', 'pdf', ['edit'], 'remote-api', { acceptedFormats: pdfFormat }),
   t('JPG to PDF', 'pdf', ['convert'], 'remote-api', { acceptedFormats: ['image/jpeg'] }),
-  t('PNG to PDF', 'pdf', ['convert'], 'remote-api', { acceptedFormats: ['image/png'] }),
+  t('PNG to PDF', 'pdf', ['convert'], 'remote-api', { acceptedFormats: ['image/png'], popular: true, popularOrder: 18 }),
   t('PDF to JPG', 'pdf', ['convert'], 'remote-api', { acceptedFormats: pdfFormat, outputFormats: ['image/jpeg'] }),
-  t('PDF to PNG', 'pdf', ['convert'], 'remote-api', { acceptedFormats: pdfFormat, outputFormats: ['image/png'] }),
+  t('PDF to PNG', 'pdf', ['convert'], 'remote-api', { acceptedFormats: pdfFormat, outputFormats: ['image/png'], popular: true, popularOrder: 19 }),
   t('Rotate PDF', 'pdf', ['edit'], 'remote-api', { acceptedFormats: pdfFormat }),
   t('Delete PDF Pages', 'pdf', ['edit'], 'remote-api', { acceptedFormats: pdfFormat }),
   t('Reorder PDF Pages', 'pdf', ['edit'], 'remote-api', { acceptedFormats: pdfFormat }),
@@ -249,8 +263,8 @@ export const tools: readonly ToolDefinition[] = [
   t('Protect PDF', 'pdf', ['security'], 'remote-api', { acceptedFormats: pdfFormat }),
   t('Unlock PDF', 'pdf', ['security'], 'remote-api', { acceptedFormats: pdfFormat }),
   t('PDF Metadata Viewer', 'pdf', ['edit'], 'remote-api', { acceptedFormats: pdfFormat }),
-  t('PDF to Text', 'pdf', ['convert'], 'remote-api', { acceptedFormats: pdfFormat }),
-  t('OCR PDF', 'pdf', ['convert'], 'remote-api', { ai: true }),
+  t('PDF to Text', 'pdf', ['convert'], 'remote-api', { acceptedFormats: pdfFormat, popular: true, popularOrder: 16 }),
+  t('OCR PDF', 'pdf', ['convert'], 'remote-api', { ai: true, accessTier: 'pro', requiredCapability: 'document.ocr.advanced' }),
   t('HTML to PDF', 'pdf', ['convert'], 'dependency-required'),
 
   t('Video Compressor', 'video', ['optimize'], 'remote-api', { acceptedFormats: videoFormats }),
@@ -268,21 +282,25 @@ export const tools: readonly ToolDefinition[] = [
   t('Add Audio', 'video', ['edit'], 'remote-api', { acceptedFormats: [...videoFormats, ...audioFormats] }),
   t('Change Video Speed', 'video', ['edit'], 'remote-api', { acceptedFormats: videoFormats }),
   t('Generate Thumbnail', 'video', ['create'], 'browser-media'),
-  t('Add Watermark', 'video', ['edit'], 'remote-api', { acceptedFormats: videoFormats }),
+  t('Add Watermark', 'video', ['edit'], 'remote-api', { acceptedFormats: videoFormats, popular: true, popularOrder: 12 }),
   t('Add Subtitle', 'video', ['edit'], 'remote-api', {
     acceptedFormats: [...videoFormats, '.srt', '.vtt', '.ass', '.ssa', 'text/vtt', 'application/x-subrip', 'text/x-subrip', 'application/x-ass'],
     outputFormats: ['video/mp4', 'video/webm'],
+    accessTier: 'pro',
+    requiredCapability: 'video.add_subtitle',
+    popular: true,
+    popularOrder: 9,
     shortDescription: 'Burn an existing subtitle file into a video on the Kits server.',
     description: 'Upload a video and an .srt, .vtt, or .ass file, style the captions, then burn them in. This tool does not generate subtitles.',
   }),
   t('Video Screenshot', 'video', ['create'], 'browser-media'),
   t('Video Metadata Viewer', 'video', ['edit'], 'browser-media'),
 
-  t('Word Counter', 'text', ['edit'], 'text', { aliases: ['character counter'], popular: true }),
+  t('Word Counter', 'text', ['edit'], 'text', { aliases: ['character counter'], popular: true, popularOrder: 5 }),
   t('Character Counter', 'text', ['edit'], 'text'),
   t('Case Converter', 'text', ['convert'], 'text'),
   t('Remove Duplicate Lines', 'text', ['edit'], 'text'),
-  t('Remove Extra Spaces', 'text', ['edit'], 'text'),
+  t('Remove Extra Spaces', 'text', ['edit'], 'text', { popular: true, popularOrder: 6 }),
   t('Sort Lines', 'text', ['edit'], 'text'),
   t('Text Cleaner', 'text', ['edit'], 'text'),
   t('Text Formatter', 'text', ['edit'], 'text'),
@@ -295,7 +313,7 @@ export const tools: readonly ToolDefinition[] = [
   t('HTML to Markdown', 'text', ['convert'], 'text'),
   t('Text to Image', 'text', ['convert'], 'image-canvas'),
 
-  t('JSON Formatter', 'developer', ['edit'], 'json', { aliases: ['beautify json'], popular: true }),
+  t('JSON Formatter', 'developer', ['edit'], 'json', { aliases: ['beautify json'] }),
   t('JSON Validator', 'developer', ['edit'], 'json'),
   t('JSON Minifier', 'developer', ['optimize'], 'json'),
   t('XML Formatter', 'developer', ['edit'], 'xml'),
@@ -318,7 +336,7 @@ export const tools: readonly ToolDefinition[] = [
   t('Unix Timestamp Converter', 'developer', ['convert'], 'date-time'),
   t('HEX RGB HSL Converter', 'developer', ['convert'], 'color'),
 
-  t('Password Generator', 'generator', ['create', 'security'], 'random', { popular: true }),
+  t('Password Generator', 'generator', ['create', 'security'], 'random'),
   t('PIN Generator', 'generator', ['create', 'security'], 'random'),
   t('Random Number Generator', 'generator', ['create'], 'random'),
   t('UUID Generator', 'generator', ['create'], 'random', { aliases: ['guid generator'] }),
@@ -326,7 +344,7 @@ export const tools: readonly ToolDefinition[] = [
   t('Gradient Generator', 'generator', ['create'], 'css'),
   t('CSS Shadow Generator', 'generator', ['create'], 'css'),
   t('Border Radius Generator', 'generator', ['create'], 'css'),
-  t('Color Palette Generator', 'generator', ['create'], 'color'),
+  t('Color Palette Generator', 'generator', ['create'], 'color', { popular: true, popularOrder: 15 }),
   t('Placeholder Image Generator', 'generator', ['create'], 'image-canvas'),
   t('Avatar Generator', 'generator', ['create'], 'image-canvas'),
   t('Signature Generator', 'generator', ['create'], 'image-canvas'),
@@ -345,9 +363,11 @@ export const getAllTools = () => [...tools]
 export const getToolBySlug = (slug: string) => toolsBySlug.get(slug)
 export const getToolsByCategory = (category: ToolCategory) => tools.filter((item) => category === 'converter' ? item.groups.includes('convert') : item.category === category)
 export const getToolsByGroup = (group: ToolGroup) => tools.filter((item) => item.groups.includes(group))
-export const getPopularTools = () => tools.filter((item) => item.popular && item.available)
+export const getPopularTools = () => tools
+  .filter((item) => item.popular && item.available)
+  .sort((a, b) => (a.popularOrder ?? Number.MAX_SAFE_INTEGER) - (b.popularOrder ?? Number.MAX_SAFE_INTEGER))
 export const getNewTools = () => tools.filter((item) => item.new && item.available)
-export const getProTools = () => tools.filter((tool) => tool.accessTier === 'pro' || tool.premium)
+export const getProTools = () => tools.filter((tool) => tool.requiresPro)
 export const searchTools = (query: string) => query.trim() ? fuse.search(query).map(({ item }) => item) : getAllTools()
 export const getRelatedTools = (current: ToolDefinition) => tools
   .filter((item) => item.available && item.id !== current.id && (item.category === current.category || item.groups.some((group) => current.groups.includes(group))))

@@ -4,6 +4,7 @@ import type { ToolCategory } from '@/features/tools/tool-registry'
 import { LanguageChoices } from '@/components/common/LanguageSwitcher'
 import { LocaleLink } from '@/i18n/link'
 import { useT } from '@/i18n'
+import { useGoHomeTop } from '@/i18n/navigate'
 import { revealFooter } from '@/lib/motion/footer'
 import { useGSAP } from '@/lib/motion/gsap'
 
@@ -23,6 +24,7 @@ const resourceKeys = [
 
 export function AppFooter() {
   const copy = useT()
+  const goHomeTop = useGoHomeTop()
   const footerRef = useRef<HTMLElement>(null)
 
   useGSAP(() => {
@@ -50,7 +52,7 @@ export function AppFooter() {
         <div className="footer-card">
           <div className="footer-card-top">
             <div className="footer-brand">
-              <LocaleLink to="/" className="brand">
+              <LocaleLink to="/" className="brand" onClick={goHomeTop}>
                 <span className="brand-mark"><Grid2X2 size={16} /></span>
                 {copy.brand}
               </LocaleLink>

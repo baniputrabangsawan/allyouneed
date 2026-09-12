@@ -34,7 +34,7 @@ export function ToolCard({ tool }: { tool: ToolDefinition }) {
   const Icon = iconMap[tool.icon] ?? Wrench
   const badge = !tool.available
     ? <span className="badge soon">{copy.availability.comingSoonBadge}</span>
-    : tool.accessTier === 'pro' || tool.premium
+    : tool.requiresPro
       ? <span className="badge pro">{copy.availability.pro}</span>
       : tool.new
         ? <span className="badge">{copy.availability.new}</span>

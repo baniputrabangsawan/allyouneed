@@ -2,9 +2,10 @@ import { createRouter } from '@tanstack/react-router'
 import { QueryClient } from '@tanstack/react-query'
 import { routeTree } from './routeTree.gen'
 import { peekKeepScroll } from '@/lib/motion/restore'
+import { peekGoHomeTop } from '@/lib/navigation/home-top'
 
 function shouldRestoreScroll({ location }: { location: { hash?: string } }) {
-  if (typeof window !== 'undefined' && peekKeepScroll()) return false
+  if (typeof window !== 'undefined' && (peekKeepScroll() || peekGoHomeTop())) return false
   return !location.hash && (typeof window === 'undefined' || !window.location.hash)
 }
 

@@ -91,7 +91,7 @@ export function processingLabel(tool: ToolDefinition) {
 }
 
 export function planLabel(tool: ToolDefinition) {
-  return tool.accessTier === 'pro' || tool.premium ? 'Pro' : 'Free'
+  return tool.requiresPro ? 'Pro' : 'Free'
 }
 
 export const docsCategoryOrder: ToolCategory[] = [

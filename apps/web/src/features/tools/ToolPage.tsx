@@ -35,7 +35,7 @@ export function ToolRoute() {
         </nav>
         <header className="tool-heading">
           <div>
-            <p className="eyebrow">{tool.category} tool{tool.accessTier === 'pro' || tool.premium ? ' · Pro' : ''}</p>
+            <p className="eyebrow">{tool.category} tool{tool.requiresPro ? ' · Pro' : ''}</p>
             <h1>{seo.h1}</h1>
             <p>{seo.intro}</p>
           </div>

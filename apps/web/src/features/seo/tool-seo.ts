@@ -117,20 +117,17 @@ export function getToolSeo(tool: ToolDefinition, locale: Locale): ToolSeoCopy {
   }
 }
 
-function isProTool(tool: ToolDefinition) {
-  return tool.accessTier === 'pro' || tool.premium
-}
 
 function defaultFaq(tool: ToolDefinition, locale: Locale) {
   const local = localizeTool(tool, locale)
   if (locale === 'id') {
     return [
-      { question: `Apakah ${local.name} gratis?`, answer: isProTool(tool) ? 'Tool ini adalah fitur Pro dan memerlukan lisensi aktif untuk memproses file.' : 'Tool ini dapat digunakan tanpa lisensi Pro.' },
+      { question: `Apakah ${local.name} gratis?`, answer: tool.requiresPro ? 'Tool ini adalah fitur Pro dan memerlukan lisensi aktif untuk memproses file.' : 'Tool ini dapat digunakan tanpa lisensi Pro.' },
       { question: 'Di mana file diproses?', answer: tool.processingMode === 'client' ? 'Pemrosesan berjalan di browser Anda.' : 'Tool ini memakai pemrosesan server Kits untuk menyelesaikan pekerjaan.' },
     ]
   }
   return [
-    { question: `Is ${local.name} free?`, answer: isProTool(tool) ? 'This is a Pro feature and requires an active license before processing.' : 'This tool is available without a Pro license.' },
+    { question: `Is ${local.name} free?`, answer: tool.requiresPro ? 'This is a Pro feature and requires an active license before processing.' : 'This tool is available without a Pro license.' },
     { question: 'Where is processing handled?', answer: tool.processingMode === 'client' ? 'Processing runs in your browser.' : 'This tool uses temporary Kits server processing.' },
   ]
 }
@@ -176,7 +173,7 @@ export function toolJsonLd(tool: ToolDefinition, locale: Locale) {
       applicationCategory: 'UtilitiesApplication',
       operatingSystem: 'Web',
       description: copy.description,
-      offers: { '@type': 'Offer', price: isProTool(tool) ? '30000' : '0', priceCurrency: isProTool(tool) ? 'IDR' : 'USD' },
+      offers: { '@type': 'Offer', price: tool.requiresPro ? '30000' : '0', priceCurrency: tool.requiresPro ? 'IDR' : 'USD' },
     },
     {
       '@context': 'https://schema.org',
