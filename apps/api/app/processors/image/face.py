@@ -12,11 +12,16 @@ from app.processors.image.ops import open_image, save_image
 
 FaceBox = tuple[int, int, int, int]
 BgrImage = NDArray[np.uint8]
+GrayImage = NDArray[np.uint8]
 
 _VENDORED_CASCADE = Path(__file__).with_name("data") / "haarcascade_frontalface_default.xml"
 _MODES = {"blur", "pixelate"}
-_MAX_BLUR_STRENGTH = 20
-_MAX_PIXELATE_BLOCK = 20
+_INTENSITIES = {"light", "medium", "strong", "privacy"}
+_EXPAND = {"light": 0.20, "medium": 0.24, "strong": 0.28, "privacy": 0.38}
+_SIGMA_FRACTION = {"light": 0.06, "medium": 0.12, "strong": 0.20, "privacy": 0.32}
+_MIN_SIGMA = {"light": 4.0, "medium": 10.0, "strong": 20.0, "privacy": 36.0}
+_PIXEL_FRACTION = {"light": 0.08, "medium": 0.14, "strong": 0.22, "privacy": 0.34}
+_MIN_PIXEL_BLOCK = {"light": 6, "medium": 12, "strong": 20, "privacy": 32}
 
 
 def load_oriented_image(source: Path) -> Image.Image:
@@ -37,11 +42,48 @@ def clamp_box(
     return left, top, right - left, bottom - top
 
 
-def parse_face_options(options: dict[str, object]) -> str:
+def expand_face_box(
+    box: FaceBox,
+    image_width: int,
+    image_height: int,
+    *,
+    factor: float,
+) -> FaceBox:
+    x, y, width, height = box
+    pad_x = max(1, int(round(width * factor / 2)))
+    pad_top = max(1, int(round(height * factor * 0.70)))
+    pad_bottom = max(1, int(round(height * factor * 0.55)))
+    return clamp_box(
+        x - pad_x,
+        y - pad_top,
+        width + 2 * pad_x,
+        height + pad_top + pad_bottom,
+        image_width,
+        image_height,
+    )
+
+
+def parse_face_options(options: dict[str, object]) -> tuple[str, str]:
     mode = str(options.get("mode", "blur")).strip().lower() or "blur"
     if mode not in _MODES:
         raise ProcessingError("Invalid mode.")
-    return mode
+    raw = options.get("intensity", options.get("preset", "strong"))
+    intensity = str(raw).strip().lower() or "strong"
+    if intensity not in _INTENSITIES:
+        intensity = "strong"
+    return mode, intensity
+
+
+def blur_sigma_for_face(face_width: int, *, intensity: str) -> float:
+    fraction = _SIGMA_FRACTION.get(intensity, _SIGMA_FRACTION["strong"])
+    minimum = _MIN_SIGMA.get(intensity, _MIN_SIGMA["strong"])
+    return max(minimum, float(face_width) * fraction)
+
+
+def pixel_block_for_face(face_width: int, *, intensity: str) -> int:
+    fraction = _PIXEL_FRACTION.get(intensity, _PIXEL_FRACTION["strong"])
+    minimum = _MIN_PIXEL_BLOCK.get(intensity, _MIN_PIXEL_BLOCK["strong"])
+    return max(minimum, int(round(face_width * fraction)))
 
 
 @lru_cache(maxsize=1)
@@ -66,17 +108,29 @@ def detect_frontal_faces(gray: NDArray[np.uint8]) -> list[FaceBox]:
     return [box for box in boxes if box[2] > 0 and box[3] > 0]
 
 
-def apply_face_obscure(bgr: BgrImage, boxes: list[FaceBox], *, mode: str) -> BgrImage:
+def apply_face_obscure(
+    bgr: BgrImage,
+    boxes: list[FaceBox],
+    *,
+    mode: str,
+    intensity: str = "strong",
+) -> BgrImage:
     result = bgr.copy()
-    for x, y, width, height in boxes:
+    image_height, image_width = result.shape[:2]
+    factor = _EXPAND.get(intensity, _EXPAND["strong"])
+    for box in boxes:
+        x, y, width, height = expand_face_box(box, image_width, image_height, factor=factor)
+        if width < 2 or height < 2:
+            continue
         roi = result[y : y + height, x : x + width]
         if roi.size == 0:
             continue
+        mask = _feathered_round_rect_mask(width, height)
         if mode == "pixelate":
-            result[y : y + height, x : x + width] = _pixelate(roi, _MAX_PIXELATE_BLOCK)
+            obscured = _pixelate(roi, pixel_block_for_face(width, intensity=intensity))
         else:
-            kernel = 2 * _MAX_BLUR_STRENGTH + 1
-            result[y : y + height, x : x + width] = cv2.GaussianBlur(roi, (kernel, kernel), 0)
+            obscured = _gaussian_blur(roi, blur_sigma_for_face(width, intensity=intensity))
+        result[y : y + height, x : x + width] = _composite(roi, obscured, mask)
     return result
 
 
@@ -91,28 +145,60 @@ def bgr_to_image(bgr: BgrImage) -> Image.Image:
 
 
 def blur_faces(source: Path, output: Path, options: dict[str, object]) -> dict[str, int | str]:
-    mode = parse_face_options(options)
+    mode, intensity = parse_face_options(options)
     image = load_oriented_image(source)
     try:
         bgr = image_to_bgr(image)
-        gray = cast(BgrImage, cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY))
+        gray = cast(GrayImage, cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY))
         boxes = detect_frontal_faces(gray)
         if not boxes:
             raise ProcessingError("No face detected", code="NO_FACES_DETECTED")
-        obscured = apply_face_obscure(bgr, boxes, mode=mode)
+        obscured = apply_face_obscure(bgr, boxes, mode=mode, intensity=intensity)
         saved = save_image(bgr_to_image(obscured), output, options)
-        return {**saved, "faces": len(boxes), "mode": mode}
+        return {**saved, "faces": len(boxes), "mode": mode, "intensity": intensity}
     finally:
         image.close()
 
 
-def _pixelate(roi: BgrImage, strength: int) -> BgrImage:
+def _feathered_round_rect_mask(width: int, height: int) -> GrayImage:
+    mask = np.zeros((height, width), dtype=np.uint8)
+    radius = max(4, int(min(width, height) * 0.10))
+    _fill_round_rect(mask, radius)
+    feather = max(3, int(min(width, height) * 0.04))
+    kernel = feather if feather % 2 == 1 else feather + 1
+    return cast(GrayImage, cv2.GaussianBlur(mask, (kernel, kernel), 0))
+
+
+def _fill_round_rect(mask: GrayImage, radius: int) -> None:
+    height, width = mask.shape[:2]
+    radius = max(1, min(int(radius), width // 2, height // 2))
+    cv2.rectangle(mask, (radius, 0), (width - radius, height), 255, -1)
+    cv2.rectangle(mask, (0, radius), (width, height - radius), 255, -1)
+    cv2.circle(mask, (radius, radius), radius, 255, -1)
+    cv2.circle(mask, (width - 1 - radius, radius), radius, 255, -1)
+    cv2.circle(mask, (radius, height - 1 - radius), radius, 255, -1)
+    cv2.circle(mask, (width - 1 - radius, height - 1 - radius), radius, 255, -1)
+
+
+def _gaussian_blur(roi: BgrImage, sigma: float) -> BgrImage:
+    radius = max(1.0, float(sigma))
+    return cast(BgrImage, cv2.GaussianBlur(roi, (0, 0), sigmaX=radius, sigmaY=radius))
+
+
+def _pixelate(roi: BgrImage, block: int) -> BgrImage:
     height, width = roi.shape[:2]
-    block = max(2, strength)
-    small_width = max(1, width // block)
-    small_height = max(1, height // block)
+    step = max(2, int(block))
+    small_width = max(1, width // step)
+    small_height = max(1, height // step)
     small = cv2.resize(roi, (small_width, small_height), interpolation=cv2.INTER_LINEAR)
     return cast(BgrImage, cv2.resize(small, (width, height), interpolation=cv2.INTER_NEAREST))
+
+
+def _composite(original: BgrImage, obscured: BgrImage, mask: GrayImage) -> BgrImage:
+    alpha = mask.astype(np.float32) / 255.0
+    alpha = alpha[:, :, None]
+    blended = obscured.astype(np.float32) * alpha + original.astype(np.float32) * (1.0 - alpha)
+    return cast(BgrImage, np.clip(blended, 0, 255).astype(np.uint8))
 
 
 def _cascade_path() -> str:

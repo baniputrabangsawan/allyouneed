@@ -1,12 +1,14 @@
 import { CheckCircle2, LoaderCircle, Square, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { FileDropzone, type DropzoneProgress, type DropzoneStatus } from '@/components/file/FileDropzone'
-import { useT } from '@/i18n'
+import { ProcessingProgressPanel } from '@/features/workspaces/processing-progress'
+import { useT, type Messages } from '@/i18n'
 import { resolveApiUrl } from '@/lib/api/client'
 import { completeUpload, createUpload, uploadFile } from '@/lib/api/files'
 import { cancelJob, createJob, getJob, getJobResult } from '@/lib/api/jobs'
 import type { Job } from '@/lib/api/types'
 import { ImageResultPreview } from '@/features/image/ImageResultPreview'
+import { resolveJobProgress, useSmoothedJobProgress } from '@/lib/media/job-progress'
 import { errorFromJob, workflowErrorCode, workflowMessage, type WorkflowErrorCode } from '@/lib/media/workflow-error'
 import type { ToolDefinition } from '../tools/tool-registry'
 
@@ -43,7 +45,16 @@ export function RemoveBackgroundWorkspace({ tool }: { tool: ToolDefinition }) {
   const [error, setError] = useState('')
   const [errorCode, setErrorCode] = useState<WorkflowErrorCode | null>(null)
   const [transfer, setTransfer] = useState<Transfer>(idleTransfer)
+  const [progressKey, setProgressKey] = useState(0)
+  const runToken = useRef(0)
   const busy = transfer.status === 'uploading' || job?.status === 'queued' || job?.status === 'processing'
+  const flow = resolveJobProgress({
+    transferStatus: transfer.status,
+    uploadPercent: transfer.progress.percent ?? null,
+    job,
+    failed: Boolean(errorCode) || job?.status === 'failed',
+  })
+  const percent = useSmoothedJobProgress(flow, progressKey)
   const phase = phaseFor(transfer.status, job, errorCode)
   const phaseLabel = labelForPhase(phase, job, copy.jobs)
   const backgroundColor = background === 'transparent' ? undefined : background === 'custom' ? customColor : background
@@ -53,6 +64,8 @@ export function RemoveBackgroundWorkspace({ tool }: { tool: ToolDefinition }) {
   }, [sourceUrl])
 
   function choose(next: File) {
+    runToken.current += 1
+    setProgressKey((value) => value + 1)
     if (sourceUrl) URL.revokeObjectURL(sourceUrl)
     setSourceUrl(URL.createObjectURL(next))
     setFile(next)
@@ -64,6 +77,8 @@ export function RemoveBackgroundWorkspace({ tool }: { tool: ToolDefinition }) {
   }
 
   function reset() {
+    runToken.current += 1
+    setProgressKey((value) => value + 1)
     if (sourceUrl) URL.revokeObjectURL(sourceUrl)
     setSourceUrl('')
     setFile(null)
@@ -75,49 +90,69 @@ export function RemoveBackgroundWorkspace({ tool }: { tool: ToolDefinition }) {
   }
 
   async function run() {
-    if (!file) return
+    if (!file || busy) return
+    const token = runToken.current + 1
+    runToken.current = token
+    setProgressKey((value) => value + 1)
     setError('')
     setErrorCode(null)
     setResult(null)
     try {
       setTransfer({ status: 'uploading', progress: { fileName: file.name, percent: 0, label: copy.jobs.uploading } })
       const upload = await createUpload({ filename: file.name, contentType: file.type || 'application/octet-stream', size: file.size, toolId: tool.id })
+      if (runToken.current !== token) return
       await uploadFile(upload, file, {
-        onProgress: (percent) => setTransfer({ status: 'uploading', progress: { fileName: file.name, percent, label: copy.jobs.uploading } }),
+        onProgress: (uploaded) => {
+          if (runToken.current !== token) return
+          setTransfer({ status: 'uploading', progress: { fileName: file.name, percent: uploaded, label: copy.jobs.uploading } })
+        },
       })
+      if (runToken.current !== token) return
       const completed = await completeUpload({ fileKey: upload.fileKey })
-      setTransfer({ status: 'processing', progress: { fileName: file.name, percent: null, label: 'Queued' } })
+      if (runToken.current !== token) return
+      setTransfer({ status: 'processing', progress: { fileName: file.name, percent: 20, label: 'Preparing' } })
       let current = await createJob({ toolId: tool.id, input: { fileKey: completed.fileKey }, options: { mode } })
+      if (runToken.current !== token) return
       setJob(current)
       while (!['completed', 'failed', 'cancelled', 'expired'].includes(current.status)) {
-        await new Promise<void>((resolve) => window.setTimeout(resolve, 500))
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 400))
+        if (runToken.current !== token) return
         current = await getJob(current.jobId)
         setJob(current)
         setTransfer({ status: 'processing', progress: { fileName: file.name, percent: current.progress, label: phaseLabelForStage(current.stage) } })
       }
+      if (runToken.current !== token) return
       if (current.status !== 'completed') {
         setTransfer(idleTransfer)
+        if (current.status === 'failed') {
+          const failed = errorFromJob(current.error)
+          setErrorCode(workflowErrorCode(failed))
+          setError(backgroundRemovalMessage(failed, copy.errors))
+        }
         return
       }
       const payload = await getJobResult<ResultPayload>(current.jobId)
+      if (runToken.current !== token) return
       const url = resolveApiUrl(payload.result.downloadUrl)
       setResult({ ...payload.result, url })
       setTransfer({ status: 'success', progress: { fileName: file.name, percent: 100, label: copy.jobs.completed } })
     } catch (reason) {
+      if (runToken.current !== token) return
       const failed = reason instanceof Error ? reason : errorFromJob(job?.error)
       setErrorCode(workflowErrorCode(failed))
-      setError(workflowMessage(failed, copy.errors))
+      setError(backgroundRemovalMessage(failed, copy.errors))
       setTransfer(idleTransfer)
     }
   }
 
   async function stop() {
+    runToken.current += 1
     if (job) setJob(await cancelJob(job.jobId))
     setTransfer(idleTransfer)
   }
 
   return (
-    <section className="workspace remove-bg-workspace">
+    <section className="workspace remove-bg-workspace" aria-busy={busy}>
       <div className="options-panel remove-bg-controls">
         {!file ? (
           <FileDropzone accept={tool.acceptedFormats ?? ['image/jpeg', 'image/png', 'image/webp']} maxFileSize={100 * 1024 * 1024} status={transfer.status} progress={transfer.progress} disabled={busy} onFileSelected={choose} />
@@ -145,10 +180,25 @@ export function RemoveBackgroundWorkspace({ tool }: { tool: ToolDefinition }) {
             {background === 'custom' && <input type="color" aria-label="Custom background color" value={customColor} onChange={(event) => setCustomColor(event.target.value)} />}
           </div>
         )}
-        <div className="button-row">
-          <button className="button primary" type="button" disabled={!file || busy} onClick={run}>{busy && <LoaderCircle size={17}/>} Remove background</button>
-          {busy && <button className="button secondary" type="button" onClick={stop}><Square size={15}/> {copy.workspace.cancel}</button>}
+        <div className="button-row remove-bg-actions">
+          <button className="button primary" type="button" disabled={!file || busy} aria-busy={busy} onClick={() => void run()}>
+            {busy && <LoaderCircle size={17} aria-hidden="true" className="animate-spin" />}
+            {busy ? flow.label : 'Remove background'}
+          </button>
+          {busy && (
+            <button className="button secondary" type="button" onClick={() => void stop()}>
+              <Square size={15} aria-hidden="true" /> {copy.workspace.cancel}
+            </button>
+          )}
         </div>
+        {busy && (
+          <ProcessingProgressPanel
+            stage="preparing"
+            active
+            title={flow.label}
+            percent={percent}
+          />
+        )}
         <p className="option-help">Your image is processed on the Kits server. It is not sent to third-party AI services.</p>
         {error && <p className="field-error" role="alert">{error}</p>}
       </div>
@@ -170,7 +220,6 @@ export function RemoveBackgroundWorkspace({ tool }: { tool: ToolDefinition }) {
             meta={result ? { filename: result.filename, mime: 'image/png', width: result.width, height: result.height, size: result.size, originalSize: result.originalSize ?? file.size, durationMs: result.processingTimeMs } : undefined}
           />
         ) : <p className="empty-result">Upload an image to remove its background.</p>}
-        {busy && <progress max="100" value={job?.progress ?? undefined} />}
         {result && file && (
           <div className="remove-bg-done">
             <p><CheckCircle2 size={18}/> Background removed</p>
@@ -223,4 +272,15 @@ function formatBytes(bytes: number): string {
   let unit = 0
   while (value >= 1024 && unit < units.length - 1) { value /= 1024; unit += 1 }
   return `${value >= 10 || unit === 0 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`
+}
+
+function backgroundRemovalMessage(reason: unknown, errors: Messages['errors']): string {
+  const code = workflowErrorCode(reason)
+  if (code === 'MODEL_UNAVAILABLE') return errors.backgroundModelUnavailable
+  if (code === 'AI_PROCESSING_FAILED') return errors.backgroundRemovalFailed
+  return workflowMessage(reason, {
+    ...errors,
+    modelUnavailable: errors.backgroundModelUnavailable,
+    aiProcessingFailed: errors.backgroundRemovalFailed,
+  })
 }

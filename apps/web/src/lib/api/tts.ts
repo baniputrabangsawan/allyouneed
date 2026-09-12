@@ -7,6 +7,7 @@ export interface TtsVoice {
   language: string
   provider: string
   model: string
+  styles: string[]
   available: boolean
 }
 

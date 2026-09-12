@@ -5,7 +5,16 @@ import pytest
 from PIL import Image, ImageDraw
 
 from app.processors.base import ProcessingError, ProcessorContext
-from app.processors.image.face import clamp_box, detect_frontal_faces, image_to_bgr, parse_face_options
+from app.processors.image.face import (
+    apply_face_obscure,
+    blur_sigma_for_face,
+    clamp_box,
+    detect_frontal_faces,
+    expand_face_box,
+    image_to_bgr,
+    parse_face_options,
+    pixel_block_for_face,
+)
 from app.processors.registry import get_processor
 from tests.helpers import png_bytes
 
@@ -62,12 +71,41 @@ async def test_blur_face_rejects_images_without_faces(tmp_path: Path) -> None:
     assert not output.exists()
 
 
-def test_parse_face_options_is_mode_only() -> None:
-    assert parse_face_options({}) == "blur"
-    assert parse_face_options({"mode": "Blur"}) == "blur"
-    assert parse_face_options({"mode": "pixelate"}) == "pixelate"
-    assert parse_face_options({"mode": "blur", "strength": 99}) == "blur"
-    assert parse_face_options({"strength": 0}) == "blur"
+def test_parse_face_options_is_mode_and_intensity() -> None:
+    assert parse_face_options({}) == ("blur", "strong")
+    assert parse_face_options({"mode": "Blur"}) == ("blur", "strong")
+    assert parse_face_options({"mode": "pixelate"}) == ("pixelate", "strong")
+    assert parse_face_options({"mode": "blur", "intensity": "privacy"}) == ("blur", "privacy")
+    assert parse_face_options({"mode": "blur", "preset": "light"}) == ("blur", "light")
+    assert parse_face_options({"mode": "blur", "strength": 99}) == ("blur", "strong")
+    assert parse_face_options({"intensity": "unknown"}) == ("blur", "strong")
+
+
+def test_expand_face_box_covers_forehead_cheeks_and_chin() -> None:
+    expanded = expand_face_box((40, 40, 100, 120), 400, 400, factor=0.26)
+    x, y, width, height = expanded
+    assert x < 40
+    assert y < 40
+    assert x + width > 140
+    assert y + height > 160
+    privacy = expand_face_box((40, 40, 100, 120), 400, 400, factor=0.38)
+    assert privacy[2] > width
+    assert privacy[3] > height
+    assert expand_face_box((0, 0, 20, 20), 20, 20, factor=0.30) == (0, 0, 20, 20)
+
+
+def test_blur_and_pixel_scale_with_face_size() -> None:
+    small = blur_sigma_for_face(40, intensity="strong")
+    large = blur_sigma_for_face(400, intensity="strong")
+    assert large > small
+    assert large >= 400 * 0.18
+    assert blur_sigma_for_face(20, intensity="privacy") >= 28
+    assert pixel_block_for_face(400, intensity="privacy") >= pixel_block_for_face(80, intensity="light")
+    light = blur_sigma_for_face(200, intensity="light")
+    medium = blur_sigma_for_face(200, intensity="medium")
+    strong = blur_sigma_for_face(200, intensity="strong")
+    privacy = blur_sigma_for_face(200, intensity="privacy")
+    assert light < medium < strong < privacy
 
 
 async def test_blur_face_rejects_invalid_mode_and_ignores_strength(tmp_path: Path) -> None:
@@ -112,6 +150,7 @@ async def test_blur_face_changes_detected_roi_and_keeps_size(tmp_path: Path) -> 
     assert result.metadata["height"] == original_size[1]
     assert int(result.metadata["faces"]) >= 1
     assert result.metadata["mode"] == "blur"
+    assert result.metadata["intensity"] == "strong"
     with Image.open(output) as blurred:
         assert blurred.size == original_size
         blurred_bgr = image_to_bgr(blurred)
@@ -121,6 +160,49 @@ async def test_blur_face_changes_detected_roi_and_keeps_size(tmp_path: Path) -> 
     assert not np.array_equal(before, after)
     corner = original_bgr[0:8, 0:8]
     assert np.array_equal(corner, blurred_bgr[0:8, 0:8])
+
+
+def test_soft_mask_leaves_far_pixels_and_hides_face_center() -> None:
+    image = np.zeros((120, 120, 3), dtype=np.uint8)
+    image[:, :] = (20, 180, 20)
+    image[30:90, 30:90] = (40, 40, 220)
+    boxes = [(30, 30, 60, 60)]
+    obscured = apply_face_obscure(image, boxes, mode="blur", intensity="privacy")
+    assert not np.array_equal(image[60, 60], obscured[60, 60])
+    assert np.array_equal(image[0:8, 0:8], obscured[0:8, 0:8])
+    # Expanded bounding box covers the original box corners, not just an inner oval.
+    assert not np.array_equal(image[31, 31], obscured[31, 31])
+    assert not np.array_equal(image[31, 88], obscured[31, 88])
+    assert not np.array_equal(image[88, 31], obscured[88, 31])
+    assert not np.array_equal(image[88, 88], obscured[88, 88])
+
+
+def test_privacy_hides_identity_more_than_light() -> None:
+    image = np.zeros((160, 160, 3), dtype=np.uint8)
+    image[:, :] = (30, 30, 30)
+    yy, xx = np.ogrid[:160, :160]
+    face = ((xx - 80) ** 2) / (50 ** 2) + ((yy - 80) ** 2) / (60 ** 2) <= 1
+    image[face] = (90, 160, 220)
+    image[70:90, 55:75] = (20, 20, 20)
+    image[70:90, 85:105] = (20, 20, 20)
+    boxes = [(30, 20, 100, 120)]
+    light = apply_face_obscure(image, boxes, mode="blur", intensity="light")
+    privacy = apply_face_obscure(image, boxes, mode="blur", intensity="privacy")
+
+    def interior_detail(frame: np.ndarray) -> float:
+        return float(np.std(frame[50:110, 50:110].astype(np.float32)))
+
+    assert interior_detail(privacy) < interior_detail(light)
+    assert interior_detail(privacy) < interior_detail(image)
+    assert not np.array_equal(privacy[80, 80], image[80, 80])
+
+
+def test_edge_and_small_faces_stay_inside_image() -> None:
+    image = np.full((80, 80, 3), 40, dtype=np.uint8)
+    image[2:22, 2:22] = (200, 80, 40)
+    obscured = apply_face_obscure(image, [(2, 2, 20, 20), (50, 50, 40, 40)], mode="blur", intensity="privacy")
+    assert obscured.shape == image.shape
+    assert not np.array_equal(image[12, 12], obscured[12, 12])
 
 
 async def test_pixelate_mode_changes_roi_and_keeps_size(tmp_path: Path) -> None:
@@ -138,6 +220,7 @@ async def test_pixelate_mode_changes_roi_and_keeps_size(tmp_path: Path) -> None:
     assert result.metadata["width"] == original_size[0]
     assert result.metadata["height"] == original_size[1]
     assert result.metadata["mode"] == "pixelate"
+    assert result.metadata["intensity"] == "strong"
     with Image.open(output) as pixelated:
         assert pixelated.size == original_size
         after = image_to_bgr(pixelated)[y : y + height, x : x + width]

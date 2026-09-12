@@ -7,6 +7,7 @@ class TtsVoiceView(ApiModel):
     language: str
     provider: str
     model: str
+    styles: list[str]
     available: bool
 
 

@@ -38,15 +38,21 @@ describe('defaultRemoteOptions', () => {
     })
   })
 
-  it('defaults blur-face to blur without strength', () => {
-    expect(defaultRemoteOptions('blur-face')).toEqual({ mode: 'blur' })
+  it('defaults blur-face to strong blur without numeric strength', () => {
+    expect(defaultRemoteOptions('blur-face')).toEqual({ mode: 'blur', intensity: 'strong' })
   })
 })
 
 describe('sanitizeRemoteOptions', () => {
-  it('keeps blur-face mode-only and ignores leftover strength', () => {
-    expect(sanitizeRemoteOptions('blur-face', { mode: 'pixelate', strength: 32 })).toEqual({ mode: 'pixelate' })
-    expect(sanitizeRemoteOptions('blur-face', { strength: 0 })).toEqual({ mode: 'blur' })
-    expect(sanitizeRemoteOptions('blur-face', { mode: 'wipe' })).toEqual({ mode: 'blur' })
+  it('keeps blur-face mode and intensity and ignores leftover strength', () => {
+    expect(sanitizeRemoteOptions('blur-face', { mode: 'pixelate', strength: 32, intensity: 'privacy' })).toEqual({
+      mode: 'pixelate',
+      intensity: 'privacy',
+    })
+    expect(sanitizeRemoteOptions('blur-face', { strength: 0 })).toEqual({ mode: 'blur', intensity: 'strong' })
+    expect(sanitizeRemoteOptions('blur-face', { mode: 'wipe', intensity: 'unknown' })).toEqual({
+      mode: 'blur',
+      intensity: 'strong',
+    })
   })
 })

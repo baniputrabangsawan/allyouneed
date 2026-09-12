@@ -19,7 +19,10 @@ export type WorkflowErrorCode =
   | 'VOICE_UNAVAILABLE'
   | 'UNSUPPORTED_LANGUAGE'
   | 'VOICE_LANGUAGE_MISMATCH'
+  | 'STYLE_UNAVAILABLE'
+  | 'STYLE_VOICE_MISMATCH'
   | 'TTS_FAILED'
+  | 'AI_PROCESSING_FAILED'
 
 export interface WorkflowMessages {
   apiUnreachable: string
@@ -40,7 +43,10 @@ export interface WorkflowMessages {
   voiceUnavailable?: string
   unsupportedLanguage?: string
   voiceLanguageMismatch?: string
+  styleUnavailable?: string
+  styleVoiceMismatch?: string
   ttsFailed?: string
+  aiProcessingFailed?: string
 }
 
 const NETWORK_PATTERN = /failed to fetch|networkerror|load failed|err_connection|econnrefused|fetch failed/i
@@ -67,10 +73,13 @@ export function workflowErrorCode(reason: unknown): WorkflowErrorCode {
     if (reason.code === 'UNSUPPORTED_MEDIA') return 'UNSUPPORTED_MEDIA'
     if (reason.code === 'TRANSCRIPTION_FAILED') return 'TRANSCRIPTION_FAILED'
     if (reason.code === 'MODEL_UNAVAILABLE' || reason.code === 'SERVICE_UNAVAILABLE') return 'MODEL_UNAVAILABLE'
+    if (reason.code === 'BACKGROUND_REMOVAL_FAILED' || reason.code === 'AI_PROCESSING_FAILED') return 'AI_PROCESSING_FAILED'
     if (reason.code === 'TEXT_TOO_LONG') return 'TEXT_TOO_LONG'
     if (reason.code === 'VOICE_UNAVAILABLE') return 'VOICE_UNAVAILABLE'
     if (reason.code === 'UNSUPPORTED_LANGUAGE') return 'UNSUPPORTED_LANGUAGE'
     if (reason.code === 'VOICE_LANGUAGE_MISMATCH') return 'VOICE_LANGUAGE_MISMATCH'
+    if (reason.code === 'STYLE_UNAVAILABLE') return 'STYLE_UNAVAILABLE'
+    if (reason.code === 'STYLE_VOICE_MISMATCH') return 'STYLE_VOICE_MISMATCH'
     if (reason.code === 'TTS_FAILED') return 'TTS_FAILED'
     if (reason.status === 0) return 'API_UNREACHABLE'
     return 'PROCESSING_FAILED'
@@ -96,10 +105,13 @@ export function workflowMessage(reason: unknown, messages: WorkflowMessages): st
   if (code === 'UNSUPPORTED_MEDIA') return messages.unsupportedMedia ?? (reason instanceof Error ? reason.message : messages.processingFailed)
   if (code === 'TRANSCRIPTION_FAILED') return messages.transcriptionFailed ?? (reason instanceof Error ? reason.message : messages.processingFailed)
   if (code === 'MODEL_UNAVAILABLE') return messages.modelUnavailable ?? (reason instanceof Error ? reason.message : messages.processingFailed)
+  if (code === 'AI_PROCESSING_FAILED') return messages.aiProcessingFailed ?? (reason instanceof Error ? reason.message : messages.processingFailed)
   if (code === 'TEXT_TOO_LONG') return messages.textTooLong ?? (reason instanceof Error ? reason.message : messages.processingFailed)
   if (code === 'VOICE_UNAVAILABLE') return messages.voiceUnavailable ?? (reason instanceof Error ? reason.message : messages.processingFailed)
   if (code === 'UNSUPPORTED_LANGUAGE') return messages.unsupportedLanguage ?? (reason instanceof Error ? reason.message : messages.processingFailed)
   if (code === 'VOICE_LANGUAGE_MISMATCH') return messages.voiceLanguageMismatch ?? (reason instanceof Error ? reason.message : messages.processingFailed)
+  if (code === 'STYLE_UNAVAILABLE') return messages.styleUnavailable ?? (reason instanceof Error ? reason.message : messages.processingFailed)
+  if (code === 'STYLE_VOICE_MISMATCH') return messages.styleVoiceMismatch ?? (reason instanceof Error ? reason.message : messages.processingFailed)
   if (code === 'TTS_FAILED') return messages.ttsFailed ?? (reason instanceof Error ? reason.message : messages.processingFailed)
   if (reason instanceof Error && reason.message && !NETWORK_PATTERN.test(reason.message)) {
     return reason.message

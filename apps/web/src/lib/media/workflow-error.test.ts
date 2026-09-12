@@ -68,4 +68,22 @@ describe('workflow errors', () => {
     expect(workflowErrorCode(errorFromJob({ code: 'TEXT_TOO_LONG', message: 'long' }))).toBe('TEXT_TOO_LONG')
     expect(workflowMessage(errorFromJob({ code: 'TTS_FAILED', message: 'Speech could not be generated.' }), copy)).toBe('Speech could not be generated.')
   })
+
+  it('maps background removal failures without leaking CUDA details', () => {
+    const messages = {
+      ...copy,
+      modelUnavailable: 'Quality background removal model is not available.',
+      aiProcessingFailed: 'Background removal failed. Please try again.',
+    }
+    expect(workflowErrorCode(errorFromJob({ code: 'MODEL_UNAVAILABLE', message: 'missing' }))).toBe('MODEL_UNAVAILABLE')
+    expect(workflowErrorCode(errorFromJob({
+      code: 'BACKGROUND_REMOVAL_FAILED',
+      message: 'CUDA error: out of memory',
+    }))).toBe('AI_PROCESSING_FAILED')
+    expect(workflowMessage(errorFromJob({
+      code: 'BACKGROUND_REMOVAL_FAILED',
+      message: 'CUDA error: out of memory',
+    }), messages)).toBe(messages.aiProcessingFailed)
+    expect(workflowMessage(errorFromJob({ code: 'MODEL_UNAVAILABLE', message: 'missing' }), messages)).toBe(messages.modelUnavailable)
+  })
 })
