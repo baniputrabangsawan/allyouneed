@@ -56,4 +56,7 @@ export interface CompleteUploadRequest {
 
 export interface UploadedFile {
   fileKey: string
+  filename?: string
+  contentType?: string
+  size?: number
 }

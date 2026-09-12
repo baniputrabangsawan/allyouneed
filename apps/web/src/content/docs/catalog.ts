@@ -1,4 +1,3 @@
-import Fuse from 'fuse.js'
 import {
   getRelatedTools,
   tools,
@@ -9,9 +8,9 @@ import type { Locale } from '@/i18n/config'
 import { getMessages } from '@/i18n'
 import { toolGuidesId } from '@/i18n/guides-id'
 import { toolsId } from '@/i18n/tools-id'
-import { docsArticles } from './articles'
 import { toolGuides } from './tool-guides'
 import { docsCategoryCopy, type ToolGuide } from './types'
+export { docsArticlePath, searchDocs, type DocsSearchHit } from './search'
 
 
 export const toolGuideToc = [
@@ -132,48 +131,6 @@ export function docsRelated(tool: ToolDefinition) {
   const related = getRelatedTools(tool)
   if (related.length >= 3) return related
   return tools.filter((item) => item.available && item.id !== tool.id && item.category === tool.category).slice(0, 6)
-}
-
-export type DocsSearchHit =
-  | { kind: 'tool'; slug: string; title: string; subtitle: string; keywords: string; nameId?: string }
-  | { kind: 'article'; slug: string; title: string; subtitle: string; keywords: string; nameId?: string }
-
-export function docsArticlePath(slug: string) {
-  if (slug === 'getting-started') return '/docs/getting-started' as const
-  if (slug === 'troubleshooting') return '/docs/troubleshooting' as const
-  return '/docs/privacy-and-processing' as const
-}
-
-const searchRecords: DocsSearchHit[] = [
-  ...docsArticles.map((article) => ({
-    kind: 'article' as const,
-    slug: article.slug,
-    title: article.title,
-    subtitle: 'Guide',
-    keywords: article.keywords.join(' '),
-  })),
-  ...tools.map((tool) => {
-    const idCopy = toolsId[tool.slug]
-    return {
-      kind: 'tool' as const,
-      slug: tool.slug,
-      title: tool.name,
-      subtitle: `${tool.category} • Guide`,
-      ...(idCopy?.name ? { nameId: idCopy.name } : {}),
-      keywords: [tool.description, tool.tags.join(' '), toolGuides[tool.slug]?.keywords?.join(' '), idCopy?.name, idCopy?.shortDescription, idCopy?.aliases?.join(' '), toolGuidesId[tool.slug]?.keywords?.join(' ')].filter(Boolean).join(' '),
-    }
-  }),
-]
-
-const fuse = new Fuse(searchRecords, {
-  keys: ['title', 'subtitle', 'slug', 'keywords', 'nameId'],
-  threshold: 0.34,
-})
-
-export function searchDocs(query: string): DocsSearchHit[] {
-  const trimmed = query.trim()
-  if (!trimmed) return searchRecords.slice(0, 12)
-  return fuse.search(trimmed).map(({ item }) => item)
 }
 
 export const popularDocSlugs = ['compress-image', 'resize-image', 'merge-pdf', 'json-formatter', 'qr-code-generator', 'voice-recorder'] as const

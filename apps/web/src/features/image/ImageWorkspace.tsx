@@ -1,19 +1,19 @@
 import { Download, FileImage, RefreshCcw, RotateCcw, RotateCw, Trash2 } from 'lucide-react'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react'
 import { FileDropzone } from '@/components/file/FileDropzone'
 import { FAVICON_ACCEPT, FAVICON_PNG_MIME, type FaviconFit } from '@/features/image/favicon-utils'
 import { getImageWorkspaceMode, type ImageWorkspaceMode } from '@/features/image/image-utils'
-import { MemeWorkspace } from '@/features/image/MemeWorkspace'
-import { PhotoEditorWorkspace } from '@/features/image/PhotoEditorWorkspace'
-import { SvgToPngWorkspace } from '@/features/image/SvgToPngWorkspace'
 import type { ToolDefinition } from '@/features/tools/tool-registry'
 import { CopyButton } from '@/features/workspaces/workspace-ui'
+import { LocaleLink } from '@/i18n/link'
 import { formatBytes, outputFilename } from '@/lib/format'
+import { autoDownloadOnce } from '@/lib/media/auto-download'
 import { motion } from '@/lib/motion/config'
 import { gsap, useGSAP } from '@/lib/motion/gsap'
 import { prefersReducedMotion } from '@/lib/motion/prefers-reduced-motion'
 import { decodeSourceImage, generateFaviconPack } from '@/processing/client/favicon'
 import { processImage, type ImageCrop, type ImageFormat, type WatermarkPosition } from '@/processing/client/image'
+import { compressPng, type PngCompressMode } from '@/processing/client/png-compress'
 
 type ResizeUnit = 'pixels' | 'percent'
 
@@ -21,6 +21,8 @@ interface ImageResult {
   blob: Blob
   url: string
   durationMs: number
+  id: string
+  recommendWebp?: boolean
 }
 
 interface FaviconResult {
@@ -46,11 +48,22 @@ const formatLabels: Readonly<Record<ImageFormat, string>> = {
   'image/png': 'PNG',
   'image/webp': 'WebP',
 }
+const pngModeHelp: Readonly<Record<PngCompressMode, string>> = {
+  lossless: 'Keeps every pixel. Strips metadata and optimizes PNG encoding.',
+  balanced: 'Default. Shrinks PNG a lot while staying visually close to the original.',
+  strong: 'Smaller files. More color reduction, still the same dimensions.',
+}
+const pngModes: readonly PngCompressMode[] = ['lossless', 'balanced', 'strong']
 const positions: readonly WatermarkPosition[] = [
   'top-left', 'top-center', 'top-right',
   'center-left', 'center', 'center-right',
   'bottom-left', 'bottom-center', 'bottom-right',
 ]
+
+const MemeWorkspace = lazy(() => import('./MemeWorkspace').then(({ MemeWorkspace }) => ({ default: MemeWorkspace })))
+const MergePngWorkspace = lazy(() => import('./MergePngWorkspace').then(({ MergePngWorkspace }) => ({ default: MergePngWorkspace })))
+const PhotoEditorWorkspace = lazy(() => import('./PhotoEditorWorkspace').then(({ PhotoEditorWorkspace }) => ({ default: PhotoEditorWorkspace })))
+const SvgToPngWorkspace = lazy(() => import('./SvgToPngWorkspace').then(({ SvgToPngWorkspace }) => ({ default: SvgToPngWorkspace })))
 
 function getMode(slug: string): ImageWorkspaceMode {
   return getImageWorkspaceMode(slug) ?? 'converter'
@@ -77,9 +90,10 @@ function inputFormats(tool: ToolDefinition): readonly string[] {
 }
 
 export function ImageWorkspace({ tool }: { tool: ToolDefinition }) {
-  if (tool.slug === 'svg-to-png') return <SvgToPngWorkspace tool={tool}/>
-  if (tool.slug === 'meme-generator') return <MemeWorkspace tool={tool}/>
-  if (tool.slug === 'photo-editor') return <PhotoEditorWorkspace tool={tool}/>
+  if (tool.slug === 'svg-to-png') return <Suspense fallback={null}><SvgToPngWorkspace /></Suspense>
+  if (tool.slug === 'meme-generator') return <Suspense fallback={null}><MemeWorkspace /></Suspense>
+  if (tool.slug === 'photo-editor') return <Suspense fallback={null}><PhotoEditorWorkspace /></Suspense>
+  if (tool.slug === 'merge-png') return <Suspense fallback={null}><MergePngWorkspace /></Suspense>
   return <RasterImageWorkspace tool={tool}/>
 }
 
@@ -100,6 +114,7 @@ function RasterImageWorkspace({ tool }: { tool: ToolDefinition }) {
   const [naturalHeight, setNaturalHeight] = useState(0)
   const [format, setFormat] = useState<ImageFormat>(() => initialFormat(tool))
   const [quality, setQuality] = useState(mode === 'compress' ? 80 : 90)
+  const [compressMode, setCompressMode] = useState<PngCompressMode>('balanced')
   const [width, setWidth] = useState(1200)
   const [height, setHeight] = useState(800)
   const [resizeUnit, setResizeUnit] = useState<ResizeUnit>('pixels')
@@ -140,6 +155,7 @@ function RasterImageWorkspace({ tool }: { tool: ToolDefinition }) {
     clearResult()
     setFormat(initialFormat(tool, currentFile ?? undefined))
     setQuality(mode === 'compress' ? 80 : 90)
+    setCompressMode('balanced')
     setWidth(naturalWidth || 1200)
     setHeight(naturalHeight || 800)
     setResizeUnit('pixels')
@@ -265,27 +281,41 @@ function RasterImageWorkspace({ tool }: { tool: ToolDefinition }) {
       const crop: ImageCrop | undefined = mode === 'crop' && naturalWidth > 0
         ? { x: cropX, y: cropY, width: cropWidth, height: cropHeight }
         : undefined
-      const blob = await processImage(file, {
-        format,
-        quality: quality / 100,
-        ...(format === 'image/jpeg' ? { backgroundColor: '#fff' } : {}),
-        ...(mode === 'resize' ? { width: outputWidth, height: outputHeight } : {}),
-        ...(crop ? { crop } : {}),
-        ...(mode === 'transform' ? { rotation, flipX, flipY } : {}),
-        ...(mode === 'watermark' ? {
-          watermark,
-          watermarkPosition,
-          watermarkOpacity: watermarkOpacity / 100,
-          watermarkSize,
-          watermarkPadding,
-          watermarkRotation,
-        } : {}),
-      })
+      let blob: Blob
+      let recommendWebp = false
+      if (mode === 'compress' && format === 'image/png') {
+        const compressed = compressPng(new Uint8Array(await file.arrayBuffer()), { mode: compressMode })
+        blob = new Blob([compressed.bytes.slice()], { type: 'image/png' })
+        recommendWebp = compressed.recommendWebp
+      } else {
+        blob = await processImage(file, {
+          format,
+          quality: quality / 100,
+          ...(format === 'image/jpeg' ? { backgroundColor: '#fff' } : {}),
+          ...(mode === 'resize' ? { width: outputWidth, height: outputHeight } : {}),
+          ...(crop ? { crop } : {}),
+          ...(mode === 'transform' ? { rotation, flipX, flipY } : {}),
+          ...(mode === 'watermark' ? {
+            watermark,
+            watermarkPosition,
+            watermarkOpacity: watermarkOpacity / 100,
+            watermarkSize,
+            watermarkPadding,
+            watermarkRotation,
+          } : {}),
+        })
+      }
       if (selection !== selectionRef.current) return
       clearResult()
       const url = URL.createObjectURL(blob)
       resultUrlRef.current = url
-      setResult({ blob, url, durationMs: performance.now() - startedAt })
+      setResult({
+        blob,
+        url,
+        durationMs: performance.now() - startedAt,
+        id: crypto.randomUUID(),
+        ...(recommendWebp ? { recommendWebp: true } : {}),
+      })
       setStatus('completed')
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Image processing failed.')
@@ -302,6 +332,8 @@ function RasterImageWorkspace({ tool }: { tool: ToolDefinition }) {
   const suffix = mode === 'compress' ? 'compressed' : mode === 'resize' ? 'resized' : mode === 'crop' ? 'cropped' : mode === 'transform' ? (tool.slug === 'flip-image' ? 'flipped' : 'rotated') : mode === 'watermark' ? 'watermarked' : mode === 'metadata' ? 'clean' : 'converted'
   const extension = format === 'image/jpeg' ? 'jpg' : format === 'image/png' ? 'png' : 'webp'
   const savings = result && file && file.size > 0 ? Math.round((1 - result.blob.size / file.size) * 100) : null
+  const savedBytes = result && file ? Math.max(0, file.size - result.blob.size) : 0
+  const savedPct = result && file && file.size > 0 ? Math.round((savedBytes / file.size) * 100) : 0
   const previewUrl = pack?.files.find((entry) => entry.mime === FAVICON_PNG_MIME && entry.width === 180)?.url
     ?? pack?.files.find((entry) => entry.mime === FAVICON_PNG_MIME)?.url
     ?? result?.url
@@ -316,9 +348,51 @@ function RasterImageWorkspace({ tool }: { tool: ToolDefinition }) {
     })
   }, { dependencies: [status, result?.url, pack?.zipUrl], scope: workspaceRef })
 
-  return <section ref={workspaceRef} className="workspace">{!file ? <FileDropzone accept={inputFormats(tool)} onFileSelected={chooseFile}/> : <div className="image-workspace"><div className="preview-panel"><div className="panel-label"><span>Preview</span><button type="button" className="text-button" onClick={removeFile}><Trash2 size={15}/> Remove</button></div><div className="image-stage"><img src={previewUrl} alt={pack || result ? 'Processed result' : 'Selected input'}/></div><div className="file-summary"><FileImage size={20}/><span><strong>{file.name}</strong><small>{formatBytes(file.size)}{result ? ` -> ${formatBytes(result.blob.size)} · ${savings !== null && savings >= 0 ? `${savings}% saved` : `${Math.abs(savings ?? 0)}% larger`} · ${Math.round(result.durationMs)} ms` : pack ? ` -> ${pack.files.length} files · ${Math.round(pack.durationMs)} ms` : ''}</small></span></div></div><div className="options-panel"><div className="panel-label"><span>Settings</span><button type="button" className="text-button" onClick={() => resetSettings()}><RefreshCcw size={14}/> Reset</button></div>{showFormat && <Field label="Output format"><select value={format} onChange={(event) => setFormat(event.target.value as ImageFormat)}>{selectableFormats.map((value) => <option key={value} value={value}>{formatLabels[value]}</option>)}</select></Field>}{showQuality && <><Field label="Quality" value={`${quality}%`}><input type="range" min="10" max="100" value={quality} onChange={(event) => setQuality(Number(event.target.value))}/></Field><p className="option-help">Quality applies to {formatLabels[format]} encoding. The original is never changed.</p></>}{(mode === 'compress' || mode === 'converter') && format === 'image/png' && <p className="option-help">PNG export is lossless, so there is no quality setting.</p>}{mode === 'resize' && <><Field label="Resize mode"><select value={resizeUnit} onChange={(event) => setResizeUnit(event.target.value as ResizeUnit)}><option value="pixels">Pixels</option><option value="percent">Percentage</option></select></Field><label className="check-row"><input type="checkbox" checked={lockAspectRatio} onChange={(event) => setLockAspectRatio(event.target.checked)}/>Lock aspect ratio</label><div className="field-grid">{resizeUnit === 'pixels' ? <><Field label="Width" value="px"><input type="number" min="1" max="16384" value={width} onChange={(event) => updateWidth(Number(event.target.value))}/></Field><Field label="Height" value="px"><input type="number" min="1" max="16384" value={height} onChange={(event) => updateHeight(Number(event.target.value))}/></Field></> : <><Field label="Width" value="%"><input type="number" min="1" max="400" value={widthPercent} onChange={(event) => updateWidthPercent(Number(event.target.value))}/></Field><Field label="Height" value="%"><input type="number" min="1" max="400" value={heightPercent} onChange={(event) => updateHeightPercent(Number(event.target.value))}/></Field></>}</div></>}{mode === 'crop' && <><p className="option-help">Crop uses pixel coordinates from the top-left of the original image.</p><div className="field-grid"><Field label="Left" value="px"><input aria-label="Crop left" type="number" min="0" max={Math.max(0, naturalWidth - 1)} value={cropX} onChange={(event) => setCropX(Number(event.target.value))}/></Field><Field label="Top" value="px"><input aria-label="Crop top" type="number" min="0" max={Math.max(0, naturalHeight - 1)} value={cropY} onChange={(event) => setCropY(Number(event.target.value))}/></Field><Field label="Width" value="px"><input aria-label="Crop width" type="number" min="1" max={naturalWidth} value={cropWidth} onChange={(event) => setCropWidth(Number(event.target.value))}/></Field><Field label="Height" value="px"><input aria-label="Crop height" type="number" min="1" max={naturalHeight} value={cropHeight} onChange={(event) => setCropHeight(Number(event.target.value))}/></Field></div></>}{mode === 'transform' && <><div className="segmented"><button type="button" className={rotation === -90 ? 'active' : ''} onClick={() => setRotation(-90)}><RotateCcw size={17}/> 90° left</button><button type="button" className={rotation === 90 ? 'active' : ''} onClick={() => setRotation(90)}><RotateCw size={17}/> 90° right</button><button type="button" className={rotation === 180 ? 'active' : ''} onClick={() => setRotation(180)}>180°</button></div><label className="check-row"><input type="checkbox" checked={flipX} onChange={(event) => setFlipX(event.target.checked)}/>Flip horizontally</label><label className="check-row"><input type="checkbox" checked={flipY} onChange={(event) => setFlipY(event.target.checked)}/>Flip vertically</label></>}{mode === 'watermark' && <><Field label="Watermark text"><input value={watermark} maxLength={120} onChange={(event) => setWatermark(event.target.value)}/></Field><Field label="Position"><select value={watermarkPosition} onChange={(event) => setWatermarkPosition(event.target.value as WatermarkPosition)}>{positions.map((value) => <option key={value} value={value}>{value.replace('-', ' ')}</option>)}</select></Field><Field label="Opacity" value={`${watermarkOpacity}%`}><input type="range" min="0" max="100" value={watermarkOpacity} onChange={(event) => setWatermarkOpacity(Number(event.target.value))}/></Field><Field label="Size" value={`${watermarkSize}px`}><input type="range" min="8" max="240" value={watermarkSize} onChange={(event) => setWatermarkSize(Number(event.target.value))}/></Field><Field label="Padding" value={`${watermarkPadding}px`}><input type="range" min="0" max="200" value={watermarkPadding} onChange={(event) => setWatermarkPadding(Number(event.target.value))}/></Field><Field label="Rotation" value={`${watermarkRotation}°`}><input type="range" min="-180" max="180" value={watermarkRotation} onChange={(event) => setWatermarkRotation(Number(event.target.value))}/></Field></>}{mode === 'metadata' && <p className="option-help">Re-encoding removes embedded metadata while keeping the image in its current format.</p>}{mode === 'favicon' && <><Field label="Crop behavior"><select aria-label="Crop behavior" value={fit} onChange={(event) => setFit(event.target.value as FaviconFit)}><option value="cover">Cover</option><option value="contain">Contain</option></select></Field><p className="option-help">{fit === 'cover' ? 'Cover fills each square and may crop the edges. Transparent pixels stay transparent.' : 'Contain fits the whole image inside each square. Unused space stays transparent.'}</p></>}{format === 'image/jpeg' && mode !== 'favicon' && <p className="option-help">Transparent areas are filled with white for JPG output.</p>}<button className={`button ${status === 'completed' ? 'success' : 'primary'} action-button`} type="button" disabled={status === 'processing' || (mode === 'watermark' && !watermark.trim())} onClick={run}>{status === 'processing' ? 'Processing...' : status === 'completed' ? 'Process again' : action}</button>{error && <p className="field-error" role="alert">{error}</p>}{result && <a className="button secondary action-button" href={result.url} download={outputFilename(file.name, suffix, extension)}><Download size={17}/> Download {formatLabels[format]}</a>}{pack && <><a className="button secondary action-button" href={pack.zipUrl} download={pack.zipName}><Download size={17}/> Download ZIP pack</a><p className="option-help">The pack includes PNG sizes plus favicon.ico. Transparency is preserved.</p><div className="favicon-downloads">{pack.files.map((entry) => <a key={entry.filename} className="button ghost" href={entry.url} download={entry.filename}>{entry.filename}</a>)}</div><label className="field"><span>HTML snippet</span><textarea aria-label="HTML snippet" readOnly rows={7} value={pack.html}/></label><div className="button-row favicon-copy"><CopyButton value={pack.html}/></div></>}</div></div>}</section>
+  useEffect(() => {
+    if (mode !== 'compress' || status !== 'completed' || !result || !file) return
+    autoDownloadOnce(result.id, result.blob, outputFilename(file.name, suffix, extension))
+  }, [mode, status, result, file, suffix, extension])
+
+  return <section ref={workspaceRef} className="workspace">{!file ? <FileDropzone accept={inputFormats(tool)} onFileSelected={chooseFile}/> : <div className="image-workspace"><div className="preview-panel"><div className="panel-label"><span>Preview</span><button type="button" className="text-button" onClick={removeFile}><Trash2 size={15}/> Remove</button></div><div className="image-stage"><img src={previewUrl} alt={pack || result ? 'Processed result' : 'Selected input'}/></div><div className="file-summary"><FileImage size={20}/><span><strong>{file.name}</strong><small>{formatBytes(file.size)}{result ? ` -> ${formatBytes(result.blob.size)} · ${savings !== null && savings >= 0 ? `${savings}% saved` : `${Math.abs(savings ?? 0)}% larger`} · ${Math.round(result.durationMs)} ms` : pack ? ` -> ${pack.files.length} files · ${Math.round(pack.durationMs)} ms` : ''}</small></span></div></div><div className="options-panel"><div className="panel-label"><span>Settings</span><button type="button" className="text-button" onClick={() => resetSettings()}><RefreshCcw size={14}/> Reset</button></div>{showFormat && <Field label="Output format"><select value={format} onChange={(event) => setFormat(event.target.value as ImageFormat)}>{selectableFormats.map((value) => <option key={value} value={value}>{formatLabels[value]}</option>)}</select></Field>}{showQuality && <><Field label="Quality" value={`${quality}%`}><input type="range" min="10" max="100" value={quality} onChange={(event) => setQuality(Number(event.target.value))}/></Field><p className="option-help">Quality applies to {formatLabels[format]} encoding. The original is never changed.</p></>}{mode === 'compress' && format === 'image/png' && <PngCompressModeField value={compressMode} onChange={(value) => { setCompressMode(value); clearResult(); setStatus('ready') }}/>}{mode === 'converter' && format === 'image/png' && <p className="option-help">PNG export is lossless, so there is no quality setting.</p>}{mode === 'resize' && <><Field label="Resize mode"><select value={resizeUnit} onChange={(event) => setResizeUnit(event.target.value as ResizeUnit)}><option value="pixels">Pixels</option><option value="percent">Percentage</option></select></Field><label className="check-row"><input type="checkbox" checked={lockAspectRatio} onChange={(event) => setLockAspectRatio(event.target.checked)}/>Lock aspect ratio</label><div className="field-grid">{resizeUnit === 'pixels' ? <><Field label="Width" value="px"><input type="number" min="1" max="16384" value={width} onChange={(event) => updateWidth(Number(event.target.value))}/></Field><Field label="Height" value="px"><input type="number" min="1" max="16384" value={height} onChange={(event) => updateHeight(Number(event.target.value))}/></Field></> : <><Field label="Width" value="%"><input type="number" min="1" max="400" value={widthPercent} onChange={(event) => updateWidthPercent(Number(event.target.value))}/></Field><Field label="Height" value="%"><input type="number" min="1" max="400" value={heightPercent} onChange={(event) => updateHeightPercent(Number(event.target.value))}/></Field></>}</div></>}{mode === 'crop' && <><p className="option-help">Crop uses pixel coordinates from the top-left of the original image.</p><div className="field-grid"><Field label="Left" value="px"><input aria-label="Crop left" type="number" min="0" max={Math.max(0, naturalWidth - 1)} value={cropX} onChange={(event) => setCropX(Number(event.target.value))}/></Field><Field label="Top" value="px"><input aria-label="Crop top" type="number" min="0" max={Math.max(0, naturalHeight - 1)} value={cropY} onChange={(event) => setCropY(Number(event.target.value))}/></Field><Field label="Width" value="px"><input aria-label="Crop width" type="number" min="1" max={naturalWidth} value={cropWidth} onChange={(event) => setCropWidth(Number(event.target.value))}/></Field><Field label="Height" value="px"><input aria-label="Crop height" type="number" min="1" max={naturalHeight} value={cropHeight} onChange={(event) => setCropHeight(Number(event.target.value))}/></Field></div></>}{mode === 'transform' && <><div className="segmented"><button type="button" className={rotation === -90 ? 'active' : ''} onClick={() => setRotation(-90)}><RotateCcw size={17}/> 90° left</button><button type="button" className={rotation === 90 ? 'active' : ''} onClick={() => setRotation(90)}><RotateCw size={17}/> 90° right</button><button type="button" className={rotation === 180 ? 'active' : ''} onClick={() => setRotation(180)}>180°</button></div><label className="check-row"><input type="checkbox" checked={flipX} onChange={(event) => setFlipX(event.target.checked)}/>Flip horizontally</label><label className="check-row"><input type="checkbox" checked={flipY} onChange={(event) => setFlipY(event.target.checked)}/>Flip vertically</label></>}{mode === 'watermark' && <><Field label="Watermark text"><input value={watermark} maxLength={120} onChange={(event) => setWatermark(event.target.value)}/></Field><Field label="Position"><select value={watermarkPosition} onChange={(event) => setWatermarkPosition(event.target.value as WatermarkPosition)}>{positions.map((value) => <option key={value} value={value}>{value.replace('-', ' ')}</option>)}</select></Field><Field label="Opacity" value={`${watermarkOpacity}%`}><input type="range" min="0" max="100" value={watermarkOpacity} onChange={(event) => setWatermarkOpacity(Number(event.target.value))}/></Field><Field label="Size" value={`${watermarkSize}px`}><input type="range" min="8" max="240" value={watermarkSize} onChange={(event) => setWatermarkSize(Number(event.target.value))}/></Field><Field label="Padding" value={`${watermarkPadding}px`}><input type="range" min="0" max="200" value={watermarkPadding} onChange={(event) => setWatermarkPadding(Number(event.target.value))}/></Field><Field label="Rotation" value={`${watermarkRotation}°`}><input type="range" min="-180" max="180" value={watermarkRotation} onChange={(event) => setWatermarkRotation(Number(event.target.value))}/></Field></>}{mode === 'metadata' && <p className="option-help">Re-encoding removes embedded metadata while keeping the image in its current format.</p>}{mode === 'favicon' && <><Field label="Crop behavior"><select aria-label="Crop behavior" value={fit} onChange={(event) => setFit(event.target.value as FaviconFit)}><option value="cover">Cover</option><option value="contain">Contain</option></select></Field><p className="option-help">{fit === 'cover' ? 'Cover fills each square and may crop the edges. Transparent pixels stay transparent.' : 'Contain fits the whole image inside each square. Unused space stays transparent.'}</p></>}{format === 'image/jpeg' && mode !== 'favicon' && <p className="option-help">Transparent areas are filled with white for JPG output.</p>}<button className={`button ${status === 'completed' ? 'success' : 'primary'} action-button`} type="button" disabled={status === 'processing' || (mode === 'watermark' && !watermark.trim())} onClick={run}>{status === 'processing' ? 'Processing...' : status === 'completed' ? 'Process again' : action}</button>{error && <p className="field-error" role="alert">{error}</p>}{mode === 'compress' && result && file && <CompressOutcome originalSize={file.size} compressedSize={result.blob.size} savedBytes={savedBytes} savedPct={savedPct} durationMs={result.durationMs} recommendWebp={Boolean(result.recommendWebp)}/>}{result && <a className="button secondary action-button" href={result.url} download={outputFilename(file.name, suffix, extension)}><Download size={17}/> {mode === 'compress' ? 'Download again' : `Download ${formatLabels[format]}`}</a>}{pack && <><a className="button secondary action-button" href={pack.zipUrl} download={pack.zipName}><Download size={17}/> Download ZIP pack</a><p className="option-help">The pack includes PNG sizes plus favicon.ico. Transparency is preserved.</p><div className="favicon-downloads">{pack.files.map((entry) => <a key={entry.filename} className="button ghost" href={entry.url} download={entry.filename}>{entry.filename}</a>)}</div><label className="field"><span>HTML snippet</span><textarea aria-label="HTML snippet" readOnly rows={7} value={pack.html}/></label><div className="button-row favicon-copy"><CopyButton value={pack.html}/></div></>}</div></div>}</section>
 }
 
 function Field({ label, value, children }: { label: string; value?: string; children: ReactNode }) {
   return <label className="field"><span>{label}{value && <small>{value}</small>}</span>{children}</label>
+}
+
+function PngCompressModeField({ value, onChange }: { value: PngCompressMode; onChange: (mode: PngCompressMode) => void }) {
+  return <>
+    <div className="segmented" role="radiogroup" aria-label="Compression mode">
+      {pngModes.map((mode) => (
+        <button key={mode} type="button" role="radio" aria-checked={value === mode} className={value === mode ? 'active' : ''} onClick={() => onChange(mode)}>
+          {mode === 'lossless' ? 'Lossless' : mode === 'balanced' ? 'Balanced' : 'Strong'}
+        </button>
+      ))}
+    </div>
+    <p className="option-help">{pngModeHelp[value]}</p>
+  </>
+}
+
+function CompressOutcome({
+  originalSize, compressedSize, savedBytes, savedPct, durationMs, recommendWebp,
+}: {
+  originalSize: number
+  compressedSize: number
+  savedBytes: number
+  savedPct: number
+  durationMs: number
+  recommendWebp: boolean
+}) {
+  return <div className="compress-result">
+    <strong>{savedPct > 0 ? `${savedPct}% smaller` : 'Already optimized'}</strong>
+    <p>{formatBytes(originalSize)} → {formatBytes(compressedSize)}</p>
+    <dl className="result-stats">
+      <div><dt>Original size</dt><dd>{formatBytes(originalSize)}</dd></div>
+      <div><dt>Compressed size</dt><dd>{formatBytes(compressedSize)}</dd></div>
+      <div><dt>Saved</dt><dd>{formatBytes(savedBytes)} ({savedPct}%)</dd></div>
+      <div><dt>Processing time</dt><dd>{Math.round(durationMs)} ms</dd></div>
+    </dl>
+    <p className="option-help" aria-live="polite">Auto-downloading your compressed image...</p>
+    {recommendWebp && <p className="option-help">Need an even smaller file? <LocaleLink to="/$tool" params={{ tool: 'png-to-webp' }}>Convert this photo to WebP.</LocaleLink></p>}
+  </div>
 }

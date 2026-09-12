@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { ToolDefinition } from '../tools/tool-registry'
 import { buildQrPayload, getQrKind, type QrCorrection, type QrFields, type QrKind } from './focused-workspace-utils'
+import { downloadBlob, triggerDownload } from '@/lib/media/download'
 
 const fieldsByKind: Record<QrKind, readonly [key: string, label: string, type?: string][]> = {
   text: [['text', 'Text']],
@@ -14,9 +15,11 @@ const fieldsByKind: Record<QrKind, readonly [key: string, label: string, type?: 
 }
 
 function download(value: string, filename: string, type?: string) {
-  const href = value.startsWith('data:') ? value : URL.createObjectURL(new Blob([value], type ? { type } : undefined))
-  const anchor = document.createElement('a'); anchor.href = href; anchor.download = filename; anchor.click()
-  if (!value.startsWith('data:')) URL.revokeObjectURL(href)
+  if (value.startsWith('data:')) {
+    triggerDownload(value, filename)
+    return
+  }
+  downloadBlob(new Blob([value], type ? { type } : undefined), filename)
 }
 
 export function QrWorkspace({ tool }: { tool: ToolDefinition }) {
@@ -31,8 +34,6 @@ export function QrWorkspace({ tool }: { tool: ToolDefinition }) {
   const [svg, setSvg] = useState('')
   const [error, setError] = useState('')
   const [copyStatus, setCopyStatus] = useState('')
-  useEffect(() => { setFields({ encryption: 'WPA' }); setPng(''); setSvg(''); setError('') }, [kind])
-
   async function generate() {
     const payload = buildQrPayload(kind, fields)
     if (!payload || (kind === 'wifi' && !fields.ssid) || (kind === 'location' && (!fields.latitude || !fields.longitude))) { setError('Complete the required QR fields.'); return }

@@ -1,5 +1,5 @@
 import { Download, FileImage, Redo2, RefreshCcw, RotateCcw, RotateCw, Trash2, Undo2 } from 'lucide-react'
-import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { FileDropzone } from '@/components/file/FileDropzone'
 import {
   clampCrop,
@@ -20,7 +20,6 @@ import {
   type PhotoEditorState,
 } from '@/features/image/photo-editor-utils'
 import { assertValidImageSize, type ImageCrop, type Size } from '@/features/image/image-utils'
-import type { ToolDefinition } from '@/features/tools/tool-registry'
 import { formatBytes, outputFilename } from '@/lib/format'
 import { motion } from '@/lib/motion/config'
 import { gsap, useGSAP } from '@/lib/motion/gsap'
@@ -52,7 +51,7 @@ const formatLabels: Readonly<Record<PhotoEditorFormat, string>> = {
 const cropHandles: PhotoCropHandle[] = ['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se']
 const previewBounds = { width: 720, height: 420 }
 
-export function PhotoEditorWorkspace(_props: { tool: ToolDefinition }) {
+export function PhotoEditorWorkspace() {
   const bitmapRef = useRef<ImageBitmap | null>(null)
   const resultUrlRef = useRef('')
   const selectionRef = useRef(0)
@@ -75,7 +74,10 @@ export function PhotoEditorWorkspace(_props: { tool: ToolDefinition }) {
   const [previewSize, setPreviewSize] = useState<Size>({ width: 0, height: 0 })
   const present = live ?? history.present
   liveRef.current = live
-  const output = source.width > 0 ? photoEditorOutputSize(present, source) : { width: 0, height: 0 }
+  const output = useMemo(
+    () => source.width > 0 ? photoEditorOutputSize(present, source) : { width: 0, height: 0 },
+    [present, source],
+  )
 
   useEffect(() => () => {
     stopDragRef.current?.()
@@ -121,7 +123,7 @@ export function PhotoEditorWorkspace(_props: { tool: ToolDefinition }) {
       height: Math.max(1, Math.round(present.crop.height * scale)),
     }, canvas)
     setPreviewSize((current) => current.width === display.width && current.height === display.height ? current : display)
-  }, [cropMode, output.height, output.width, present, source])
+  }, [cropMode, output, present, source])
 
   useGSAP(() => {
     if (status !== 'completed' || prefersReducedMotion()) return

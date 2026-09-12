@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
 
-const API_BASE_URL = (process.env.E2E_API_BASE_URL ?? 'http://127.0.0.1:8000').replace(/\/+$/, '')
+const API_BASE_URL = (process.env.E2E_API_BASE_URL ?? 'http://127.0.0.1:8010').replace(/\/+$/, '')
 async function issueLicense(request: APIRequestContext): Promise<{ licenseId: string; licenseKey: string }> {
   const login = await request.post(`${API_BASE_URL}/api/v1/admin/auth/login`, {
     data: { email: 'owner@example.com', password: 'correct horse battery staple' },

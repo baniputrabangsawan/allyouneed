@@ -1,3 +1,4 @@
+import pytest
 from httpx import AsyncClient
 
 from tests.helpers import upload_image, wait_for_job
@@ -67,3 +68,30 @@ async def test_unsigned_download_is_rejected(api: AsyncClient) -> None:
     unsigned = result["downloadUrl"].split("?")[0]
     response = await api.get(unsigned)
     assert response.status_code == 404
+
+
+async def test_enqueue_failure_returns_queue_unavailable(
+    api: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.core.config import get_settings
+
+    settings = get_settings()
+    monkeypatch.setattr(
+        "app.services.job_service.get_settings",
+        lambda: settings.model_copy(update={"inline_jobs": False}),
+    )
+    monkeypatch.setattr(
+        "app.workers.tasks.enqueue",
+        lambda _queue, _job_id: (_ for _ in ()).throw(ConnectionError("redis down")),
+    )
+    file_key = await upload_image(api)
+    created = await api.post(
+        "/api/v1/jobs",
+        json={
+            "toolId": "resize-image",
+            "input": {"fileKey": file_key},
+            "options": {"width": 8, "height": 6},
+        },
+    )
+    assert created.status_code == 503
+    assert created.json()["error"]["code"] == "PROCESSING_QUEUE_UNAVAILABLE"

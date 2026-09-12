@@ -28,11 +28,15 @@ describe('media kind', () => {
 })
 
 describe('workflow errors', () => {
-  it('maps Failed to fetch to UPLOAD_FAILED copy', () => {
-    expect(workflowErrorCode(new TypeError('Failed to fetch'))).toBe('UPLOAD_FAILED')
+  it('maps Failed to fetch to API_UNREACHABLE copy', () => {
+    expect(workflowErrorCode(new TypeError('Failed to fetch'))).toBe('API_UNREACHABLE')
     expect(workflowMessage(new TypeError('Failed to fetch'), {
+      apiUnreachable: 'Could not reach the processing server.',
       uploadFailed: 'Could not reach the processing server.',
+      queueUnavailable: 'The processing queue is unavailable.',
       processingFailed: 'Processing failed.',
+      ffmpegFailed: 'Media processing failed.',
+      resultFetchFailed: 'The result could not be fetched.',
     })).toBe('Could not reach the processing server.')
   })
 })

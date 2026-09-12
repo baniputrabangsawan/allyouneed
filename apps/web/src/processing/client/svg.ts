@@ -33,7 +33,7 @@ export interface SvgToPngResult {
 }
 
 export function parseSvgMarkup(source: string): ParsedSvg {
-  const text = source.replace(/^﻿/, '').trim()
+  const text = source.replace(/^\uFEFF/, '').trim()
   if (!text) throw new Error('SVG is empty.')
   if (typeof DOMParser !== 'undefined') return parseWithDom(text)
   return parseWithoutDom(text)
@@ -263,7 +263,7 @@ function isSvgMarkup(source: string): boolean {
 
 function stripPreamble(source: string): string {
   return source
-    .replace(/^﻿/, '')
+    .replace(/^\uFEFF/, '')
     .replace(/<!--[\s\S]*?-->/g, '')
     .replace(/<\?xml[\s\S]*?\?>/gi, '')
     .replace(/<!DOCTYPE[\s\S]*?>/gi, '')

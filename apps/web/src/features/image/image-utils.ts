@@ -15,6 +15,7 @@ export type ImageWorkspaceMode =
   | 'favicon'
   | 'meme'
   | 'photo-editor'
+  | 'merge-png'
 
 const imageConverterSlugs = new Set([
   'convert-to-jpg',
@@ -38,6 +39,7 @@ export function getImageWorkspaceMode(slug: string): ImageWorkspaceMode | null {
   if (slug === 'svg-to-png') return 'svg-to-png'
   if (slug === 'meme-generator') return 'meme'
   if (slug === 'photo-editor') return 'photo-editor'
+  if (slug === 'merge-png') return 'merge-png'
   if (imageConverterSlugs.has(slug)) return 'converter'
   return null
 }

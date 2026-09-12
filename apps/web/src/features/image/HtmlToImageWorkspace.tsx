@@ -1,8 +1,11 @@
 import { Download, LoaderCircle, Square } from 'lucide-react'
 import { useState } from 'react'
+import { useT } from '../../i18n'
 import { API_BASE_URL } from '../../lib/api/client'
 import { cancelJob, createJob, getJob, getJobResult } from '../../lib/api/jobs'
 import type { Job } from '../../lib/api/types'
+import { remoteJobPhase } from '../../lib/media/job-phase'
+import { errorFromJob, workflowErrorCode, workflowMessage, type WorkflowErrorCode } from '../../lib/media/workflow-error'
 import type { ToolDefinition } from '../tools/tool-registry'
 
 const DEFAULT_HTML = '<div class="box">Kits</div>'
@@ -11,6 +14,7 @@ const DEFAULT_CSS = '.box { width: 200px; height: 80px; background: #c00; color:
 type Format = 'png' | 'jpeg'
 
 export function HtmlToImageWorkspace({ tool }: { tool: ToolDefinition }) {
+  const copy = useT()
   const [html, setHtml] = useState(DEFAULT_HTML)
   const [css, setCss] = useState(DEFAULT_CSS)
   const [width, setWidth] = useState(320)
@@ -20,11 +24,13 @@ export function HtmlToImageWorkspace({ tool }: { tool: ToolDefinition }) {
   const [download, setDownload] = useState<{ url: string; filename: string } | null>(null)
   const [preview, setPreview] = useState('')
   const [error, setError] = useState('')
+  const [errorCode, setErrorCode] = useState<WorkflowErrorCode | null>(null)
   const [busy, setBusy] = useState(false)
 
   async function run() {
     if (!html.trim() || busy) return
     setError('')
+    setErrorCode(null)
     setDownload(null)
     setPreview('')
     setBusy(true)
@@ -46,10 +52,13 @@ export function HtmlToImageWorkspace({ tool }: { tool: ToolDefinition }) {
         setDownload({ url, filename: result.result.filename })
         setPreview(url)
       } else if (current.status === 'failed') {
-        setError(current.error?.message ?? 'Processing failed.')
+        const failed = errorFromJob(current.error)
+        setErrorCode(workflowErrorCode(failed))
+        setError(workflowMessage(failed, copy.errors))
       }
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Processing failed.')
+      setErrorCode(workflowErrorCode(reason))
+      setError(workflowMessage(reason, copy.errors))
     } finally {
       setBusy(false)
     }
@@ -61,6 +70,17 @@ export function HtmlToImageWorkspace({ tool }: { tool: ToolDefinition }) {
   }
 
   const processing = busy || job?.status === 'queued' || job?.status === 'processing'
+  const phase = remoteJobPhase(busy ? 'processing' : 'idle', job, errorCode)
+  const phaseLabel = {
+    ready: copy.workspace.ready,
+    uploading: copy.jobs.uploading,
+    queued: copy.jobs.queued,
+    processing: copy.jobs.processing,
+    completed: copy.jobs.completed,
+    failed: copy.jobs.failed,
+    cancelled: copy.jobs.cancelled,
+    unavailable: copy.jobs.unavailable,
+  }[phase]
   return (
     <section className="workspace split-workspace">
       <div className="options-panel">
@@ -105,12 +125,13 @@ export function HtmlToImageWorkspace({ tool }: { tool: ToolDefinition }) {
       <div className="result-card">
         <div className="panel-label">
           <span>Job status</span>
-          <span className="badge">{job?.status ?? 'Ready'}</span>
+          <span className={`badge badge-${phase}`}>{phaseLabel}</span>
         </div>
-        {job && (
+        {phase === 'unavailable' && <p className="field-error" role="alert">{copy.errors.apiUnreachable}</p>}
+        {job && (phase === 'processing' || phase === 'queued' || phase === 'completed') && (
           <>
-            <p>{job.stage ?? job.status}</p>
-            <progress max="100" value={job.progress ?? undefined} />
+            <p>{job.stage ?? phaseLabel}</p>
+            <progress max="100" value={job.progress ?? (phase === 'completed' ? 100 : undefined)} />
           </>
         )}
         {preview && <img src={preview} alt="Rendered HTML" />}

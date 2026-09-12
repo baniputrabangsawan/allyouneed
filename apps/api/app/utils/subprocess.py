@@ -17,11 +17,14 @@ async def run_command(
     if any(not isinstance(arg, str) for arg in args):
         raise ProcessingError("Invalid process arguments.")
 
-    process = await asyncio.create_subprocess_exec(
-        *args,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
+    try:
+        process = await asyncio.create_subprocess_exec(
+            *args,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+    except OSError as exc:
+        raise ProcessingError("ffmpeg is not available.", code="FFMPEG_FAILED") from exc
     waiter = asyncio.create_task(process.communicate())
     watchers: set[asyncio.Task[object]] = {waiter}
     cancel_waiter: asyncio.Task[bool] | None = None
@@ -47,5 +50,5 @@ async def run_command(
         cancel_waiter.cancel()
     stdout, stderr = waiter.result()
     if process.returncode:
-        raise ProcessingError(stderr.decode(errors="replace")[-1000:])
+        raise ProcessingError(stderr.decode(errors="replace")[-1000:], code="FFMPEG_FAILED")
     return stdout

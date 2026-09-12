@@ -36,6 +36,18 @@ describe('API client', () => {
     })
   })
 
+  it('maps network failures to API_UNREACHABLE', async () => {
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockRejectedValue(new TypeError('Failed to fetch')))
+
+    await expect(
+      createApiClient({ baseUrl: 'http://localhost:8000' }).post('/api/v1/uploads/presign', {}),
+    ).rejects.toMatchObject({
+      status: 0,
+      code: 'API_UNREACHABLE',
+      message: 'Could not reach the processing server.',
+    })
+  })
+
   it('turns its timeout into a typed error', async () => {
     vi.stubGlobal('fetch', vi.fn<typeof fetch>((_input, init) => new Promise((_resolve, reject) => {
       init?.signal?.addEventListener('abort', () => reject(init.signal?.reason), { once: true })

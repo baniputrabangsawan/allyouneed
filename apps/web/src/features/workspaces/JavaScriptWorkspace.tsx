@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import type { ToolDefinition } from '../tools/tool-registry'
 import {
   DEFAULT_JS_FORMAT_OPTIONS,
   formatJavaScript,
@@ -11,7 +10,7 @@ import {
 } from './javascript-utils'
 import { CopyButton, TextPanels } from './workspace-ui'
 
-export function JavaScriptWorkspace(_props: { tool: ToolDefinition }) {
+export function JavaScriptWorkspace() {
   const [input, setInput] = useState('')
   const [output, setOutput] = useState('')
   const [error, setError] = useState('')

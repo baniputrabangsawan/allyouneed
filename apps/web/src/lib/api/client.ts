@@ -149,7 +149,11 @@ export const createApiClient = (config: ApiClientConfig = {}): ApiClient => {
       if (controller.signal.aborted && !signal?.aborted) {
         throw new ApiError('Request timed out.', { status: 0, code: 'TIMEOUT', cause: error })
       }
-      throw error
+      throw new ApiError('Could not reach the processing server.', {
+        status: 0,
+        code: 'API_UNREACHABLE',
+        cause: error,
+      })
     } finally {
       clearTimeout(timeout)
       signal?.removeEventListener('abort', abort)

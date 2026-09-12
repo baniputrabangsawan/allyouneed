@@ -5,10 +5,7 @@ import { partitionByAvailability } from '@/features/tools/tool-availability'
 import { getToolsByCategory, type ToolCategory } from '@/features/tools/tool-registry'
 import { LocaleLink as Link } from '@/i18n/link'
 import { useT } from '@/i18n'
-
-const validCategories: readonly ToolCategory[] = ['image', 'qr', 'developer', 'generator', 'text', 'pdf', 'audio', 'video', 'converter']
-
-export { validCategories }
+import { validCategories } from './categories'
 
 export function CategoryCatalog() {
   const copy = useT()

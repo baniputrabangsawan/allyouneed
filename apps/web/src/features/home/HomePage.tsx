@@ -1,12 +1,18 @@
 import { useLoaderData, useNavigate, useSearch } from '@tanstack/react-router'
 import { ArrowRight, Clock3, LockKeyhole, Search, ShieldCheck, Sparkles, Star, Zap } from 'lucide-react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
-import { z } from 'zod'
 import { AvailabilityFlipGrids, ToolFlipGrid } from '@/components/tool/ToolFlipGrid'
 import { partitionByAvailability } from '@/features/tools/tool-availability'
 import {
+  homeCategories as categories,
+  homeGroups as groups,
+  type CategoryFilter,
+  type GroupFilter,
+} from './home-search'
+import {
   getNewTools,
   getPopularTools,
+  getToolBySlug,
   tools,
   type ToolDefinition,
 } from '@/features/tools/tool-registry'
@@ -20,17 +26,6 @@ import { refreshScroll, revealSectionOnce } from '@/lib/motion/scroll'
 import { DISCOVERY_STORAGE_EVENT, useFavoriteIds } from '@/lib/storage/discovery'
 import { RECENT_TOOLS_STORAGE_KEY, writeRecentCookie } from '@/lib/storage/tools'
 import { holdElementViewportTop } from '@/lib/storage/scroll'
-
-const categories = ['all', 'image', 'qr', 'developer', 'generator', 'text', 'pdf', 'audio', 'video', 'converter'] as const
-const groups = ['all', 'optimize', 'create', 'edit', 'convert', 'security'] as const
-type CategoryFilter = typeof categories[number]
-type GroupFilter = typeof groups[number]
-
-export const homeSearchSchema = z.object({
-  q: z.string().catch('').default(''),
-  category: z.enum(categories).catch('all').default('all'),
-  group: z.enum(groups).catch('all').default('all'),
-})
 
 function filterTools(query: string, category: CategoryFilter, group: GroupFilter) {
   return searchToolsLocalized(query).filter((tool) =>
@@ -66,7 +61,7 @@ function useRecentIds(ssrIds: readonly string[]) {
 }
 
 function toolsForIds(ids: readonly string[]) {
-  return ids.map((id) => tools.find((tool) => tool.id === id)).filter((tool): tool is ToolDefinition => Boolean(tool))
+  return ids.map(getToolBySlug).filter((tool): tool is ToolDefinition => Boolean(tool))
 }
 
 export function Home() {

@@ -1,4 +1,4 @@
-import { API_BASE_URL, apiClient, type ApiClient, type ApiRequestOptions } from './client'
+import { API_BASE_URL, ApiError, apiClient, type ApiClient, type ApiRequestOptions } from './client'
 import type {
   ApiResponse,
   CompleteUploadRequest,
@@ -39,9 +39,9 @@ function putWithProgress(
     }
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) resolve()
-      else reject(new Error(`Upload failed (${xhr.status}).`))
+      else reject(new ApiError(`Upload failed (${xhr.status}).`, { status: xhr.status, code: 'UPLOAD_FAILED' }))
     }
-    xhr.onerror = () => reject(new Error('Upload failed.'))
+    xhr.onerror = () => reject(new ApiError('Upload failed.', { status: 0, code: 'UPLOAD_FAILED' }))
     xhr.onabort = () => reject(new DOMException('Upload aborted.', 'AbortError'))
     const abort = () => xhr.abort()
     if (signal?.aborted) {
@@ -82,3 +82,13 @@ export const completeUpload = async (
   client: ApiClient = apiClient,
 ): Promise<UploadedFile> =>
   (await client.post<ApiResponse<UploadedFile>>('/api/v1/uploads/complete', request, options)).data
+
+const uploadPath = (fileKey: string) =>
+  fileKey.split('/').map((part) => encodeURIComponent(part)).join('/')
+
+export const getUpload = async (
+  fileKey: string,
+  options?: ApiRequestOptions,
+  client: ApiClient = apiClient,
+): Promise<UploadedFile> =>
+  (await client.get<ApiResponse<UploadedFile>>(`/api/v1/uploads/${uploadPath(fileKey)}`, options)).data

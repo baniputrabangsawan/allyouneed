@@ -17,7 +17,6 @@ import {
   type MemeFormat,
   type MemeTextLayer,
 } from '@/features/image/meme-utils'
-import type { ToolDefinition } from '@/features/tools/tool-registry'
 import { formatBytes, outputFilename } from '@/lib/format'
 import { renderMeme } from '@/processing/client/meme'
 
@@ -34,7 +33,7 @@ const formatLabels: Record<MemeFormat, string> = {
   'image/jpeg': 'JPG',
 }
 
-export function MemeWorkspace(_props: { tool: ToolDefinition }) {
+export function MemeWorkspace() {
   const sourceUrlRef = useRef('')
   const resultUrlRef = useRef('')
   const boardRef = useRef<HTMLDivElement>(null)

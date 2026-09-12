@@ -48,6 +48,14 @@ async def complete_upload(
     return DataResponse(data=uploads.complete(payload))
 
 
+@router.get("/{file_key:path}", response_model=DataResponse[UploadedFile])
+async def get_upload(
+    file_key: str,
+    uploads: Annotated[UploadService, Depends(upload_service)],
+) -> DataResponse[UploadedFile]:
+    return DataResponse(data=uploads.describe(file_key))
+
+
 @router.put("/local/{file_key:path}", status_code=204)
 async def local_upload(
     file_key: str,

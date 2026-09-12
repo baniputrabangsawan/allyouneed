@@ -1,14 +1,11 @@
 import { useParams } from '@tanstack/react-router'
 import { ChevronRight, LockKeyhole, ShieldCheck } from 'lucide-react'
-import { useEffect } from 'react'
+import { Suspense, useEffect, useSyncExternalStore } from 'react'
 import { ToolCard } from '@/components/tool/ToolCard'
 import { LocaleLink as Link } from '@/i18n/link'
-import { HtmlToImageWorkspace } from '@/features/image/HtmlToImageWorkspace'
-import { ImageWorkspace } from '@/features/image/ImageWorkspace'
-import { SvgToPngWorkspace } from '@/features/image/SvgToPngWorkspace'
 import { PremiumGate } from '@/features/licensing/PremiumGate'
 import { getRelatedTools, getToolBySlug, type ToolDefinition } from '@/features/tools/tool-registry'
-import { getWorkspaceComponent } from '@/features/workspaces'
+import { getLazyWorkspace } from '@/features/workspaces/lazy-workspaces'
 import { addRecentTool } from '@/lib/storage/tools'
 
 export function ToolRoute() {
@@ -20,12 +17,21 @@ export function ToolRoute() {
 }
 
 function ToolWorkspace({ tool }: { tool: ToolDefinition }) {
-  if (tool.slug === 'svg-to-png' && tool.available) return <SvgToPngWorkspace key={tool.slug} tool={tool}/>
-  if (tool.slug === 'html-to-image' && tool.available) return <HtmlToImageWorkspace key={tool.slug} tool={tool}/>
-  if (tool.implementation === 'image-canvas' && tool.available) return <ImageWorkspace key={tool.slug} tool={tool}/>
-  const Workspace = getWorkspaceComponent(tool)
-  if (Workspace && tool.available) return <Workspace tool={tool}/>
+  const Workspace = getLazyWorkspace(tool)
+  const hydrated = useSyncExternalStore(subscribeToHydration, clientHydrationSnapshot, serverHydrationSnapshot)
+  if (Workspace && tool.available) {
+    if (!hydrated) return <WorkspaceLoading />
+    return <Suspense fallback={<WorkspaceLoading />}><Workspace key={tool.slug} tool={tool}/></Suspense>
+  }
   return <UnavailableWorkspace tool={tool}/>
+}
+
+const subscribeToHydration = () => () => undefined
+const clientHydrationSnapshot = () => true
+const serverHydrationSnapshot = () => false
+
+function WorkspaceLoading() {
+  return <section className="workspace" aria-busy="true" aria-label="Loading tool" />
 }
 
 function UnavailableWorkspace({ tool }: { tool: ToolDefinition }) {

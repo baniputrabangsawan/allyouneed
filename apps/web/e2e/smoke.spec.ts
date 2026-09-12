@@ -76,7 +76,7 @@ test('formats JavaScript in the browser', async ({ page }) => {
   await expect(page.getByText('is not available yet')).toHaveCount(0)
   await page.getByLabel('JavaScript input').fill('function greet(name){return "hi "+name}')
   await page.getByRole('button', { name: 'Format' }).click()
-  await expect(page.getByLabel('JavaScript result')).toHaveValue(/function greet\(name\) \{\n  return "hi " \+ name;\n\}/)
+  await expect(page.getByLabel('JavaScript result')).toHaveValue(/function greet\(name\) \{\n {2}return "hi " \+ name;\n\}/)
   expect(errors).toEqual([])
 })
 
@@ -96,7 +96,7 @@ test('formats HTML in the browser without executing it', async ({ page }) => {
   await expect(page.getByText('is not available yet')).toHaveCount(0)
   await page.getByLabel('HTML input').fill('<section><div><p>Hi</p><script>document.title="pwned"</script></div></section>')
   await page.getByRole('button', { name: 'Format' }).click()
-  await expect(page.getByLabel('HTML result')).toHaveValue(/<section>\n  <div>\n    <p>Hi<\/p>\n    <script>\n      document.title="pwned"\n    <\/script>\n  <\/div>\n<\/section>/)
+  await expect(page.getByLabel('HTML result')).toHaveValue(/<section>\n {2}<div>\n {4}<p>Hi<\/p>\n {4}<script>\n {6}document.title="pwned"\n {4}<\/script>\n {2}<\/div>\n<\/section>/)
   await expect(page).toHaveTitle(/HTML Formatter/i)
   expect(requests).toEqual([])
   expect(errors).toEqual([])

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { getImageWorkspaceMode } from '../image/image-utils'
 import { getWorkspaceComponent } from '../workspaces'
+import { getLazyWorkspace } from '../workspaces/lazy-workspaces'
 import { getToolBySlug, tools } from './tool-registry'
 
 const unavailableAi = [
@@ -32,6 +33,7 @@ describe('available-tool contract', () => {
     expect(available.length).toBeGreaterThan(0)
     for (const tool of available) {
       expect(getToolBySlug(tool.slug), tool.slug).toBe(tool)
+      expect(getLazyWorkspace(tool), tool.slug).toBeDefined()
       expect(tool.implementation, tool.slug).not.toBe('dependency-required')
       if (tool.implementation === 'image-canvas') {
         expect(getImageWorkspaceMode(tool.slug), tool.slug).not.toBeNull()

@@ -36,7 +36,7 @@ describe('docs catalog', () => {
     const compress = tools.find((tool) => tool.slug === 'compress-image')
     const guide = resolveToolGuide(compress!, 'id')
     expect(guide?.steps[0]).toMatch(/Kompres Gambar/)
-    expect(guide?.overview).toMatch(/slider/)
+    expect(guide?.overview).toMatch(/mode/i)
   })
 
   it('finds tools from Indonesian docs search', () => {

@@ -60,7 +60,7 @@ const slugify = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
 const implementedSlugs = new Set([
   'compress-image', 'resize-image', 'crop-image', 'rotate-image', 'flip-image', 'convert-to-jpg',
   'convert-from-jpg', 'image-converter', 'jpg-to-png', 'png-to-jpg', 'jpg-to-webp', 'png-to-webp',
-  'webp-to-jpg', 'svg-to-png', 'photo-editor', 'watermark-image', 'remove-metadata', 'favicon-generator', 'meme-generator', 'blur-face', 'basic-background-removal', 'html-to-image', 'qr-code-generator', 'url-qr-code',
+  'webp-to-jpg', 'svg-to-png', 'photo-editor', 'watermark-image', 'remove-metadata', 'favicon-generator', 'meme-generator', 'merge-png', 'blur-face', 'basic-background-removal', 'html-to-image', 'qr-code-generator', 'url-qr-code',
   'text-qr-code', 'wifi-qr-code', 'whatsapp-qr-code', 'email-qr-code', 'phone-qr-code', 'vcard-qr-code',
   'location-qr-code', 'qr-generator', 'qris-payload-parser', 'change-audio-speed', 'change-volume',
   'audio-converter', 'audio-compressor', 'audio-cutter', 'audio-trimmer', 'audio-merger',
@@ -163,6 +163,13 @@ export const tools: readonly ToolDefinition[] = [
   t('Upscale Image', 'image', ['optimize'], 'remote-api', { ai: true, accessTier: 'pro', requiredCapability: 'image.ai.upscale' }),
   t('Image Enhancement', 'image', ['optimize'], 'remote-api', { ai: true }),
   t('Meme Generator', 'image', ['create'], 'image-canvas', { acceptedFormats: imageFormats, outputFormats: ['image/png', 'image/jpeg'] }),
+  t('Merge PNG', 'image', ['edit', 'create'], 'image-canvas', {
+    acceptedFormats: ['image/png', '.png'],
+    outputFormats: ['image/png'],
+    aliases: ['combine png', 'stack png', 'gabung png', 'png stitch'],
+    shortDescription: 'Combine PNG images into one file in your browser.',
+    description: 'Merge PNG images vertically, horizontally, or in a grid. Reorder files, set gap, padding, alignment, and background, then download one PNG. Processing stays in this browser.',
+  }),
   t('HTML to Image', 'image', ['convert'], 'remote-api', { acceptedFormats: ['text/html'], outputFormats: ['image/png', 'image/jpeg'] }),
   t('Website Screenshot', 'image', ['create'], 'remote-api'),
   t('Image to Base64', 'image', ['convert'], 'encoding'),
@@ -311,9 +318,10 @@ const fuse = new Fuse(tools, {
   keys: ['name', 'shortDescription', 'description', 'tags', 'aliases', 'category'],
   threshold: 0.32,
 })
+const toolsBySlug = new Map(tools.map((tool) => [tool.slug, tool]))
 
 export const getAllTools = () => [...tools]
-export const getToolBySlug = (slug: string) => tools.find((item) => item.slug === slug)
+export const getToolBySlug = (slug: string) => toolsBySlug.get(slug)
 export const getToolsByCategory = (category: ToolCategory) => tools.filter((item) => category === 'converter' ? item.groups.includes('convert') : item.category === category)
 export const getToolsByGroup = (group: ToolGroup) => tools.filter((item) => item.groups.includes(group))
 export const getPopularTools = () => tools.filter((item) => item.popular && item.available)

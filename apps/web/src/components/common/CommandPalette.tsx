@@ -1,12 +1,12 @@
 import { BookOpen, Search, Wrench } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { docsArticlePath, searchDocs } from '@/content/docs/catalog'
+import { docsArticlePath, searchDocs } from '@/content/docs/search'
 import {
   getPopularTools,
   getToolBySlug,
   type ToolDefinition,
 } from '@/features/tools/tool-registry'
-import { localizeTo, useLocale, useT } from '@/i18n'
+import { useLocale, useT } from '@/i18n'
 import { useLocaleNavigate } from '@/i18n/navigate'
 import { localizeTool, searchToolsLocalized } from '@/i18n/tools'
 import { getRecentTools } from '@/lib/storage/tools'

@@ -115,6 +115,17 @@ def test_noise_reduction_presets_map_to_afftdn() -> None:
 
 
 @pytest.mark.skipif(needs_ffmpeg, reason="ffmpeg")
+async def test_ffmpeg_nonzero_exit_is_ffmpeg_failed(tmp_path: Path) -> None:
+    missing = tmp_path / "missing.wav"
+    with pytest.raises(ProcessingError) as caught:
+        await run_command(
+            ["ffmpeg", "-y", "-i", str(missing), str(tmp_path / "out.mp3")],
+            timeout=15,
+        )
+    assert caught.value.code == "FFMPEG_FAILED"
+
+
+@pytest.mark.skipif(needs_ffmpeg, reason="ffmpeg")
 async def test_noise_reduction_produces_ffprobe_valid_audio(tmp_path: Path) -> None:
     source = tmp_path / "noisy.wav"
     await _make_noisy_audio(source)

@@ -15,15 +15,14 @@ class AdminSecurityMiddleware(BaseHTTPMiddleware):
         is_admin = request.url.path.startswith("/api/v1/admin/")
         if is_admin and request.method not in {"GET", "HEAD", "OPTIONS"}:
             origin = request.headers.get("Origin")
-            allowed = get_settings().admin_cors_origins
-            if origin and origin not in allowed:
+            settings = get_settings()
+            if origin and origin not in settings.admin_cors_origins:
                 return error_response(
                     request,
                     status.HTTP_403_FORBIDDEN,
                     "ADMIN_FORBIDDEN",
                     "The request origin is not allowed.",
                 )
-            settings = get_settings()
             session_cookie = request.cookies.get(settings.admin_session_cookie_name)
             csrf_cookie = request.cookies.get(settings.admin_csrf_cookie_name)
             csrf_header = request.headers.get("X-CSRF-Token")
