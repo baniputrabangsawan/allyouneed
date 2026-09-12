@@ -4,6 +4,18 @@ from io import BytesIO
 from httpx import AsyncClient
 from PIL import Image
 
+from app.core.license_crypto import generate_device_secret
+
+DEVICE_SECRET = generate_device_secret()
+
+
+def activate_json(license_key: str, installation_id: str, secret: str | None = None) -> dict[str, str]:
+    return {
+        "licenseKey": license_key,
+        "installationId": installation_id,
+        "deviceSecret": secret or DEVICE_SECRET,
+    }
+
 
 async def upload_bytes(
     api: AsyncClient,
@@ -57,7 +69,7 @@ async def pro_headers(api: AsyncClient, installation_id: str = "install-test") -
     issued = (await api.post("/api/v1/admin/licenses", json={"durationMonths": 1})).json()["data"]
     activated = await api.post(
         "/api/v1/licenses/activate",
-        json={"licenseKey": issued["licenseKey"], "installationId": installation_id},
+        json=activate_json(issued["licenseKey"], installation_id),
     )
     return {"X-Entitlement-Token": activated.json()["data"]["token"]}
 

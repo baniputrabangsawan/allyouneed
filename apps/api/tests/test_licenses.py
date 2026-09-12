@@ -9,6 +9,8 @@ from app.core.license_crypto import generate_license_key, hash_license_key, is_l
 from app.db.models import License
 from app.db.session import get_session_factory
 from app.services.license_service import LicenseService
+from tests.helpers import DEVICE_SECRET, activate_json
+
 
 
 def test_license_key_format() -> None:
@@ -33,7 +35,7 @@ async def test_issue_activate_one_installation(admin_api: AsyncClient) -> None:
 
     first = await api.post(
         "/api/v1/licenses/activate",
-        json={"licenseKey": key, "installationId": "install-a"},
+        json=activate_json(key, "install-a"),
     )
     assert first.status_code == 200
     body = first.json()["data"]
@@ -43,14 +45,14 @@ async def test_issue_activate_one_installation(admin_api: AsyncClient) -> None:
 
     second = await api.post(
         "/api/v1/licenses/activate",
-        json={"licenseKey": key, "installationId": "install-b"},
+        json=activate_json(key, "install-b"),
     )
     assert second.status_code == 409
     assert second.json()["error"]["code"] == "ACTIVATION_LIMIT_REACHED"
 
     same = await api.post(
         "/api/v1/licenses/activate",
-        json={"licenseKey": key, "installationId": "install-a"},
+        json=activate_json(key, "install-a"),
     )
     assert same.status_code == 200
 
@@ -61,7 +63,7 @@ async def test_issue_activate_one_installation(admin_api: AsyncClient) -> None:
     assert deactivated.status_code == 200
     moved = await api.post(
         "/api/v1/licenses/activate",
-        json={"licenseKey": key, "installationId": "install-b"},
+        json=activate_json(key, "install-b"),
     )
     assert moved.status_code == 200
     assert moved.json()["data"]["token"]
@@ -84,7 +86,7 @@ async def test_renew_suspend_revoke(admin_api: AsyncClient) -> None:
 
     activated = await api.post(
         "/api/v1/licenses/activate",
-        json={"licenseKey": issued["licenseKey"], "installationId": "install-a"},
+        json=activate_json(issued["licenseKey"], "install-a"),
     )
     original_expiry = activated.json()["data"]["expiresAt"]
 
@@ -103,7 +105,7 @@ async def test_renew_suspend_revoke(admin_api: AsyncClient) -> None:
 
     activate = await api.post(
         "/api/v1/licenses/activate",
-        json={"licenseKey": issued["licenseKey"], "installationId": "install-a"},
+        json=activate_json(issued["licenseKey"], "install-a"),
     )
     assert activate.status_code == 403
     assert activate.json()["error"]["code"] == "LICENSE_SUSPENDED"
@@ -127,7 +129,7 @@ async def test_expired_license_cannot_activate() -> None:
     async with factory() as session:
         service = LicenseService(session)
         issued = await service.issue(LicensePlan.PRO_1_MONTH)
-        await service.activate(issued.license_key, "install-a")
+        await service.activate(issued.license_key, "install-a", DEVICE_SECRET)
         result = await session.execute(select(License).where(License.id == issued.license_id))
         license = result.scalar_one()
         license.expires_at = datetime.now(UTC) - timedelta(days=1)
@@ -136,7 +138,7 @@ async def test_expired_license_cannot_activate() -> None:
     async with factory() as session:
         service = LicenseService(session)
         try:
-            await service.activate(issued.license_key, "install-a")
+            await service.activate(issued.license_key, "install-a", DEVICE_SECRET)
             raise AssertionError("expired license activated")
         except Exception as exc:
             assert getattr(exc, "code", None) == "LICENSE_EXPIRED"
@@ -149,7 +151,7 @@ async def test_calendar_month_duration() -> None:
     async with factory() as session:
         service = LicenseService(session, clock=lambda: start)
         issued = await service.issue(LicensePlan.PRO_1_MONTH)
-        license, _ = await service.activate(issued.license_key, "install-a")
+        license, _ = await service.activate(issued.license_key, "install-a", DEVICE_SECRET)
         assert license.activated_at == start
         assert license.expires_at == start + relativedelta(months=1)
         assert license.expires_at == datetime(2024, 2, 29, tzinfo=UTC)

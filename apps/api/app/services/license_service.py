@@ -15,13 +15,16 @@ from app.core.enums import LicenseEventType, LicensePlan, LicenseStatus
 from app.core.exceptions import ApiError
 from app.core.license_crypto import (
     generate_license_key,
+    generate_transfer_token,
+    hash_device_secret,
     hash_installation_id,
     hash_license_key,
+    hash_transfer_token,
     is_license_key_format,
     license_key_prefix,
     normalize_license_key,
 )
-from app.db.models import AdminAuditLog, License, LicenseActivation, LicenseEvent
+from app.db.models import AdminAuditLog, License, LicenseActivation, LicenseEvent, LicenseTransfer
 from app.repositories.licenses import LicenseRepository
 from app.schemas.admin import (
     AdminAuditPage,
@@ -123,12 +126,111 @@ class LicenseService:
             **self._admin_view(license).model_dump(), license_key=issued.license_key
         )
 
-    async def activate(self, license_key: str, installation_id: str) -> tuple[License, str]:
+    async def activate(
+        self, license_key: str, installation_id: str, device_secret: str
+    ) -> tuple[License, str]:
         license = await self._require_by_key(license_key)
         self._refresh_expiry(license)
         if license.status != LicenseStatus.ACTIVE.value:
             raise self._inactive_error(license)
-        installation_hash = hash_installation_id(installation_id)
+        return await self._bind_installation(license, installation_id, device_secret)
+
+    async def restore(self, installation_id: str, device_secret: str) -> tuple[License, str]:
+        installation_hash, credential_hash = self._installation_proof(
+            installation_id, device_secret
+        )
+        activation = await self._repo.get_activation_by_hashes(installation_hash, credential_hash)
+        if activation is None:
+            activation = await self._repo.get_unbound_activation(installation_hash)
+            if activation is None:
+                raise ApiError(
+                    status.HTTP_404_NOT_FOUND,
+                    "INSTALLATION_NOT_FOUND",
+                    "This installation is not bound to an active license.",
+                )
+            self._bind_credential(activation, credential_hash)
+        license = await self._require_id(activation.license_id)
+        self._refresh_expiry(license)
+        if license.status != LicenseStatus.ACTIVE.value:
+            raise self._inactive_error(license)
+        active = self._repo.active_activation(license)
+        if active is None or active.id != activation.id:
+            raise ApiError(
+                status.HTTP_403_FORBIDDEN,
+                "ACTIVATION_REVOKED",
+                "This installation is not active for the license.",
+            )
+        now = self._clock()
+        activation.last_seen_at = now
+        license.updated_at = now
+        await self._commit(license)
+        return license, installation_hash
+
+    async def issue_transfer(
+        self, license: License, installation_hash: str
+    ) -> tuple[LicenseTransfer, str]:
+        active = self._require_matching_activation(license, installation_hash)
+        now = self._clock()
+        existing = await self._repo.get_open_transfer_for_activation(active.id)
+        if existing is not None:
+            existing.redeemed_at = now
+        token = generate_transfer_token()
+        transfer = LicenseTransfer(
+            id=str(uuid4()),
+            token_hash=hash_transfer_token(token),
+            license_id=license.id,
+            from_activation_id=active.id,
+            expires_at=now + timedelta(minutes=8),
+            created_at=now,
+        )
+        await self._repo.add_transfer(transfer)
+        await self._event(
+            license, LicenseEventType.TRANSFER_ISSUED, installation_hash=installation_hash
+        )
+        license.updated_at = now
+        await self._commit(license)
+        return transfer, token
+
+    async def redeem_transfer(
+        self, token: str, installation_id: str, device_secret: str
+    ) -> tuple[License, str]:
+        record = await self._repo.get_transfer_by_hash(hash_transfer_token(token.strip()))
+        now = self._clock()
+        if record is None or record.redeemed_at is not None or aware(record.expires_at) <= now:
+            raise ApiError(
+                status.HTTP_404_NOT_FOUND,
+                "TRANSFER_INVALID",
+                "This transfer token is invalid or has expired.",
+            )
+        license = await self._require_id(record.license_id)
+        self._refresh_expiry(license)
+        if license.status != LicenseStatus.ACTIVE.value:
+            raise self._inactive_error(license)
+        active = self._repo.active_activation(license)
+        if active is None or active.id != record.from_activation_id:
+            raise ApiError(
+                status.HTTP_409_CONFLICT,
+                "ACTIVATION_REVOKED",
+                "This installation is not active for the license.",
+            )
+        record.redeemed_at = now
+        active.revoked_at = now
+        await self._event(
+            license,
+            LicenseEventType.TRANSFER_REDEEMED,
+            installation_hash=active.installation_hash,
+        )
+        license.updated_at = now
+        await self._repo.commit()
+        license = await self._require_id(license.id)
+        return await self._bind_installation(license, installation_id, device_secret)
+
+    async def _bind_installation(
+        self, license: License, installation_id: str, device_secret: str
+    ) -> tuple[License, str]:
+        installation_hash, credential_hash = self._installation_proof(
+            installation_id, device_secret
+        )
         now = self._clock()
         active = self._repo.active_activation(license)
         if active is not None and active.installation_hash != installation_hash:
@@ -138,6 +240,7 @@ class LicenseService:
                 "This license is already active on another installation.",
             )
         if active is not None:
+            self._bind_credential(active, credential_hash)
             active.last_seen_at = now
         else:
             if license.activated_at is None:
@@ -147,6 +250,7 @@ class LicenseService:
                 id=str(uuid4()),
                 license_id=license.id,
                 installation_hash=installation_hash,
+                device_credential_hash=credential_hash,
                 activated_at=now,
                 last_seen_at=now,
                 created_at=now,
@@ -158,6 +262,40 @@ class LicenseService:
         license.updated_at = now
         await self._commit(license)
         return license, installation_hash
+
+    def _require_matching_activation(
+        self, license: License, installation_hash: str
+    ) -> LicenseActivation:
+        active = self._repo.active_activation(license)
+        if active is None or active.installation_hash != installation_hash:
+            raise ApiError(
+                status.HTTP_403_FORBIDDEN,
+                "ACTIVATION_REVOKED",
+                "This installation is not active for the license.",
+            )
+        return active
+
+    @staticmethod
+    def _bind_credential(activation: LicenseActivation, credential_hash: str) -> None:
+        stored = activation.device_credential_hash
+        if stored and stored != credential_hash:
+            raise ApiError(
+                status.HTTP_403_FORBIDDEN,
+                "INSTALLATION_CREDENTIAL_MISMATCH",
+                "This installation credential does not match.",
+            )
+        activation.device_credential_hash = credential_hash
+
+    @staticmethod
+    def _installation_proof(installation_id: str, device_secret: str) -> tuple[str, str]:
+        try:
+            return hash_installation_id(installation_id), hash_device_secret(device_secret)
+        except ValueError as exc:
+            raise ApiError(
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                "INVALID_DEVICE_SECRET",
+                "Device credential is invalid.",
+            ) from exc
 
     async def deactivate_by_hash(self, license: License, installation_hash: str) -> License:
         active = self._repo.active_activation(license)
