@@ -6,9 +6,9 @@ import { compressPng } from './png-compress'
 const PNG_SIG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] as const
 
 describe('png compression pipeline', () => {
-  it('shrinks an uncompressed few-color PNG without changing pixels in lossless mode', async () => {
+  it('shrinks an uncompressed few-color PNG without changing pixels in lossless mode', () => {
     const source = graphicPng(96, 64)
-    const result = await compressPng(source, { mode: 'lossless' })
+    const result = compressPng(source, { mode: 'lossless' })
     expect(isPngSignature(result.bytes)).toBe(true)
     expect(result.compressedSize).toBeLessThan(result.originalSize * 0.35)
     expect(result.savedBytes).toBe(result.originalSize - result.compressedSize)
@@ -19,9 +19,9 @@ describe('png compression pipeline', () => {
     expect(decodePngRgba(result.bytes).rgba).toEqual(decodePngRgba(source).rgba)
   })
 
-  it('quantizes a photographic PNG in balanced mode and recommends WebP', async () => {
+  it('quantizes a photographic PNG in balanced mode and recommends WebP', () => {
     const source = photoPng(80, 60)
-    const result = await compressPng(source, { mode: 'balanced' })
+    const result = compressPng(source, { mode: 'balanced' })
     expect(result.compressedSize).toBeLessThan(result.originalSize * 0.5)
     expect(result.compressedSize).toBeLessThanOrEqual(result.originalSize)
     expect(readPngSize(result.bytes)).toEqual({ width: 80, height: 60 })
@@ -32,10 +32,10 @@ describe('png compression pipeline', () => {
     expect(decoded.rgba.length).toBe(80 * 60 * 4)
   })
 
-  it('preserves transparency and never returns a larger file', async () => {
+  it('preserves transparency and never returns a larger file', () => {
     const source = transparentPng(48, 48)
     const original = decodePngRgba(source)
-    const result = await compressPng(source, { mode: 'balanced' })
+    const result = compressPng(source, { mode: 'balanced' })
     expect(result.compressedSize).toBeLessThanOrEqual(result.originalSize)
     expect(result.hasAlpha).toBe(true)
     const decoded = decodePngRgba(result.bytes)
@@ -47,38 +47,19 @@ describe('png compression pipeline', () => {
       if (sourceAlpha === 0) expect(nextAlpha).toBe(0)
       if (sourceAlpha === 255) expect(nextAlpha).toBe(255)
     }
-    const again = await compressPng(result.bytes, { mode: 'lossless' })
+    const again = compressPng(result.bytes, { mode: 'lossless' })
     expect(again.compressedSize).toBeLessThanOrEqual(again.originalSize)
   })
 
-  it('strips metadata and skips quantization on animated PNG', async () => {
+  it('strips metadata and skips quantization on animated PNG', () => {
     const source = animatedPng(16, 16)
-    const result = await compressPng(source, { mode: 'strong' })
+    const result = compressPng(source, { mode: 'strong' })
     expect(result.width).toBe(16)
     expect(result.height).toBe(16)
     expect(result.quantized).toBe(false)
     expect(result.compressedSize).toBeLessThan(result.originalSize)
     expect(chunkNames(result.bytes)).not.toContain('tEXt')
     expect(chunkNames(result.bytes)).toContain('acTL')
-  })
-
-  it('reports increasing percents from completed pipeline work', async () => {
-    const stages: string[] = []
-    const percents: number[] = []
-    await compressPng(photoPng(48, 32), {
-      mode: 'balanced',
-      onProgress: (progress) => {
-        expect(progress.progress).not.toBeNull()
-        if (progress.stage && stages.at(-1) !== progress.stage) stages.push(progress.stage)
-        if (progress.progress != null) percents.push(progress.progress)
-      },
-    })
-    expect(stages).toEqual(['preparing', 'compressing', 'optimizing', 'finalizing'])
-    expect(percents[0]).toBe(0)
-    expect(percents.at(-1)).toBe(100)
-    for (let index = 1; index < percents.length; index += 1) {
-      expect(percents[index] ?? 0).toBeGreaterThanOrEqual(percents[index - 1] ?? 0)
-    }
   })
 })
 

@@ -1,24 +1,21 @@
-import { Check, ChevronDown, ChevronUp, GripVertical, RefreshCcw, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronUp, Download, GripVertical, RefreshCcw, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { FileDropzone } from '@/components/file/FileDropzone'
-import { ProcessingProgressPanel } from '@/features/workspaces/processing-progress'
 import { useT } from '@/i18n'
-import { LocaleLink } from '@/i18n/link'
 import { formatBytes } from '@/lib/format'
-import { ImageResultPreview } from '@/features/image/ImageResultPreview'
 import { motion } from '@/lib/motion/config'
 import { Flip, gsap, useGSAP } from '@/lib/motion/gsap'
 import { prefersReducedMotion } from '@/lib/motion/prefers-reduced-motion'
 import { mergePngImages } from '@/processing/client/merge-png'
-import type { ImageOptimizeMode } from '@/processing/client/image-optimize'
-import { withProcessStages, type ProcessStage } from '@/processing/client/process-stage'
 import {
   assertSafeMergeSize,
   computeMergeLayout,
   defaultMergeOptions,
   MAX_MERGE_FILES,
   MERGE_ERROR,
+  MERGE_GAPS,
   MERGE_GRID_COLUMN_CHOICES,
+  MERGE_PADDINGS,
   MERGE_PNG_ACCEPT,
   MIN_MERGE_FILES,
   mergeOutputFilename,
@@ -42,20 +39,15 @@ interface MergeItem {
 }
 
 interface MergeResult {
-  id: string
   blob: Blob
   url: string
   width: number
   height: number
-  originalSize: number
-  optimizedSize: number
-  savedRatio: number
-  recommendWebp: boolean
   durationMs: number
 }
 
-const PREVIEW_MAX_WIDTH = 560
-const PREVIEW_MAX_HEIGHT = 420
+const PREVIEW_MAX_WIDTH = 720
+const PREVIEW_MAX_HEIGHT = 360
 
 export function MergePngWorkspace() {
   const copy = useT()
@@ -66,15 +58,11 @@ export function MergePngWorkspace() {
   const thumbUrlsRef = useRef(new Map<string, string>())
   const dragIndexRef = useRef<number | null>(null)
   const selectionRef = useRef(0)
-  const runningRef = useRef(false)
-  const [processStage, setProcessStage] = useState<ProcessStage>('preparing')
   const [items, setItems] = useState<MergeItem[]>([])
   const [thumbUrls, setThumbUrls] = useState<Record<string, string>>({})
   const [options, setOptions] = useState<MergeOptions>(defaultMergeOptions)
   const [background, setBackground] = useState<MergeBackground>('transparent')
   const [customColor, setCustomColor] = useState('#808080')
-  const [autoOptimize, setAutoOptimize] = useState(true)
-  const [optimizeMode, setOptimizeMode] = useState<ImageOptimizeMode>('auto')
   const [result, setResult] = useState<MergeResult | null>(null)
   const [status, setStatus] = useState<'idle' | 'ready' | 'processing' | 'completed' | 'failed'>('idle')
   const [error, setError] = useState('')
@@ -104,17 +92,17 @@ export function MergePngWorkspace() {
     if (prefersReducedMotion()) return
     const cards = listRef.current?.querySelectorAll('.merge-file-card')
     if (!cards?.length) return
-    gsap.fromTo(cards, { autoAlpha: 0, y: 8 }, {
-      autoAlpha: 1, y: 0, duration: motion.duration.fast, stagger: 0.03, ease: motion.ease.enter,
+    gsap.fromTo(cards, { autoAlpha: 0, y: 10 }, {
+      autoAlpha: 1, y: 0, duration: motion.duration.fast, stagger: 0.04, ease: motion.ease.enter,
     })
   }, { dependencies: [items.length], scope: listRef })
 
   useGSAP(() => {
     if (status !== 'completed' || !result || prefersReducedMotion()) return
-    const panel = workspaceRef.current?.querySelector('.image-result-preview')
+    const panel = workspaceRef.current?.querySelector('.merge-result-stage')
     if (!panel) return
-    gsap.fromTo(panel, { autoAlpha: 0, y: 12, scale: 0.98 }, {
-      autoAlpha: 1, y: 0, scale: 1, duration: 0.35, ease: motion.ease.enter,
+    gsap.fromTo(panel, { autoAlpha: 0, y: 16, scale: 0.98 }, {
+      autoAlpha: 1, y: 0, scale: 1, duration: 0.4, ease: motion.ease.enter,
     })
   }, { dependencies: [status, result?.url], scope: workspaceRef })
 
@@ -239,8 +227,6 @@ export function MergePngWorkspace() {
     setOptions(defaultMergeOptions())
     setBackground('transparent')
     setCustomColor('#808080')
-    setAutoOptimize(true)
-    setOptimizeMode('auto')
     setError('')
     setFilename('merged-images.png')
   }
@@ -255,46 +241,28 @@ export function MergePngWorkspace() {
       setStatus('failed')
       return
     }
-    if (runningRef.current) return
-    runningRef.current = true
     const selection = selectionRef.current
     setStatus('processing')
     setError('')
     const startedAt = performance.now()
     try {
-      const output = await withProcessStages(setProcessStage, () => mergePngImages(
+      const output = await mergePngImages(
         items.map((item) => ({ file: item.file, width: item.width, height: item.height })),
         options,
         fill,
-        { enabled: autoOptimize, mode: optimizeMode },
-      ), { optimize: autoOptimize })
+      )
       if (selection !== selectionRef.current) return
       clearResult()
       const url = URL.createObjectURL(output.blob)
       resultUrlRef.current = url
-      const nextFilename = mergeOutputFilename()
-      setFilename(nextFilename)
-      setResult({
-        id: crypto.randomUUID(),
-        blob: output.blob,
-        url,
-        width: output.width,
-        height: output.height,
-        originalSize: output.originalSize,
-        optimizedSize: output.optimizedSize,
-        savedRatio: output.savedRatio,
-        recommendWebp: output.recommendWebp,
-        durationMs: performance.now() - startedAt,
-      })
+      setResult({ blob: output.blob, url, width: output.width, height: output.height, durationMs: performance.now() - startedAt })
+      setFilename(mergeOutputFilename())
       setStatus('completed')
     } catch (reason) {
       if (selection !== selectionRef.current) return
       const code = reason instanceof Error ? reason.message : MERGE_ERROR.export
       setError(localizeError(code))
       setStatus('failed')
-      setProcessStage('failed')
-    } finally {
-      runningRef.current = false
     }
   }
 
@@ -321,17 +289,10 @@ export function MergePngWorkspace() {
     : options.layout === 'horizontal'
       ? copy.mergePng.horizontal
       : copy.mergePng.grid
-  const savedPercent = result ? Math.round(result.savedRatio * 100) : 0
-  const displayWidth = result?.width ?? layout.width
-  const displayHeight = result?.height ?? layout.height
 
   return (
     <section ref={workspaceRef} className="workspace split-workspace merge-workspace">
       <div className="options-panel">
-        <div className="panel-label">
-          <span>{copy.mergePng.imagesHeading}</span>
-          <button type="button" className="text-button" onClick={resetAll}><RefreshCcw size={14} /> {copy.mergePng.reset}</button>
-        </div>
         <FileDropzone
           accept={MERGE_PNG_ACCEPT}
           multiple
@@ -349,8 +310,11 @@ export function MergePngWorkspace() {
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={(event) => onDrop(index, event)}
               >
+                <span className="merge-drag" title={copy.mergePng.dragHandle} aria-hidden="true">
+                  <GripVertical size={16} />
+                </span>
                 {thumbUrls[item.id] ? (
-                  <img src={thumbUrls[item.id]} alt="" width={56} height={56} />
+                  <img src={thumbUrls[item.id]} alt="" width={48} height={48} />
                 ) : (
                   <span className="merge-thumb-fallback" />
                 )}
@@ -359,9 +323,6 @@ export function MergePngWorkspace() {
                   <small>{item.width}×{item.height}px · {formatBytes(item.file.size)}</small>
                 </span>
                 <span className="merge-file-actions">
-                  <span className="merge-drag" title={copy.mergePng.dragHandle} aria-hidden="true">
-                    <GripVertical size={16} />
-                  </span>
                   <button type="button" className="text-button" aria-label={copy.mergePng.moveUp} disabled={index === 0} onClick={() => moveItem(index, index - 1)}>
                     <ChevronUp size={16} />
                   </button>
@@ -376,7 +337,10 @@ export function MergePngWorkspace() {
             ))}
           </ul>
         )}
-        <div className="panel-label"><span>{copy.mergePng.settings}</span></div>
+        <div className="panel-label">
+          <span>{copy.mergePng.settings}</span>
+          <button type="button" className="text-button" onClick={resetAll}><RefreshCcw size={14} /> {copy.mergePng.reset}</button>
+        </div>
         <p className="option-help">{copy.mergePng.localNote}</p>
         <div className="field">
           <span>{copy.mergePng.layout}</span>
@@ -388,19 +352,37 @@ export function MergePngWorkspace() {
             ))}
           </div>
         </div>
-        <div className="field">
-          <span>{copy.mergePng.sizing}</span>
-          <div className="segmented" role="group" aria-label={copy.mergePng.sizing}>
-            {([
-              ['original', copy.mergePng.original],
-              ['fit-uniform', copy.mergePng.fitUniform],
-            ] as const).map(([value, label]) => (
-              <button key={value} type="button" className={options.sizing === value ? 'active' : ''} aria-pressed={options.sizing === value} onClick={() => patchOptions({ sizing: value satisfies MergeSizing })}>
-                {label}
-              </button>
-            ))}
+        {options.layout === 'grid' && (
+          <div className="field">
+            <span>{copy.mergePng.columns}</span>
+            <div className="segmented merge-segmented-4" role="group" aria-label={copy.mergePng.columns}>
+              {MERGE_GRID_COLUMN_CHOICES.map((value) => (
+                <button key={String(value)} type="button" className={options.columns === value ? 'active' : ''} aria-pressed={options.columns === value} onClick={() => patchOptions({ columns: value as MergeGridColumns })}>
+                  {value === 'auto' ? copy.mergePng.auto : String(value)}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
+        <Field label={copy.mergePng.sizing}>
+          <select aria-label={copy.mergePng.sizing} value={options.sizing} onChange={(event) => patchOptions({ sizing: event.target.value as MergeSizing })}>
+            <option value="original">{copy.mergePng.original}</option>
+            <option value="fit-uniform">{copy.mergePng.fitUniform}</option>
+            <option value="fit-largest-width">{copy.mergePng.fitLargestWidth}</option>
+            <option value="fit-largest-height">{copy.mergePng.fitLargestHeight}</option>
+            <option value="custom">{copy.mergePng.customCell}</option>
+          </select>
+        </Field>
+        {options.sizing === 'custom' && (
+          <div className="field-grid">
+            <Field label={copy.mergePng.cellWidth} value="px">
+              <input aria-label={copy.mergePng.cellWidth} type="number" min="1" max="16384" value={options.customCell.width} onChange={(event) => patchOptions({ customCell: { ...options.customCell, width: Number(event.target.value) || 1 } })} />
+            </Field>
+            <Field label={copy.mergePng.cellHeight} value="px">
+              <input aria-label={copy.mergePng.cellHeight} type="number" min="1" max="16384" value={options.customCell.height} onChange={(event) => patchOptions({ customCell: { ...options.customCell, height: Number(event.target.value) || 1 } })} />
+            </Field>
+          </div>
+        )}
         {options.layout !== 'horizontal' && (
           <div className="field">
             <span>{copy.mergePng.alignX}</span>
@@ -425,113 +407,44 @@ export function MergePngWorkspace() {
             </div>
           </div>
         )}
-        <CompactRange
-          label={copy.mergePng.gap}
-          value={options.gap}
-          max={32}
-          onChange={(value) => patchOptions({ gap: value })}
-        />
-        <CompactRange
-          label={copy.mergePng.padding}
-          value={options.padding}
-          max={32}
-          onChange={(value) => patchOptions({ padding: value })}
-        />
-        <div className="field">
-          <span>{copy.mergePng.background}</span>
-          <div className="segmented merge-segmented-4" role="group" aria-label={copy.mergePng.background}>
-            {(['transparent', 'white', 'black', 'custom'] as const).map((value) => (
-              <button
-                key={value}
-                type="button"
-                className={background === value ? 'active' : ''}
-                aria-pressed={background === value}
-                onClick={() => { setBackground(value satisfies MergeBackground); clearResult(); setStatus(items.length > 0 ? 'ready' : 'idle') }}
-              >
-                {value === 'transparent' ? copy.mergePng.transparent : value === 'white' ? copy.mergePng.white : value === 'black' ? copy.mergePng.black : copy.mergePng.custom}
-              </button>
-            ))}
-          </div>
-        </div>
+        <Field label={copy.mergePng.gap} value="px">
+          <select aria-label={copy.mergePng.gap} value={options.gap} onChange={(event) => patchOptions({ gap: Number(event.target.value) })}>
+            {MERGE_GAPS.map((value) => <option key={value} value={value}>{value}</option>)}
+          </select>
+        </Field>
+        <Field label={copy.mergePng.padding} value="px">
+          <select aria-label={copy.mergePng.padding} value={options.padding} onChange={(event) => patchOptions({ padding: Number(event.target.value) })}>
+            {MERGE_PADDINGS.map((value) => <option key={value} value={value}>{value}</option>)}
+          </select>
+        </Field>
+        <Field label={copy.mergePng.background}>
+          <select aria-label={copy.mergePng.background} value={background} onChange={(event) => { setBackground(event.target.value as MergeBackground); clearResult(); setStatus(items.length > 0 ? 'ready' : 'idle') }}>
+            <option value="transparent">{copy.mergePng.transparent}</option>
+            <option value="white">{copy.mergePng.white}</option>
+            <option value="black">{copy.mergePng.black}</option>
+            <option value="custom">{copy.mergePng.custom}</option>
+          </select>
+        </Field>
         {background === 'custom' && (
           <Field label={copy.mergePng.customColor}>
             <input aria-label={copy.mergePng.customColor} type="color" value={customColor} onChange={(event) => { setCustomColor(event.target.value); clearResult(); setStatus(items.length > 0 ? 'ready' : 'idle') }} />
           </Field>
         )}
-        <label className="check-row">
-          <input type="checkbox" checked={autoOptimize} onChange={(event) => { setAutoOptimize(event.target.checked); clearResult(); setStatus(items.length > 0 ? 'ready' : 'idle') }} />
-          {copy.workspace.autoOptimize}
-        </label>
-        <details className="merge-advanced">
-          <summary>{copy.mergePng.advanced}</summary>
-          {options.layout === 'grid' && (
-            <div className="field">
-              <span>{copy.mergePng.columns}</span>
-              <div className="segmented merge-segmented-4" role="group" aria-label={copy.mergePng.columns}>
-                {MERGE_GRID_COLUMN_CHOICES.map((value) => (
-                  <button key={String(value)} type="button" className={options.columns === value ? 'active' : ''} aria-pressed={options.columns === value} onClick={() => patchOptions({ columns: value as MergeGridColumns })}>
-                    {value === 'auto' ? copy.mergePng.auto : String(value)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          <Field label={copy.mergePng.sizing}>
-            <select aria-label={copy.mergePng.sizing} value={options.sizing} onChange={(event) => patchOptions({ sizing: event.target.value as MergeSizing })}>
-              <option value="original">{copy.mergePng.original}</option>
-              <option value="fit-uniform">{copy.mergePng.fitUniform}</option>
-              <option value="fit-largest-width">{copy.mergePng.fitLargestWidth}</option>
-              <option value="fit-largest-height">{copy.mergePng.fitLargestHeight}</option>
-              <option value="custom">{copy.mergePng.customCell}</option>
-            </select>
-          </Field>
-          {options.sizing === 'custom' && (
-            <div className="field-grid">
-              <Field label={copy.mergePng.cellWidth} value="px">
-                <input aria-label={copy.mergePng.cellWidth} type="number" min="1" max="16384" value={options.customCell.width} onChange={(event) => patchOptions({ customCell: { ...options.customCell, width: Number(event.target.value) || 1 } })} />
-              </Field>
-              <Field label={copy.mergePng.cellHeight} value="px">
-                <input aria-label={copy.mergePng.cellHeight} type="number" min="1" max="16384" value={options.customCell.height} onChange={(event) => patchOptions({ customCell: { ...options.customCell, height: Number(event.target.value) || 1 } })} />
-              </Field>
-            </div>
-          )}
-          {autoOptimize && (
-            <div className="field">
-              <span>{copy.workspace.autoOptimize}</span>
-              <div className="segmented" role="group" aria-label={copy.workspace.autoOptimize}>
-                {(['auto', 'lossless', 'strong'] as const).map((value) => (
-                  <button key={value} type="button" className={optimizeMode === value ? 'active' : ''} aria-pressed={optimizeMode === value} onClick={() => { setOptimizeMode(value); clearResult(); setStatus(items.length > 0 ? 'ready' : 'idle') }}>
-                    {value === 'auto' ? copy.workspace.optimizeAuto : value === 'lossless' ? copy.workspace.optimizeLossless : copy.workspace.optimizeStrong}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </details>
-        {status === 'processing' && <ProcessingProgressPanel stage={processStage} title="Processing..." />}
-        {status === 'failed' && <ProcessingProgressPanel stage="failed" title="Processing failed" detail={error || 'Processing failed'} />}
         <button className={`button ${status === 'completed' ? 'success' : 'primary'} action-button`} type="button" disabled={!canMerge} onClick={() => void run()}>
-          {status === 'processing' ? copy.mergePng.processing : status === 'completed' ? copy.mergePng.mergeAgain : status === 'failed' ? 'Try again' : copy.mergePng.merge}
+          {status === 'processing' ? copy.mergePng.processing : status === 'completed' ? copy.mergePng.mergeAgain : copy.mergePng.merge}
         </button>
         {items.length > 0 && items.length < MIN_MERGE_FILES && <p className="option-help" role="status">{copy.mergePng.addAtLeastTwo}</p>}
         {tooLarge && <p className="field-error" role="alert">{copy.mergePng.tooLarge}</p>}
-        {error && status !== 'failed' && <p className="field-error" role="alert">{error}</p>}
+        {error && <p className="field-error" role="alert">{error}</p>}
       </div>
       <div className="result-card">
         <div className="panel-label"><span>{copy.workspace.preview}</span></div>
         {items.length === 0 ? (
           <p className="option-help">{copy.mergePng.emptyPreview}</p>
         ) : result ? (
-          <ImageResultPreview
-            resultSrc={result.url}
-            compare={false}
-            checkerboard={!fill}
-            resultAlt={copy.mergePng.resultAlt}
-            downloadId={result.id}
-            downloadSource={result.blob}
-            downloadFilename={filename}
-            meta={{ filename, mime: 'image/png', width: result.width, height: result.height, size: result.optimizedSize, originalSize: result.originalSize, savedPct: savedPercent, durationMs: result.durationMs }}
-          />
+          <div className="merge-result-stage image-stage">
+            <img src={result.url} alt={copy.mergePng.resultAlt} />
+          </div>
         ) : (
           <div
             className={`merge-preview-stage${fill ? '' : ' merge-checker'}`}
@@ -563,43 +476,21 @@ export function MergePngWorkspace() {
             })}
           </div>
         )}
-        {status === 'completed' && result && (
-          <p className="merge-success" role="status"><Check size={16} /> {copy.mergePng.merged}</p>
-        )}
         {items.length > 0 && (
           <dl className="result-stats">
+            <div><dt>{copy.mergePng.dimensions}</dt><dd>{(result?.width ?? layout.width)}×{(result?.height ?? layout.height)}px</dd></div>
             <div><dt>{copy.mergePng.images}</dt><dd>{items.length}</dd></div>
-            <div><dt>{copy.mergePng.dimensions}</dt><dd>{displayWidth}×{displayHeight}px</dd></div>
             <div><dt>{copy.mergePng.layoutMode}</dt><dd>{layoutLabel}</dd></div>
-            {result ? (
-              <>
-                <div><dt>{copy.workspace.generatedSize}</dt><dd>{formatBytes(result.originalSize)}</dd></div>
-                <div><dt>{copy.workspace.optimizedSize}</dt><dd>{formatBytes(result.optimizedSize)}</dd></div>
-                {savedPercent > 0 && <div><dt>{copy.workspace.saved}</dt><dd>{savedPercent}%</dd></div>}
-              </>
-            ) : (
-              <div><dt>{copy.mergePng.fileSize}</dt><dd>—</dd></div>
-            )}
+            {result && <div><dt>{copy.mergePng.fileSize}</dt><dd>{formatBytes(result.blob.size)}</dd></div>}
           </dl>
         )}
-        {result?.recommendWebp && (
-          <p className="option-help">
-            {copy.workspace.recommendWebp}{' '}
-            <LocaleLink to="/$tool" params={{ tool: 'png-to-webp' }}>{copy.workspace.convertToWebp}</LocaleLink>
-          </p>
+        {result && (
+          <a className="button primary" href={result.url} download={filename}>
+            <Download size={18} /> {copy.mergePng.downloadPng}
+          </a>
         )}
-
       </div>
     </section>
-  )
-}
-
-function CompactRange({ label, value, max, onChange }: { label: string; value: number; max: number; onChange: (value: number) => void }) {
-  return (
-    <label className="field merge-range">
-      <span>{label}<small>{value} px</small></span>
-      <input aria-label={label} type="range" min="0" max={max} step="1" value={value} onChange={(event) => onChange(Number(event.target.value))} />
-    </label>
   )
 }
 

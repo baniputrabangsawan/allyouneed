@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ToolDefinition } from '../tools/tool-registry'
 import { bytesToBase64, decodeBase64Text, decodeJwtPayload, encodeBase64Text } from './workspace-utils'
-import { ImageResultPreview } from '../image/ImageResultPreview'
 import { CopyButton, DownloadButton, TextPanels } from './workspace-ui'
 
 export function EncodingWorkspace({ tool }: { tool: ToolDefinition }) {
@@ -26,7 +25,8 @@ export function EncodingWorkspace({ tool }: { tool: ToolDefinition }) {
   if (tool.slug === 'image-to-base64') return <section className="workspace"><label className="field"><span>Image or file</span><input aria-label="Image or file" type="file" accept="image/*" onChange={(event) => void readFile(event.target.files?.[0])}/></label>{error && <p role="alert" className="field-error">{error}</p>}<label className="counter-editor"><span>Base64 data URL</span><textarea aria-label="Base64 data URL" readOnly value={output}/></label><div className="button-row"><CopyButton value={output}/><DownloadButton value={output} filename={fileName}/></div></section>
   return <TextPanels input={input} output={output} onInput={setInput} inputLabel={imageDecode ? 'Base64 image or data URL' : tool.slug === 'jwt-decoder' ? 'JWT' : 'Input'} outputLabel={imageDecode ? 'Normalized image data URL' : 'Result'} error={error}>
     {tool.slug === 'jwt-decoder' && <p role="note"><strong>Warning:</strong> This only decodes the payload. It does not verify the signature or prove the token is trustworthy.</p>}
-    <button className="button primary" type="button" onClick={run}>{tool.name}</button><CopyButton value={output}/>{preview && <ImageResultPreview resultSrc={preview} compare={false} resultAlt="Decoded image preview" downloadId={`base64-to-image:${preview.length}:${preview.slice(-24)}`} downloadSource={preview} downloadFilename="decoded-image" meta={{ filename: 'decoded-image', mime: preview.slice(5, preview.indexOf(';')) }} />} 
+    <button className="button primary" type="button" onClick={run}>{tool.name}</button><CopyButton value={output}/>{preview && <a className="button secondary" href={preview} download="decoded-image">Download image</a>}
+    {preview && <img src={preview} alt="Decoded image preview" style={{ maxWidth: '100%', maxHeight: 320 }}/>} 
   </TextPanels>
 }
 

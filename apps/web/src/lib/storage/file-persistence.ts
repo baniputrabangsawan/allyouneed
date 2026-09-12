@@ -430,24 +430,6 @@ export class FilePersistenceService {
     return restored.metas.filter((meta) => typeof meta.fileKey === 'string' && meta.fileKey.length > 0)
   }
 
-  async saveOptions(slug: string, options: Record<string, unknown> | undefined): Promise<void> {
-    const key = sessionKey(slug)
-    const previous = await this.safeGetSession(key)
-    if (!previous) return
-    const session: ToolFileSession = {
-      version: 1,
-      key: previous.key,
-      slug: previous.slug,
-      savedAt: this.host.now(),
-      files: previous.files,
-    }
-    const sanitized = sanitizePersistedOptions(options)
-    if (sanitized) session.options = sanitized
-    if (previous.jobId) session.jobId = previous.jobId
-    if (previous.tooLarge) session.tooLarge = true
-    await this.backend.putSession(session)
-  }
-
   async saveJobReference(slug: string, jobId: string | null): Promise<void> {
     const key = sessionKey(slug)
     const previous = await this.safeGetSession(key)
@@ -569,10 +551,6 @@ export async function saveRemoteUploadReference(
 
 export async function restoreRemoteUploadReference(slug: string): Promise<PersistedFileMeta[]> {
   return await getFilePersistence().restoreRemoteUploadReference(slug)
-}
-
-export async function saveOptions(slug: string, options: Record<string, unknown> | undefined): Promise<void> {
-  return await getFilePersistence().saveOptions(slug, options)
 }
 
 export async function saveJobReference(slug: string, jobId: string | null): Promise<void> {

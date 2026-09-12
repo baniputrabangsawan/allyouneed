@@ -5,7 +5,7 @@ import {
   type MergeOptions,
   type MergeSource,
 } from '@/features/image/merge-png-utils'
-import { exportCanvasImage, type ImageOptimizeMode } from './image-optimize'
+import { canvasToBlob } from './image'
 
 export interface MergePngInput {
   file: File
@@ -17,15 +17,6 @@ export interface MergePngResult {
   blob: Blob
   width: number
   height: number
-  originalSize: number
-  optimizedSize: number
-  savedRatio: number
-  recommendWebp: boolean
-}
-
-export interface MergePngOptimize {
-  enabled?: boolean
-  mode?: ImageOptimizeMode
 }
 
 async function decodePng(file: File): Promise<ImageBitmap> {
@@ -68,7 +59,6 @@ export async function mergePngImages(
   inputs: readonly MergePngInput[],
   options: MergeOptions,
   background: string | null,
-  optimize: MergePngOptimize = {},
 ): Promise<MergePngResult> {
   const sources: MergeSource[] = inputs.map((input) => ({ width: input.width, height: input.height }))
   const layout = computeMergeLayout(sources, options)
@@ -97,23 +87,13 @@ export async function mergePngImages(
       if (!placement) continue
       context.drawImage(bitmap, placement.x, placement.y, placement.width, placement.height)
     }
+    let blob: Blob
     try {
-      const output = await exportCanvasImage(canvas, 'image/png', {
-        ...(optimize.enabled === undefined ? {} : { enabled: optimize.enabled }),
-        ...(optimize.mode === undefined ? {} : { mode: optimize.mode }),
-      })
-      return {
-        blob: output.blob,
-        width: layout.width,
-        height: layout.height,
-        originalSize: output.originalSize,
-        optimizedSize: output.optimizedSize,
-        savedRatio: output.savedRatio,
-        recommendWebp: output.recommendWebp,
-      }
+      blob = await canvasToBlob(canvas, 'image/png', 1)
     } catch {
       throw new Error(MERGE_ERROR.export)
     }
+    return { blob, width: layout.width, height: layout.height }
   } finally {
     for (const bitmap of bitmaps) bitmap.close()
   }

@@ -1,5 +1,5 @@
 import { Download, LoaderCircle, Square } from 'lucide-react'
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import { FileDropzone, type DropzoneProgress, type DropzoneStatus } from '../../components/file/FileDropzone'
 import { useT } from '../../i18n'
 import { resolveApiUrl } from '../../lib/api/client'
@@ -10,10 +10,7 @@ import { previewKind, resultMediaKind } from '../../lib/media/kind'
 import { useObjectUrls } from '../../lib/media/object-url'
 import { remoteJobPhase } from '../../lib/media/job-phase'
 import { errorFromJob, workflowErrorCode, workflowMessage, type WorkflowErrorCode } from '../../lib/media/workflow-error'
-import { downloadFromJobResult, restoreNoticeMessage, useToolFileSession } from '../../lib/storage/use-tool-file-session'
 import type { ToolDefinition } from '../tools/tool-registry'
-import { ImageResultPreview } from '../image/ImageResultPreview'
-import { isImageResultFile, toolOutputsImage } from '../image/image-result'
 import { ExtractedText } from './ExtractedText'
 import { MediaPreview } from './MediaPreview'
 import { textFromJsonPayload } from './json-text'
@@ -52,9 +49,6 @@ export function RemoteFileWorkspace({ tool }: { tool: ToolDefinition }) {
   const [transfer, setTransfer] = useState<Transfer>(idleTransfer)
   const inputUrls = useObjectUrls(files)
   const resultKind = resultMediaKind(tool)
-  const imageTool = toolOutputsImage(tool)
-  const imageResult = Boolean(download && isImageResultFile(download.filename))
-  const originalPreview = files[0]?.type.startsWith('image/') ? inputUrls[0] : undefined
   const showInputPreview = tool.category === 'audio' || tool.category === 'video'
   const busy = transfer.status === 'uploading' || job?.status === 'queued' || job?.status === 'processing'
   const requiredFiles = tool.id === 'add-subtitle' ? 2 : 1
@@ -73,56 +67,7 @@ export function RemoteFileWorkspace({ tool }: { tool: ToolDefinition }) {
   }[phase]
   const showDropzone = files.length === 0 || busy
 
-  const applyFiles = useCallback((next: File[]) => {
-    setFiles(next)
-    setTransfer(idleTransfer)
-    setError('')
-    setErrorCode(null)
-    setDownload(null)
-    setExtractedText('')
-    setJob(null)
-  }, [])
-
-  const session = useToolFileSession({
-    slug: tool.id,
-    applyFiles,
-    applyOptions: (next) => setOptions((current) => ({ ...current, ...next })),
-    applyJob: (next) => {
-      setJob(next)
-      if (!next) {
-        setTransfer(idleTransfer)
-        return
-      }
-      if (next.status === 'queued' || next.status === 'processing') {
-        setTransfer({
-          status: 'processing',
-          progress: { percent: next.progress, label: next.stage ?? copy.dropzone.processing },
-        })
-      } else if (next.status === 'completed') {
-        setTransfer({ status: 'success', progress: { percent: 100, label: copy.dropzone.completed } })
-      } else if (next.status === 'failed') {
-        const failed = errorFromJob(next.error)
-        setErrorCode(workflowErrorCode(failed))
-        setError(workflowMessage(failed, copy.errors))
-        setTransfer(idleTransfer)
-      } else {
-        setTransfer(idleTransfer)
-      }
-    },
-    applyDownload: (next) => {
-      setDownload(next)
-      if (next && !resultKind) {
-        void loadExtractedText(next.url).then((text) => {
-          if (text) setExtractedText(text)
-        })
-      }
-    },
-    resolveDownload: downloadFromJobResult,
-  })
-  const restoreError = restoreNoticeMessage(session.notice, copy.errors)
-
   function chooseFiles(next: File[]) {
-    session.setNotice(null)
     setFiles(next)
     setTransfer(idleTransfer)
     setError('')
@@ -130,14 +75,11 @@ export function RemoteFileWorkspace({ tool }: { tool: ToolDefinition }) {
     setDownload(null)
     setExtractedText('')
     setJob(null)
-    if (next.length === 0) void session.clear()
-    else void session.persist({ files: next, options })
   }
 
   async function run() {
     if (files.length === 0) return
     const activeName = files[0]?.name ?? 'file'
-    session.setNotice(null)
     setError('')
     setErrorCode(null)
     setDownload(null)
@@ -156,11 +98,9 @@ export function RemoteFileWorkspace({ tool }: { tool: ToolDefinition }) {
         })
         keys.push((await completeUpload({ fileKey: target.fileKey })).fileKey)
       }
-      void session.persistUploads(files, keys, options)
       setTransfer({ status: 'processing', progress: { fileName: activeName, percent: null, label: copy.dropzone.processing } })
       let current = await createJob({ toolId: tool.id, input: keys.length === 1 ? { fileKey: keys[0] } : { files: keys }, options })
       setJob(current)
-      void session.persistJob(current.jobId)
       while (!['completed', 'failed', 'cancelled', 'expired'].includes(current.status)) {
         const wait = new Promise<void>((resolve) => {
           window.setTimeout(resolve, 500)
@@ -225,7 +165,6 @@ export function RemoteFileWorkspace({ tool }: { tool: ToolDefinition }) {
             multiple={multipleTools.has(tool.id)}
             maxFiles={maxFiles}
             disabled={busy}
-            restored={session.notice === 'restored'}
             onReplace={chooseFiles}
             onRemove={() => chooseFiles([])}
           />
@@ -249,20 +188,13 @@ export function RemoteFileWorkspace({ tool }: { tool: ToolDefinition }) {
             })}
           </ul>
         )}
-        <RemoteToolFields toolId={tool.id} options={options} onChange={(patch) => {
-          setOptions((current) => {
-            const next = { ...current, ...patch }
-            void session.persistOptions(next)
-            return next
-          })
-        }} />
+        <RemoteToolFields toolId={tool.id} options={options} onChange={(patch) => setOptions((current) => ({ ...current, ...patch }))} />
         <div className="button-row">
           <button className="button primary" type="button" disabled={files.length < requiredFiles || busy} onClick={run}>
             {busy && <LoaderCircle size={17}/>} {copy.workspace.process}
           </button>
           {busy && <button className="button secondary" type="button" onClick={stop}><Square size={15}/> {copy.workspace.cancel}</button>}
         </div>
-        {restoreError && <p className="field-error" role="status">{restoreError}</p>}
         {error && <p className="field-error" role="alert">{error}</p>}
       </div>
       <div className="result-card">
@@ -283,21 +215,8 @@ export function RemoteFileWorkspace({ tool }: { tool: ToolDefinition }) {
         )}
         {(phase === 'failed' || phase === 'cancelled') && error && <p className="field-error" role="alert">{error}</p>}
         {extractedText && <ExtractedText text={extractedText} filename={files[0]?.name ?? download?.filename ?? 'extracted.txt'} />}
-        {imageTool && (
-          <ImageResultPreview
-            {...(originalPreview ? { originalSrc: originalPreview } : {})}
-            {...(imageResult && download ? { resultSrc: download.url } : {})}
-            processing={busy}
-            failed={phase === 'failed'}
-            {...(error ? { error } : {})}
-            {...(job?.jobId ? { downloadId: job.jobId } : {})}
-            {...(imageResult && download ? { downloadSource: download.url, downloadFilename: download.filename } : {})}
-            restored={session.notice === 'restored'}
-            {...(imageResult && download ? { meta: { filename: download.filename } } : {})}
-          />
-        )}
         {!extractedText && download && resultKind && <MediaPreview src={download.url} kind={resultKind} label="Result preview" />}
-        {!extractedText && download && !imageResult && (
+        {!extractedText && download && (
           <a className="button primary" href={download.url} download={download.filename}>
             <Download size={18}/> {copy.workspace.downloadResult}
           </a>

@@ -155,9 +155,9 @@ test('opens photo editor and exports a PNG', async ({ page }) => {
   await expect(page.getByRole('img', { name: 'Edited preview' })).toBeVisible()
   await page.getByRole('combobox', { name: 'Output format' }).selectOption('image/png')
   await page.getByRole('button', { name: 'Export image' }).click()
-  await expect(page.getByRole('button', { name: 'Download again' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Download PNG' })).toBeVisible()
   const download = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Download again' }).click()
+  await page.getByRole('link', { name: 'Download PNG' }).click()
   const file = await download
   const stream = await file.createReadStream()
   expect(stream, 'download stream').not.toBeNull()
@@ -255,7 +255,7 @@ test('converts pasted SVG to a real PNG in the browser', async ({ page }) => {
   await page.getByRole('button', { name: 'Convert to PNG' }).click()
   await expect(page.getByRole('img', { name: 'Converted PNG' })).toBeVisible()
   const download = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Download again' }).click()
+  await page.getByRole('link', { name: 'Download PNG' }).click()
   const file = await download
   const stream = await file.createReadStream()
   expect(stream, 'download stream').not.toBeNull()
@@ -307,7 +307,7 @@ test('renders meme captions onto a downloaded PNG without uploading', async ({ p
   await page.getByRole('button', { name: 'Generate meme' }).click()
   await expect(page.getByRole('img', { name: 'Rendered meme' })).toBeVisible()
   const download = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Download again' }).click()
+  await page.getByRole('link', { name: 'Download PNG' }).click()
   const file = await download
   const stream = await file.createReadStream()
   expect(stream, 'download stream').not.toBeNull()

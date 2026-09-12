@@ -1,11 +1,9 @@
-import { FileImage, RefreshCcw, Trash2 } from 'lucide-react'
+import { Download, FileImage, RefreshCcw, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { FileDropzone } from '@/components/file/FileDropzone'
-import { ProcessingProgressPanel } from '@/features/workspaces/processing-progress'
-import { ImageResultPreview } from '@/features/image/ImageResultPreview'
 import { formatBytes, outputFilename } from '@/lib/format'
 import { parseSvgMarkup, svgToPng } from '@/processing/client/svg'
-import { withProcessStages, type ProcessStage } from '@/processing/client/process-stage'
+
 interface PngResult {
   blob: Blob
   url: string
@@ -20,8 +18,6 @@ export function SvgToPngWorkspace() {
   const sourceUrlRef = useRef('')
   const resultUrlRef = useRef('')
   const selectionRef = useRef(0)
-  const runningRef = useRef(false)
-  const [processStage, setProcessStage] = useState<ProcessStage>('preparing')
   const [file, setFile] = useState<File | null>(null)
   const [markup, setMarkup] = useState('')
   const [draft, setDraft] = useState('')
@@ -144,20 +140,19 @@ export function SvgToPngWorkspace() {
   }
 
   async function run() {
-    if (!markup || runningRef.current) return
-    runningRef.current = true
+    if (!markup) return
     const selection = selectionRef.current
     setStatus('processing')
     setError('')
     const startedAt = performance.now()
     try {
-      const output = await withProcessStages(setProcessStage, () => svgToPng(markup, {
+      const output = await svgToPng(markup, {
         width,
         height,
         scale,
         preserveAspectRatio: lockAspectRatio,
         background: transparent ? 'transparent' : background,
-      }))
+      })
       if (selection !== selectionRef.current) return
       clearResult()
       const url = URL.createObjectURL(output.blob)
@@ -168,9 +163,6 @@ export function SvgToPngWorkspace() {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'SVG conversion failed.')
       setStatus('failed')
-      setProcessStage('failed')
-    } finally {
-      runningRef.current = false
     }
   }
 
@@ -192,19 +184,9 @@ export function SvgToPngWorkspace() {
               <span>Preview</span>
               <button type="button" className="text-button" onClick={removeFile}><Trash2 size={15}/> Remove</button>
             </div>
-            <ImageResultPreview
-              originalSrc={sourceUrl}
-              resultSrc={result?.url}
-              checkerboard={transparent}
-              processing={status === 'processing'}
-              failed={status === 'failed'}
-              originalAlt="Selected SVG"
-              resultAlt="Converted PNG"
-              downloadId={result?.url}
-              downloadSource={result?.blob}
-              downloadFilename={result ? outputFilename(file.name, 'converted', 'png') : undefined}
-              meta={result ? { filename: outputFilename(file.name, 'converted', 'png'), mime: 'image/png', width: result.width, height: result.height, size: result.blob.size, originalSize: file.size, durationMs: result.durationMs } : undefined}
-            />
+            <div className="image-stage">
+              <img src={result?.url ?? sourceUrl} alt={result ? 'Converted PNG' : 'Selected SVG'}/>
+            </div>
             <div className="file-summary">
               <FileImage size={20}/>
               <span>
@@ -247,13 +229,15 @@ export function SvgToPngWorkspace() {
               </Field>
             )}
             {warnings.map((warning) => <p className="option-help" key={warning} role="status">{warning}</p>)}
-            {status === 'processing' && <ProcessingProgressPanel stage={processStage} title="Processing..." />}
-            {status === 'failed' && <ProcessingProgressPanel stage="failed" title="Processing failed" detail={error || 'Processing failed'} />}
             <button className={`button ${status === 'completed' ? 'success' : 'primary'} action-button`} type="button" disabled={status === 'processing'} onClick={() => void run()}>
-              {status === 'processing' ? 'Processing...' : status === 'completed' ? 'Convert again' : status === 'failed' ? 'Try again' : 'Convert to PNG'}
+              {status === 'processing' ? 'Processing...' : status === 'completed' ? 'Convert again' : 'Convert to PNG'}
             </button>
-            {error && status !== 'failed' && <p className="field-error" role="alert">{error}</p>}
-
+            {error && <p className="field-error" role="alert">{error}</p>}
+            {result && (
+              <a className="button secondary action-button" href={result.url} download={outputFilename(file.name, 'converted', 'png')}>
+                <Download size={17}/> Download PNG
+              </a>
+            )}
           </div>
         </div>
       )}
