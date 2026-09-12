@@ -88,12 +88,14 @@ def tools(
 
 
 tool_registry: dict[str, Tool] = {
-    **tools(IMAGE_TOOLS, "image", IMAGES, timeout=60),
+    **tools(IMAGE_TOOLS - {"blur-face"}, "image", IMAGES, timeout=60),
+    **tools({"blur-face"}, "image", IMAGES, timeout=60, premium=True),
     **tools(PDF_TOOLS, "pdf", PDF | {"image/jpeg", "image/png"}, max_files=20, timeout=120),
-    **tools(AUDIO_TOOLS, "audio", AUDIO | VIDEO, max_files=20, timeout=300),
+    **tools(AUDIO_TOOLS - {"noise-reduction"}, "audio", AUDIO | VIDEO, max_files=20, timeout=300),
+    **tools({"noise-reduction"}, "audio", AUDIO | VIDEO, max_files=20, timeout=300, premium=True),
     **tools(VIDEO_TOOLS - {"add-subtitle"}, "video", AUDIO | VIDEO, max_files=20, timeout=600),
-    **tools({"add-subtitle"}, "video", VIDEO | SUBTITLES, max_files=2, timeout=600),
-    **tools({"ocr-pdf"}, "ocr", PDF | IMAGES, timeout=300),
+    **tools({"add-subtitle"}, "video", VIDEO | SUBTITLES, max_files=2, timeout=600, premium=True),
+    **tools({"ocr-pdf"}, "ocr", PDF | IMAGES, timeout=300, premium=True),
     **tools({"speech-to-text"}, "stt", AUDIO | VIDEO, timeout=900, premium=True),
     **tools({"text-to-speech"}, "tts", TEXT, timeout=180, premium=True),
     **tools({"remove-background", "upscale-image"}, "ai-image", IMAGES, timeout=300, premium=True),

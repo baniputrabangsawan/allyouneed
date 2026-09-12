@@ -2,9 +2,24 @@ from unittest.mock import MagicMock
 
 from httpx import AsyncClient
 
+from app.core.capabilities import capability_for_tool, capabilities_for_plan
 from app.core.config import Settings
+from app.core.enums import LicensePlan
 from app.services.entitlement_service import EntitlementService
+from app.tools.registry import tool_registry
 from tests.helpers import png_bytes, upload_image
+
+
+PRO_TOOL_CAPABILITIES = {
+    "blur-face": "image.face_blur",
+    "remove-background": "image.ai.background_removal",
+    "speech-to-text": "audio.speech_to_text",
+    "text-to-speech": "audio.text_to_speech",
+    "add-subtitle": "video.add_subtitle",
+    "noise-reduction": "audio.noise_reduction",
+    "upscale-image": "image.ai.upscale",
+    "ocr-pdf": "document.ocr.advanced",
+}
 
 
 def test_entitlement_service_defers_signer_without_keys() -> None:
@@ -13,6 +28,16 @@ def test_entitlement_service_defers_signer_without_keys() -> None:
         settings=Settings(entitlement_private_key="", entitlement_public_key=""),
     )
     assert service._signer is None
+
+
+def test_pro_tools_are_capability_gated() -> None:
+    plan_capabilities = set(capabilities_for_plan(LicensePlan.PRO_1_MONTH))
+    for tool_id, capability in PRO_TOOL_CAPABILITIES.items():
+        tool = tool_registry[tool_id]
+        assert tool.premium is True
+        assert tool.required_capability == capability
+        assert capability_for_tool(tool_id) == capability
+        assert capability in plan_capabilities
 
 
 async def test_status_without_token(api: AsyncClient) -> None:

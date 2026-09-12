@@ -23,7 +23,7 @@ from app.processors.media import (
 from app.processors.registry import get_processor
 from app.utils.media import duration_seconds, probe, validate_media_output
 from app.utils.subprocess import FFMPEG_FAILED_MESSAGE, run_command
-from tests.helpers import upload_bytes
+from tests.helpers import pro_headers, upload_bytes
 
 needs_ffmpeg = shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None
 
@@ -255,13 +255,15 @@ async def test_noise_reduction_pcm_differs_and_lowers_noise(tmp_path: Path, mode
 
 
 @pytest.mark.skipif(needs_ffmpeg, reason="ffmpeg")
-async def test_noise_reduction_job(api: AsyncClient, tmp_path: Path) -> None:
+async def test_noise_reduction_job(admin_api: AsyncClient, tmp_path: Path) -> None:
+    api = admin_api
+    headers = await pro_headers(api, "install-noise")
     source = tmp_path / "noisy.wav"
     data = await _make_noisy_audio(source)
     source_duration = duration_seconds(await probe(source))
     assert source_duration is not None
     file_key = await upload_bytes(
-        api, data, filename="noisy.wav", content_type="audio/wav", tool_id="noise-reduction"
+        api, data, filename="noisy.wav", content_type="audio/wav", tool_id="noise-reduction", headers=headers
     )
     created = await api.post(
         "/api/v1/jobs",
@@ -270,6 +272,7 @@ async def test_noise_reduction_job(api: AsyncClient, tmp_path: Path) -> None:
             "input": {"fileKey": file_key},
             "options": {"mode": "standard", "strength": "medium"},
         },
+        headers=headers,
     )
     assert created.status_code == 202, created.text
     job = await _wait_for_job(api, created.json()["data"]["jobId"])
@@ -581,11 +584,13 @@ async def test_add_subtitle_muxes_srt_track(tmp_path: Path) -> None:
 
 
 @pytest.mark.skipif(needs_ffmpeg, reason="ffmpeg")
-async def test_add_subtitle_job(api: AsyncClient, tmp_path: Path) -> None:
+async def test_add_subtitle_job(admin_api: AsyncClient, tmp_path: Path) -> None:
+    api = admin_api
+    headers = await pro_headers(api, "install-subtitle")
     clip = tmp_path / "clip.mp4"
     video = await _make_clip(clip)
     video_key = await upload_bytes(
-        api, video, filename="clip.mp4", content_type="video/mp4", tool_id="add-subtitle"
+        api, video, filename="clip.mp4", content_type="video/mp4", tool_id="add-subtitle", headers=headers
     )
     subtitle_key = await upload_bytes(
         api,
@@ -593,6 +598,7 @@ async def test_add_subtitle_job(api: AsyncClient, tmp_path: Path) -> None:
         filename="captions.srt",
         content_type="text/plain",
         tool_id="add-subtitle",
+        headers=headers,
     )
     created = await api.post(
         "/api/v1/jobs",
@@ -601,6 +607,7 @@ async def test_add_subtitle_job(api: AsyncClient, tmp_path: Path) -> None:
             "input": {"files": [video_key, subtitle_key]},
             "options": {"mode": "burn", "format": "mp4"},
         },
+        headers=headers,
     )
     assert created.status_code == 202, created.text
     job = await _wait_for_job(api, created.json()["data"]["jobId"])
@@ -813,7 +820,9 @@ async def _make_video_only_webm(path: Path) -> bytes:
 
 
 @pytest.mark.skipif(needs_ffmpeg, reason="ffmpeg")
-async def test_noise_reduction_accepts_audio_only_webm(api: AsyncClient, tmp_path: Path) -> None:
+async def test_noise_reduction_accepts_audio_only_webm(admin_api: AsyncClient, tmp_path: Path) -> None:
+    api = admin_api
+    headers = await pro_headers(api, "install-noise-webm")
     source = tmp_path / "recording.webm"
     data = await _make_audio_webm(source)
     info = await probe(source)
@@ -824,6 +833,7 @@ async def test_noise_reduction_accepts_audio_only_webm(api: AsyncClient, tmp_pat
         filename="recording-20260911-180608.webm",
         content_type="video/webm;codecs=opus",
         tool_id="noise-reduction",
+        headers=headers,
     )
     created = await api.post(
         "/api/v1/jobs",
@@ -832,6 +842,7 @@ async def test_noise_reduction_accepts_audio_only_webm(api: AsyncClient, tmp_pat
             "input": {"fileKey": file_key},
             "options": {"mode": "standard", "strength": "medium"},
         },
+        headers=headers,
     )
     assert created.status_code == 202, created.text
     job = await _wait_for_job(api, str(created.json()["data"]["jobId"]))

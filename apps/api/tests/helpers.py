@@ -53,6 +53,15 @@ async def upload_pdf(api: AsyncClient, tool_id: str = "compress-pdf") -> str:
     )
 
 
+async def pro_headers(api: AsyncClient, installation_id: str = "install-test") -> dict[str, str]:
+    issued = (await api.post("/api/v1/admin/licenses", json={"durationMonths": 1})).json()["data"]
+    activated = await api.post(
+        "/api/v1/licenses/activate",
+        json={"licenseKey": issued["licenseKey"], "installationId": installation_id},
+    )
+    return {"X-Entitlement-Token": activated.json()["data"]["token"]}
+
+
 async def wait_for_job(api: AsyncClient, job_id: str) -> dict[str, object]:
     for _ in range(200):
         job = (await api.get(f"/api/v1/jobs/{job_id}")).json()["data"]

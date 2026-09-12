@@ -32,7 +32,7 @@ from app.providers.tts import (
 )
 from app.utils.media import duration_seconds, probe, validate_media_output
 from app.utils.subprocess import run_command
-from tests.helpers import upload_bytes
+from tests.helpers import pro_headers, upload_bytes
 
 needs_ffmpeg = pytest.mark.skipif(
     shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None,
@@ -164,12 +164,7 @@ def _fake_synthesize(text: str, wav: Path, voice: Any, speed: float, engine: str
 
 
 async def _pro_headers(api: AsyncClient) -> dict[str, str]:
-    issued = (await api.post("/api/v1/admin/licenses", json={"durationMonths": 1})).json()["data"]
-    activated = await api.post(
-        "/api/v1/licenses/activate",
-        json={"licenseKey": issued["licenseKey"], "installationId": "install-speech"},
-    )
-    return {"X-Entitlement-Token": activated.json()["data"]["token"]}
+    return await pro_headers(api, "install-speech")
 
 
 def test_stt_option_helpers() -> None:
