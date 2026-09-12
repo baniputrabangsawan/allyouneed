@@ -1,4 +1,5 @@
 import Fuse from 'fuse.js'
+import { AUDIO_ACCEPT, VIDEO_ACCEPT } from '@/lib/media/formats'
 
 export type ToolCategory = 'image' | 'qr' | 'pdf' | 'audio' | 'video' | 'text' | 'developer' | 'generator' | 'converter'
 export type ProcessingMode = 'client' | 'remote' | 'hybrid'
@@ -121,8 +122,8 @@ const defineTool = (
 
 const imageFormats = ['image/jpeg', 'image/png', 'image/webp', 'image/avif']
 const pdfFormat = ['application/pdf']
-const audioFormats = ['audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/mp4', 'audio/ogg', 'audio/webm']
-const videoFormats = ['video/mp4', 'video/webm', 'video/quicktime']
+const audioFormats = AUDIO_ACCEPT
+const videoFormats = VIDEO_ACCEPT
 const qrOutputs = ['image/png', 'image/svg+xml']
 const t = defineTool
 
@@ -201,7 +202,11 @@ export const tools: readonly ToolDefinition[] = [
   t('Change Audio Speed', 'audio', ['edit'], 'remote-api', { acceptedFormats: audioFormats }),
   t('Change Volume', 'audio', ['edit'], 'remote-api', { acceptedFormats: audioFormats }),
   t('Remove Silence', 'audio', ['edit'], 'remote-api', { acceptedFormats: audioFormats }),
-  t('Noise Reduction', 'audio', ['optimize'], 'remote-api', { acceptedFormats: audioFormats }),
+  t('Noise Reduction', 'audio', ['optimize'], 'remote-api', {
+    acceptedFormats: audioFormats,
+    shortDescription: 'Reduce broadband hiss and background noise from audio using FFmpeg.',
+    description: 'Reduce broadband hiss and background noise from audio using FFmpeg. This reduces broadband noise; it is not vocal isolation.',
+  }),
   t('Extract Audio From Video', 'audio', ['convert'], 'remote-api', { acceptedFormats: videoFormats }),
   t('Voice Recorder', 'audio', ['create'], 'browser-media'),
 

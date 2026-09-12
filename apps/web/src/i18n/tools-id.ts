@@ -71,7 +71,7 @@ export const toolsId: Record<string, ToolCopy> = {
   'change-audio-speed': { name: 'Ubah Kecepatan Audio', shortDescription: 'Percepat atau perlambat audio.' },
   'change-volume': { name: 'Ubah Volume', shortDescription: 'Naikkan atau turunkan volume.' },
   'remove-silence': { name: 'Hapus Keheningan', shortDescription: 'Buang bagian hening pada audio.' },
-  'noise-reduction': { name: 'Reduksi Noise', shortDescription: 'Kurangi desis broadband pada audio.' },
+  'noise-reduction': { name: 'Reduksi Noise', shortDescription: 'Kurangi desis dan noise latar pada audio menggunakan pemrosesan FFmpeg.' },
   'extract-audio-from-video': { name: 'Ekstrak Audio dari Video', shortDescription: 'Ambil trek audio dari video.' },
   'voice-recorder': { name: 'Perekam Suara', shortDescription: 'Rekam mikrofon di browser.', aliases: ['rekam suara'] },
   'compress-pdf': { name: 'Kompres PDF', shortDescription: 'Perkecil ukuran PDF di server.' },

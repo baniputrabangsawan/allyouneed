@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createAdminLicense, listAdminLicenses, mutateAdminLicense } from './admin'
+import { createAdminLicense, listAdminLicenses, loginAdmin, logoutAdmin, mutateAdminLicense } from './admin'
 import type { ApiClient } from './client'
 
 function client() {
@@ -27,6 +27,16 @@ describe('admin API', () => {
     expect(calls).toEqual([
       { method: 'POST', path: '/api/v1/admin/licenses', body: { durationMonths: 12, note: 'reference' } },
       { method: 'POST', path: '/api/v1/admin/licenses/id%2Funsafe/renew', body: { durationMonths: 6 } },
+    ])
+  })
+
+  it('uses server-side authentication endpoints', async () => {
+    const { api, calls } = client()
+    await loginAdmin('owner@example.com', 'secret password', undefined, api)
+    await logoutAdmin(undefined, api)
+    expect(calls).toEqual([
+      { method: 'POST', path: '/api/v1/admin/auth/login', body: { email: 'owner@example.com', password: 'secret password' } },
+      { method: 'POST', path: '/api/v1/admin/auth/logout', body: undefined },
     ])
   })
 })

@@ -9,6 +9,7 @@ import { LocaleLink } from '@/i18n/link'
 import { localeFromPathname, useLocale, useT } from '@/i18n'
 import { localizeTool } from '@/i18n/tools'
 import { refreshScroll } from '@/lib/motion/scroll'
+import { restoreKeepScroll, clearKeepScroll, saveKeepScroll } from '@/lib/motion/restore'
 import { ensureInstallationId } from '@/lib/storage/installation'
 import '@/styles/app.css'
 import '@/styles/docs.css'
@@ -48,10 +49,19 @@ function Root() {
   const hash = useRouterState({ select: (state) => state.location.hash })
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const locale = localeFromPathname(pathname)
-
   useLayoutEffect(() => {
-    const id = (hash || window.location.hash).replace(/^#/, '')
     const html = document.documentElement
+    const reveal = () => {
+      html.style.visibility = ''
+      html.style.background = ''
+    }
+    if (restoreKeepScroll()) {
+      reveal()
+      refreshScroll()
+      const raf = window.requestAnimationFrame(() => restoreKeepScroll())
+      return () => window.cancelAnimationFrame(raf)
+    }
+    const id = (hash || window.location.hash).replace(/^#/, '')
     const snap = () => {
       if (!id) return
       const el = document.getElementById(id)
@@ -63,14 +73,28 @@ function Root() {
       refreshScroll()
     }
     snap()
-    html.style.visibility = ''
-    html.style.background = ''
+    reveal()
     const raf = window.requestAnimationFrame(snap)
     return () => window.cancelAnimationFrame(raf)
   }, [hash, pathname])
-
   useEffect(() => {
     delete document.documentElement.dataset.kitsRestore
+    const id = window.setTimeout(() => clearKeepScroll(), 400)
+    return () => window.clearTimeout(id)
+  }, [pathname, hash])
+
+  useEffect(() => {
+    const onPointerDown = (event: Event) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (target.closest('.language-switcher-button, .language-choices a')) saveKeepScroll()
+    }
+    document.addEventListener('pointerdown', onPointerDown, true)
+    document.addEventListener('mousedown', onPointerDown, true)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true)
+      document.removeEventListener('mousedown', onPointerDown, true)
+    }
   }, [])
 
   useEffect(() => { ensureInstallationId() }, [])

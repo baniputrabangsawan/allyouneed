@@ -38,8 +38,7 @@ def create_app() -> FastAPI:
             "Content-Type",
             "X-Entitlement-Token",
             "X-Request-ID",
-            "Cf-Access-Jwt-Assertion",
-            "X-Admin-Key",
+            "X-CSRF-Token",
         ],
     )
     api.add_middleware(RequestIDMiddleware)

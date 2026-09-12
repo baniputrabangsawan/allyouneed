@@ -4,6 +4,19 @@
   var previous = html.style.scrollBehavior
   html.style.scrollBehavior = 'auto'
   var hash = location.hash.slice(1)
+  var kept = null
+  try {
+    kept = JSON.parse(sessionStorage.getItem('kits:keep-scroll') || 'null')
+    if (!kept || !Number.isFinite(kept.y)) kept = null
+  } catch {
+    kept = null
+  }
+  if (kept) {
+    scrollTo(kept.x || 0, kept.y)
+    html.style.scrollBehavior = previous
+    html.classList.toggle('kits-scrolled', window.scrollY > 16)
+    return
+  }
   if (hash) {
     var el = document.getElementById(hash)
     if (el) el.scrollIntoView({ behavior: 'auto', block: 'start' })

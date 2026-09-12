@@ -4,10 +4,8 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, Query, Request, status
 
 from app.api.deps import license_service, require_admin
-from app.core.config import get_settings
 from app.core.enums import LicensePlan
 from app.schemas.admin import (
-    AdminIdentityView,
     AdminLicensePage,
     AdminLicenseView,
     AdminOverview,
@@ -25,20 +23,6 @@ router = APIRouter()
 
 def actor(identity: AdminIdentity, request: Request) -> AuditActor:
     return AuditActor(identity.admin_id, identity.email, request.state.request_id)
-
-
-@router.get("/me", response_model=DataResponse[AdminIdentityView])
-async def admin_identity(
-    identity: Annotated[AdminIdentity, Depends(require_admin)],
-) -> DataResponse[AdminIdentityView]:
-    return DataResponse(
-        data=AdminIdentityView(
-            admin_id=identity.admin_id,
-            email=identity.email,
-            identity_provider=identity.identity_provider,
-            logout_url=get_settings().cloudflare_access_logout_url,
-        )
-    )
 
 
 @router.post(

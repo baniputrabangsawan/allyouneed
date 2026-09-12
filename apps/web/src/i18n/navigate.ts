@@ -1,6 +1,7 @@
 import { useRouter } from '@tanstack/react-router'
 import { localeStorageKey, type Locale } from './config'
 import { localizedPath, type EnglishTo, useLocale } from './index'
+import { restoreKeepScroll, saveKeepScroll } from '@/lib/motion/restore'
 
 export function useLocaleNavigate() {
   const locale = useLocale()
@@ -25,9 +26,16 @@ export function useLocaleNavigate() {
 export function useSwitchLocale() {
   const router = useRouter()
   return (next: Locale, href: string) => {
+    saveKeepScroll()
     try {
       window.localStorage.setItem(localeStorageKey, next)
     } catch { /* ignore quota / private mode */ }
-    void router.navigate({ href, resetScroll: false } as never)
+    const nextHref = href.replace(/#.*$/, '')
+    const stop = router.subscribe('onResolved', () => {
+      restoreKeepScroll()
+      requestAnimationFrame(() => restoreKeepScroll())
+      stop()
+    })
+    void router.navigate({ href: nextHref, resetScroll: false } as never)
   }
 }

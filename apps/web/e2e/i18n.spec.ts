@@ -35,6 +35,23 @@ test('language switch preserves search params', async ({ page }) => {
   await expect(page).toHaveURL(/\/id\/?\?q=image&category=image&group=convert/)
 })
 
+test('language switch keeps the current scroll position', async ({ page }) => {
+  await page.goto('/docs/getting-started')
+  await page.getByRole('heading', { name: 'Getting started' }).waitFor()
+  await page.evaluate(() => {
+    document.documentElement.style.scrollBehavior = 'auto'
+    window.scrollTo(0, 480)
+  })
+  const before = await page.evaluate(() => window.scrollY)
+  expect(before).toBeGreaterThan(300)
+  await page.locator('.header-actions .language-switcher-button').click()
+  await expect(page).toHaveURL(/\/id\/docs\/getting-started/)
+  await expect(page.locator('html')).toHaveAttribute('lang', 'id')
+  await expect(page.getByRole('heading', { name: 'Memulai' })).toBeVisible()
+  const after = await page.evaluate(() => window.scrollY)
+  expect(Math.abs(after - before)).toBeLessThan(120)
+})
+
 test('Indonesian pricing page is translated', async ({ page }) => {
   await page.goto('/id/pricing')
   await expect(page.locator('html')).toHaveAttribute('lang', 'id')

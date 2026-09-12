@@ -19,11 +19,11 @@ def test_license_key_format() -> None:
     assert is_license_key_format(key.lower().replace("-", ""))
 
 
-async def test_issue_activate_one_installation(api: AsyncClient) -> None:
+async def test_issue_activate_one_installation(admin_api: AsyncClient) -> None:
+    api = admin_api
     issued = await api.post(
         "/api/v1/admin/licenses",
         json={"durationMonths": 1},
-        headers={"X-Admin-Key": "test-admin-key"},
     )
     assert issued.status_code == 201
     data = issued.json()["data"]
@@ -72,12 +72,12 @@ async def test_admin_required(api: AsyncClient) -> None:
     assert response.status_code == 401
 
 
-async def test_renew_suspend_revoke(api: AsyncClient) -> None:
+async def test_renew_suspend_revoke(admin_api: AsyncClient) -> None:
+    api = admin_api
     issued = (
         await api.post(
             "/api/v1/admin/licenses",
             json={"durationMonths": 1},
-            headers={"X-Admin-Key": "test-admin-key"},
         )
     ).json()["data"]
     license_id = issued["licenseId"]
@@ -91,7 +91,6 @@ async def test_renew_suspend_revoke(api: AsyncClient) -> None:
     renewed = await api.post(
         f"/api/v1/admin/licenses/{license_id}/renew",
         json={"durationMonths": 6},
-        headers={"X-Admin-Key": "test-admin-key"},
     )
     assert renewed.status_code == 200
     assert renewed.json()["data"]["plan"] == "pro_6_months"
@@ -99,7 +98,6 @@ async def test_renew_suspend_revoke(api: AsyncClient) -> None:
 
     suspended = await api.post(
         f"/api/v1/admin/licenses/{license_id}/suspend",
-        headers={"X-Admin-Key": "test-admin-key"},
     )
     assert suspended.json()["data"]["status"] == "suspended"
 
@@ -112,17 +110,14 @@ async def test_renew_suspend_revoke(api: AsyncClient) -> None:
 
     await api.post(
         f"/api/v1/admin/licenses/{license_id}/resume",
-        headers={"X-Admin-Key": "test-admin-key"},
     )
     revoked = await api.post(
         f"/api/v1/admin/licenses/{license_id}/revoke",
-        headers={"X-Admin-Key": "test-admin-key"},
     )
     assert revoked.json()["data"]["status"] == "revoked"
     renew_revoked = await api.post(
         f"/api/v1/admin/licenses/{license_id}/renew",
         json={"durationMonths": 1},
-        headers={"X-Admin-Key": "test-admin-key"},
     )
     assert renew_revoked.status_code == 409
 

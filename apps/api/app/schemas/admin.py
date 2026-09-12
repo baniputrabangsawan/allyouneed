@@ -47,7 +47,7 @@ class AdminAuditView(ApiModel):
     id: str
     admin_email: str
     action: str
-    target_license_id: str
+    target_license_id: str | None = None
     request_id: str
     at: datetime
     meta: dict[str, str] | None = None

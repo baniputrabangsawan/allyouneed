@@ -34,7 +34,8 @@ async def test_free_job_does_not_need_license(api: AsyncClient) -> None:
     assert created.status_code == 202
 
 
-async def test_premium_job_requires_activated_license(api: AsyncClient) -> None:
+async def test_premium_job_requires_activated_license(admin_api: AsyncClient) -> None:
+    api = admin_api
     blocked = await api.post(
         "/api/v1/uploads/presign",
         json={
@@ -51,7 +52,6 @@ async def test_premium_job_requires_activated_license(api: AsyncClient) -> None:
         await api.post(
             "/api/v1/admin/licenses",
             json={"durationMonths": 1},
-            headers={"X-Admin-Key": "test-admin-key"},
         )
     ).json()["data"]
     activated = await api.post(
@@ -77,12 +77,12 @@ async def test_premium_job_requires_activated_license(api: AsyncClient) -> None:
     assert "image.ai.upscale" in status.json()["data"]["capabilities"]
 
 
-async def test_tampered_token_is_rejected(api: AsyncClient) -> None:
+async def test_tampered_token_is_rejected(admin_api: AsyncClient) -> None:
+    api = admin_api
     issued = (
         await api.post(
             "/api/v1/admin/licenses",
             json={"durationMonths": 1},
-            headers={"X-Admin-Key": "test-admin-key"},
         )
     ).json()["data"]
     activated = await api.post(
@@ -96,12 +96,12 @@ async def test_tampered_token_is_rejected(api: AsyncClient) -> None:
     assert response.json()["error"]["code"] == "ENTITLEMENT_INVALID"
 
 
-async def test_revoked_license_rejects_unexpired_token(api: AsyncClient) -> None:
+async def test_revoked_license_rejects_unexpired_token(admin_api: AsyncClient) -> None:
+    api = admin_api
     issued = (
         await api.post(
             "/api/v1/admin/licenses",
             json={"durationMonths": 1},
-            headers={"X-Admin-Key": "test-admin-key"},
         )
     ).json()["data"]
     activated = await api.post(
@@ -111,7 +111,6 @@ async def test_revoked_license_rejects_unexpired_token(api: AsyncClient) -> None
     token = activated.json()["data"]["token"]
     await api.post(
         f"/api/v1/admin/licenses/{issued['licenseId']}/revoke",
-        headers={"X-Admin-Key": "test-admin-key"},
     )
     blocked = await api.post(
         "/api/v1/uploads/presign",

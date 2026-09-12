@@ -16,6 +16,7 @@ import { Route as LicenseRouteImport } from './routes/license'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as AdminAuditRouteImport } from './routes/admin.audit'
 import { Route as AdminLicensesRouteImport } from './routes/admin.licenses'
+import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminSystemRouteImport } from './routes/admin.system'
 import { Route as DocsIndexRouteImport } from './routes/docs.index'
 import { Route as DocsGettingStartedRouteImport } from './routes/docs.getting-started'
@@ -69,6 +70,11 @@ const AdminAuditRoute = AdminAuditRouteImport.update({
 const AdminLicensesRoute = AdminLicensesRouteImport.update({
   id: '/licenses',
   path: '/licenses',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminSystemRoute = AdminSystemRouteImport.update({
@@ -177,6 +183,7 @@ export interface FileRoutesByFullPath {
   '/pricing': typeof PricingRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/licenses': typeof AdminLicensesRoute
+  '/admin/login': typeof AdminLoginRoute
   '/admin/system': typeof AdminSystemRoute
   '/docs/getting-started': typeof DocsGettingStartedRoute
   '/docs/privacy-and-processing': typeof DocsPrivacyAndProcessingRoute
@@ -205,6 +212,7 @@ export interface FileRoutesByTo {
   '/pricing': typeof PricingRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/licenses': typeof AdminLicensesRoute
+  '/admin/login': typeof AdminLoginRoute
   '/admin/system': typeof AdminSystemRoute
   '/docs/getting-started': typeof DocsGettingStartedRoute
   '/docs/privacy-and-processing': typeof DocsPrivacyAndProcessingRoute
@@ -234,6 +242,7 @@ export interface FileRoutesById {
   '/pricing': typeof PricingRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/licenses': typeof AdminLicensesRoute
+  '/admin/login': typeof AdminLoginRoute
   '/admin/system': typeof AdminSystemRoute
   '/docs/getting-started': typeof DocsGettingStartedRoute
   '/docs/privacy-and-processing': typeof DocsPrivacyAndProcessingRoute
@@ -264,6 +273,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/admin/audit'
     | '/admin/licenses'
+    | '/admin/login'
     | '/admin/system'
     | '/docs/getting-started'
     | '/docs/privacy-and-processing'
@@ -292,6 +302,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/admin/audit'
     | '/admin/licenses'
+    | '/admin/login'
     | '/admin/system'
     | '/docs/getting-started'
     | '/docs/privacy-and-processing'
@@ -320,6 +331,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/admin/audit'
     | '/admin/licenses'
+    | '/admin/login'
     | '/admin/system'
     | '/docs/getting-started'
     | '/docs/privacy-and-processing'
@@ -416,6 +428,13 @@ declare module '@tanstack/react-router' {
       path: '/licenses'
       fullPath: '/admin/licenses'
       preLoaderRoute: typeof AdminLicensesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/login': {
+      id: '/admin/login'
+      path: '/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/system': {
@@ -557,12 +576,14 @@ declare module '@tanstack/react-router' {
 interface AdminRouteChildren {
   AdminAuditRoute: typeof AdminAuditRoute
   AdminLicensesRoute: typeof AdminLicensesRoute
+  AdminLoginRoute: typeof AdminLoginRoute
   AdminSystemRoute: typeof AdminSystemRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAuditRoute: AdminAuditRoute,
   AdminLicensesRoute: AdminLicensesRoute,
+  AdminLoginRoute: AdminLoginRoute,
   AdminSystemRoute: AdminSystemRoute,
 }
 

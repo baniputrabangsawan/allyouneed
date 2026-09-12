@@ -10,6 +10,7 @@ import {
   saveThemePreference,
   type ThemePreference,
 } from '@/lib/storage/preferences'
+import { applyThemePreference, themeIsDark } from '@/lib/theme'
 
 const themes: readonly ThemePreference[] = ['light', 'dark', 'system']
 const explorerSearch = { q: '', category: 'all', group: 'all' } as const
@@ -20,14 +21,6 @@ const primaryNav = [
   { key: 'new', hash: 'new' },
 ] as const
 
-function themeIsDark(theme: ThemePreference) {
-  return theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
-}
-
-function applyTheme(theme: ThemePreference) {
-  document.documentElement.setAttribute('data-theme', theme)
-  document.documentElement.classList.toggle('dark', themeIsDark(theme))
-}
 
 export function AppHeader() {
   const copy = useT()
@@ -42,10 +35,10 @@ export function AppHeader() {
     const preference = getThemePreference()
     const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
     const updateSystemTheme = () => {
-      if (getThemePreference() === 'system') applyTheme('system')
+      if (getThemePreference() === 'system') applyThemePreference('system')
     }
     setTheme(preference)
-    applyTheme(preference)
+    applyThemePreference(preference)
     if (/Mac|iPhone|iPad|iPod/i.test(navigator.platform) || /Mac OS X/i.test(navigator.userAgent)) {
       setShortcutLabel('⌘ K')
     }
@@ -96,7 +89,7 @@ export function AppHeader() {
     }
     setTheme(next)
     saveThemePreference(next)
-    applyTheme(next)
+    applyThemePreference(next)
   }
 
   const closeMenu = () => setMenuOpen(false)

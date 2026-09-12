@@ -1,6 +1,7 @@
 import json
 import re
 import shutil
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -295,9 +296,151 @@ def noise_reduction_filter(options: dict[str, Any]) -> str:
     return f"afftdn=nr={nr}:nf={nf}:nt=w"
 
 
+AUDIO_CONVERT_BITRATES = ("64k", "96k", "128k", "192k", "256k", "320k")
+AUDIO_CONVERT_RATES = (22050, 44100, 48000)
+OPUS_RATES = (8000, 12000, 16000, 24000, 48000)
+
+
+@dataclass(frozen=True)
+class AudioConvertSpec:
+    key: str
+    ext: str
+    codec: str
+    muxer: str
+    mime: str
+    probe_codec: str
+    lossy: bool
+
+
+AUDIO_CONVERT_FORMATS: dict[str, AudioConvertSpec] = {
+    "mp3": AudioConvertSpec("mp3", "mp3", "libmp3lame", "mp3", "audio/mpeg", "mp3", True),
+    "wav": AudioConvertSpec("wav", "wav", "pcm_s16le", "wav", "audio/wav", "pcm_s16le", False),
+    "m4a": AudioConvertSpec("m4a", "m4a", "aac", "ipod", "audio/mp4", "aac", True),
+    "aac": AudioConvertSpec("m4a", "m4a", "aac", "ipod", "audio/mp4", "aac", True),
+    "ogg": AudioConvertSpec("ogg", "ogg", "libvorbis", "ogg", "audio/ogg", "vorbis", True),
+    "flac": AudioConvertSpec("flac", "flac", "flac", "flac", "audio/flac", "flac", False),
+    "opus": AudioConvertSpec("opus", "opus", "libopus", "opus", "audio/ogg", "opus", True),
+}
+
+
+def first_audio_stream(info: dict[str, Any]) -> dict[str, Any] | None:
+    streams = info.get("streams")
+    if not isinstance(streams, list):
+        return None
+    for stream in streams:
+        if isinstance(stream, dict) and stream.get("codec_type") == "audio":
+            return stream
+    return None
+
+
+def first_video_stream(info: dict[str, Any]) -> dict[str, Any] | None:
+    streams = info.get("streams")
+    if not isinstance(streams, list):
+        return None
+    for stream in streams:
+        if isinstance(stream, dict) and stream.get("codec_type") == "video":
+            return stream
+    return None
+
+
+def require_input_streams(tool_id: str, info: dict[str, Any]) -> None:
+    if tool_id in AUDIO_TOOLS or tool_id == "extract-audio":
+        if first_audio_stream(info) is None:
+            raise ProcessingError("This file has no audio stream.", code="AUDIO_STREAM_NOT_FOUND")
+        return
+    if tool_id == "video-metadata-viewer":
+        return
+    if tool_id in VIDEO_TOOLS and first_video_stream(info) is None:
+        raise ProcessingError("This file has no video stream.", code="VIDEO_STREAM_NOT_FOUND")
+
+
+def resolve_audio_convert_format(options: dict[str, Any]) -> AudioConvertSpec:
+    raw = str(options.get("format", "mp3")).split("/")[-1].lower().lstrip(".")
+    if raw == "mpeg":
+        raw = "mp3"
+    spec = AUDIO_CONVERT_FORMATS.get(raw)
+    if spec is None:
+        raise ProcessingError("Choose MP3, WAV, M4A, OGG, FLAC, or Opus.")
+    return spec
+
+
+def audio_convert_bitrate(options: dict[str, Any], spec: AudioConvertSpec) -> str | None:
+    if not spec.lossy:
+        return None
+    raw = (
+        str(options.get("bitrate", "192k" if spec.key in {"mp3", "m4a"} else "128k"))
+        .strip()
+        .lower()
+    )
+    if not raw.endswith("k"):
+        raw = f"{raw}k"
+    if raw not in AUDIO_CONVERT_BITRATES:
+        raise ProcessingError("Bitrate must be 64k, 96k, 128k, 192k, 256k, or 320k.")
+    return raw
+
+
+def audio_convert_rate(options: dict[str, Any], spec: AudioConvertSpec) -> int | None:
+    raw = options.get("sampleRate", "original")
+    if raw in (None, "", "original"):
+        return 48000 if spec.key == "opus" else None
+    rate = integer(options, "sampleRate", 44100, minimum=8000, maximum=48000)
+    if spec.key == "opus" and rate not in OPUS_RATES:
+        return 48000
+    if spec.key != "opus" and rate not in AUDIO_CONVERT_RATES:
+        raise ProcessingError("Sample rate must be 22050, 44100, or 48000.")
+    return rate
+
+
+def audio_convert_channels(options: dict[str, Any]) -> int | None:
+    raw = options.get("channels", "original")
+    if raw in (None, "", "original"):
+        return None
+    value = integer({"channels": raw}, "channels", 2, minimum=1, maximum=2)
+    return value
+
+
+def audio_converter_args(inputs: list[Path], options: dict[str, Any], output: Path) -> list[str]:
+    spec = resolve_audio_convert_format(options)
+    args = ["ffmpeg", "-y", "-i", str(inputs[0]), "-vn", "-map", "0:a:0", "-c:a", spec.codec]
+    bitrate = audio_convert_bitrate(options, spec)
+    if bitrate is not None:
+        args += ["-b:a", bitrate]
+    rate = audio_convert_rate(options, spec)
+    if rate is not None:
+        args += ["-ar", str(rate)]
+    channels = audio_convert_channels(options)
+    if channels is not None:
+        args += ["-ac", str(channels)]
+    args += ["-f", spec.muxer, str(output)]
+    return args
+
+
+def validate_audio_convert_output(
+    info: dict[str, Any],
+    spec: AudioConvertSpec,
+    *,
+    source_duration: float | None,
+) -> None:
+    stream = first_audio_stream(info)
+    if stream is None:
+        raise ProcessingError("Output file has no audio stream.")
+    codec = str(stream.get("codec_name", ""))
+    if codec != spec.probe_codec:
+        raise ProcessingError("Output codec does not match the requested format.")
+    duration = duration_seconds(info)
+    if duration is None or duration <= 0:
+        raise ProcessingError("Output audio has no duration.")
+    if source_duration is not None:
+        delta = abs(duration - source_duration)
+        if delta > 0.25 and delta / source_duration > 0.25:
+            raise ProcessingError("Output duration does not match the source.")
+
+
 def ffmpeg_args(
     tool_id: str, inputs: list[Path], options: dict[str, Any], output: Path
 ) -> list[str]:
+    if tool_id == "audio-converter":
+        return audio_converter_args(inputs, options, output)
     if tool_id == "add-subtitle":
         return subtitle_ffmpeg_args(inputs, options, output)
     if tool_id in {"audio-merger", "video-merger"}:
@@ -397,14 +540,33 @@ class MediaProcessor(Processor):
         probed = inputs[0]
         if self.tool_id == "add-subtitle":
             probed, _subtitle = split_video_and_subtitle(inputs)
-        source = await probe(probed, cancel_event=context.cancel_event)
+        try:
+            source = await probe(probed, cancel_event=context.cancel_event)
+        except ProcessingError as exc:
+            if self.tool_id == "audio-converter":
+                raise ProcessingError("This audio file could not be read.") from exc
+            raise
+        require_input_streams(self.tool_id, source)
         total = duration_seconds(source)
+        spec = (
+            resolve_audio_convert_format(context.options)
+            if self.tool_id == "audio-converter"
+            else None
+        )
         args = ffmpeg_args(self.tool_id, inputs, context.options, output)
         await context.report(None if total is None else 10, "processing")
-        await run_command(args, cancel_event=context.cancel_event, timeout=600)
+        try:
+            await run_command(args, cancel_event=context.cancel_event, timeout=600)
+        except ProcessingError as exc:
+            if self.tool_id == "audio-converter":
+                raise ProcessingError("This audio file could not be converted.") from exc
+            raise
         if self.tool_id not in {"generate-thumbnail", "video-screenshot", "video-to-gif"}:
             info = await probe(output, cancel_event=context.cancel_event)
-            validate_media_output(info)
+            if spec is not None:
+                validate_audio_convert_output(info, spec, source_duration=total)
+            else:
+                validate_media_output(info)
             if self.tool_id == "add-subtitle":
                 validate_subtitle_output(
                     info,
@@ -412,4 +574,20 @@ class MediaProcessor(Processor):
                     audio=keep_audio(context.options),
                 )
         await context.report(100 if total is not None else None, "encoding")
+        if spec is not None:
+            audio = first_audio_stream(source) or {}
+            fmt = source.get("format") if isinstance(source.get("format"), dict) else {}
+            return ProcessorResult(
+                metadata={
+                    "duration": duration_seconds(info) if spec else total,
+                    "sourceFormat": str(
+                        audio.get("codec_name") or fmt.get("format_name") or "unknown"
+                    ),
+                    "outputFormat": spec.ext,
+                    "sourceSize": inputs[0].stat().st_size,
+                    "outputSize": output.stat().st_size,
+                },
+                extension=spec.ext,
+                content_type=spec.mime,
+            )
         return ProcessorResult(metadata={"duration": total})

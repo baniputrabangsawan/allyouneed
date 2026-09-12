@@ -1,25 +1,32 @@
-import { expect, request, test } from '@playwright/test'
-
-const API_BASE_URL = process.env.E2E_API_BASE_URL ?? 'http://127.0.0.1:8000'
+import { expect, test } from '@playwright/test'
 
 test('admin dashboard creates and clears a one-time license key', async ({ page }) => {
-  const api = await request.newContext({ baseURL: API_BASE_URL })
-  try {
-    const health = await api.get('/api/v1/health/live', { timeout: 1_000 })
-    test.skip(!health.ok(), 'FastAPI must be running for admin E2E.')
-  } catch {
-    test.skip(true, 'FastAPI must be running for admin E2E.')
-  } finally {
-    await api.dispose()
-  }
+  await page.goto('/admin')
+  await expect(page).toHaveURL(/\/admin\/login$/)
+  await page.getByLabel('Email').fill('owner@example.com')
+  await page.getByLabel('Password').fill('wrong password value')
+  const invalidLogin = page.waitForResponse((response) => response.url().includes('/api/v1/admin/auth/login'))
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  const invalidResponse = await invalidLogin
+  expect(invalidResponse.status(), await invalidResponse.text()).toBe(401)
+  await expect(page.getByRole('alert')).toHaveText('Invalid email or password.')
+  await page.getByLabel('Password').fill('correct horse battery staple')
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page).toHaveURL(/\/admin$/)
   await page.goto('/admin/licenses')
   await expect(page.getByRole('heading', { name: 'Licenses' })).toBeVisible()
   await page.getByRole('button', { name: 'Create license' }).click()
   await page.getByLabel('Duration').selectOption('1')
-  await page.getByRole('button', { name: 'Create license', exact: true }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Create license', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Copy this key now.' })).toBeVisible()
   const key = await page.locator('.admin-license-key').textContent()
   expect(key).toMatch(/^UTL-PRO-/)
   await page.getByRole('button', { name: 'Close' }).click()
   await expect(page.locator('body')).not.toContainText(key ?? '')
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Licenses' })).toBeVisible()
+  await page.getByRole('button', { name: 'Sign out' }).click()
+  await expect(page).toHaveURL(/\/admin\/login$/)
+  await page.goto('/admin')
+  await expect(page).toHaveURL(/\/admin\/login$/)
 })

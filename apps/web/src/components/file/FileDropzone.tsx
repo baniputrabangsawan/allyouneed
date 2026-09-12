@@ -2,6 +2,7 @@ import { CheckCircle2, CircleAlert, Upload } from 'lucide-react'
 import { useId, useRef, useState } from 'react'
 import { validateFiles } from '@/features/image/image-utils'
 import { useT } from '@/i18n'
+import { formatAcceptLabels } from '@/lib/media/accept-labels'
 import { gsap, useGSAP } from '@/lib/motion/gsap'
 import { prefersReducedMotion } from '@/lib/motion/prefers-reduced-motion'
 
@@ -75,7 +76,7 @@ export function FileDropzone({
 
   const selectionLimit = multiple ? maxFiles : 1
   const detail = [
-    accept.length > 0 ? accept.map((type) => type.startsWith('.') ? type.slice(1).toUpperCase() : type.split('/')[1]?.toUpperCase() ?? type).join(', ') : copy.dropzone.anyType,
+    accept.length > 0 ? formatAcceptLabels(accept).join(', ') : copy.dropzone.anyType,
     copy.dropzone.maxMb(Math.round(maxFileSize / 1024 / 1024)),
     selectionLimit ? copy.dropzone.upToFiles(selectionLimit) : undefined,
   ].filter(Boolean).join(' · ')

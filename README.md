@@ -184,7 +184,15 @@ uv run utility-license revoke KITS-…
 uv run utility-license reset-activations KITS-…
 ```
 
-Admin HTTP routes use the `X-Admin-Key` header (`ADMIN_API_KEY`).
+Admin HTTP routes require the self-hosted owner session. Bootstrap the first owner after running
+the migrations:
+
+```bash
+uv run utility-admin --email owner@example.com
+```
+
+Open `/admin/login`; no admin credential is stored in frontend code or browser storage. See
+`docs/admin-security.md` for TOTP and production setup.
 
 Users paste the key in the UI (**Activate Pro**). Do not put live keys in git.
 
@@ -197,7 +205,8 @@ Copy `.env.example`. Important variables:
 | `VITE_API_BASE_URL` | web | API origin the browser calls |
 | `VITE_APP_URL` | web | Public app URL |
 | `LICENSE_DATABASE_URL` / `DATABASE_URL` | API | License SQLite/Postgres URL |
-| `ADMIN_API_KEY` | API | Admin license endpoints |
+| `ADMIN_TOTP_ENCRYPTION_KEY` | API | Encrypts the owner's TOTP seed |
+| `ADMIN_SESSION_TTL_SECONDS` | API | Finite admin session lifetime |
 | `ENTITLEMENT_PRIVATE_KEY` / `PUBLIC_KEY` | API | Entitlement tokens (generate for anything beyond local play) |
 | `REDIS_URL` | API | Job queue (when not using inline jobs) |
 | `R2_*` | API | Object storage for uploads |

@@ -11,7 +11,18 @@ ExecutionMode = Literal["local-only", "sync", "async", "disabled"]
 MB = 1024 * 1024
 IMAGES = {"image/jpeg", "image/png", "image/webp", "image/avif"}
 PDF = {"application/pdf"}
-AUDIO = {"audio/mpeg", "audio/wav", "audio/x-wav", "audio/mp4", "audio/ogg", "audio/webm"}
+AUDIO = {
+    "audio/mpeg",
+    "audio/wav",
+    "audio/x-wav",
+    "audio/mp4",
+    "audio/ogg",
+    "audio/webm",
+    "audio/flac",
+    "audio/x-flac",
+    "audio/aac",
+    "audio/opus",
+}
 VIDEO = {"video/mp4", "video/webm", "video/quicktime", "image/gif"}
 SUBTITLES = {
     "text/plain",

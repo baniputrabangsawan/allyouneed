@@ -33,6 +33,7 @@ async def presign_upload(
         payload.tool_id,
         payload.content_type,
         payload.size,
+        filename=payload.filename,
         entitlement_token=entitlement_token,
         entitlements=entitlements,
     )

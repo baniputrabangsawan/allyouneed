@@ -11,6 +11,9 @@ test-results
 data/*.db
 data/*.db-wal
 data/*.db-shm
+apps/api/data/*.db
+apps/api/data/*.db-wal
+apps/api/data/*.db-shm
 data/backups/
 .venv
 __pycache__
