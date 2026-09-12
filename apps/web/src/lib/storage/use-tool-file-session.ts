@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getJob, getJobResult } from '../api/jobs'
 import { getUpload } from '../api/files'
-import { ApiError } from '../api/client'
+import { ApiError, resolveApiUrl } from '../api/client'
 import type { Job } from '../api/types'
 import {
   clearToolSession,
@@ -26,12 +26,46 @@ export interface UseToolFileSessionOptions<TOptions> {
   applyOptions?: (options: TOptions) => void
   applyJob?: (job: Job | null) => void
   applyDownload?: (download: { url: string; filename: string } | null) => void
+  applyUploads?: (keys: string[]) => void
+  applyResult?: (result: unknown) => void
   resolveDownload?: (result: unknown) => { url: string; filename: string } | null
   onNotice?: (notice: FileRestoreNotice | null) => void
 }
 
 function isJob(value: unknown): value is Job {
   return typeof value === 'object' && value !== null && 'jobId' in value && 'status' in value
+}
+
+function isGoneUpload(reason: unknown): boolean {
+  return reason instanceof ApiError && (reason.status === 404 || reason.code === 'INVALID_FILE' || reason.code === 'UPLOAD_FAILED')
+}
+
+const TERMINAL_JOB = new Set(['completed', 'failed', 'cancelled', 'expired'])
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms)
+  })
+}
+
+export function restoreNoticeMessage(
+  notice: FileRestoreNotice | null,
+  errors: { tooLargeToRestore: string; previousUploadMissing: string; resumeUpload: string },
+): string | null {
+  if (notice === 'too-large') return errors.tooLargeToRestore
+  if (notice === 'upload-missing') return errors.previousUploadMissing
+  if (notice === 'resume-upload') return errors.resumeUpload
+  return null
+}
+
+export function downloadFromJobResult(result: unknown): { url: string; filename: string } | null {
+  if (!result || typeof result !== 'object') return null
+  const payload = result as { downloadUrl?: unknown; filename?: unknown }
+  if (typeof payload.downloadUrl !== 'string' || payload.downloadUrl.length === 0) return null
+  return {
+    url: resolveApiUrl(payload.downloadUrl),
+    filename: typeof payload.filename === 'string' && payload.filename.length > 0 ? payload.filename : 'download',
+  }
 }
 
 export function useToolFileSession<TOptions extends Record<string, unknown> = Record<string, unknown>>(
@@ -43,6 +77,8 @@ export function useToolFileSession<TOptions extends Record<string, unknown> = Re
     applyOptions,
     applyJob,
     applyDownload,
+    applyUploads,
+    applyResult,
     resolveDownload,
     onNotice,
   } = options
@@ -52,12 +88,16 @@ export function useToolFileSession<TOptions extends Record<string, unknown> = Re
   const applyOptionsRef = useRef(applyOptions)
   const applyJobRef = useRef(applyJob)
   const applyDownloadRef = useRef(applyDownload)
+  const applyUploadsRef = useRef(applyUploads)
+  const applyResultRef = useRef(applyResult)
   const resolveDownloadRef = useRef(resolveDownload)
   const onNoticeRef = useRef(onNotice)
   applyFilesRef.current = applyFiles
   applyOptionsRef.current = applyOptions
   applyJobRef.current = applyJob
   applyDownloadRef.current = applyDownload
+  applyUploadsRef.current = applyUploads
+  applyResultRef.current = applyResult
   resolveDownloadRef.current = resolveDownload
   onNoticeRef.current = onNotice
 
@@ -69,6 +109,33 @@ export function useToolFileSession<TOptions extends Record<string, unknown> = Re
   useEffect(() => {
     let cancelled = false
     restoredRef.current = false
+
+    async function restoreCompleted(job: Job) {
+      const payload = await getJobResult<unknown>(job.jobId)
+      if (cancelled) return
+      applyResultRef.current?.(payload.result)
+      const download = resolveDownloadRef.current?.(payload.result)
+      if (download) applyDownloadRef.current?.(download)
+    }
+
+    async function resumeJob(job: Job) {
+      let current = job
+      applyJobRef.current?.(current)
+      if (current.status === 'completed') {
+        await restoreCompleted(current)
+        return
+      }
+      if (current.status !== 'queued' && current.status !== 'processing') return
+      restoredRef.current = true
+      while (!TERMINAL_JOB.has(current.status)) {
+        await sleep(500)
+        if (cancelled) return
+        current = await getJob(current.jobId)
+        if (cancelled) return
+        applyJobRef.current?.(current)
+      }
+      if (current.status === 'completed') await restoreCompleted(current)
+    }
 
     async function restore() {
       const persistence = getFilePersistence()
@@ -84,26 +151,6 @@ export function useToolFileSession<TOptions extends Record<string, unknown> = Re
         return
       }
 
-      if (restored.options && applyOptionsRef.current) {
-        applyOptionsRef.current(restored.options as TOptions)
-      }
-
-      const uploads = restored.metas.filter((meta) => typeof meta.fileKey === 'string' && meta.fileKey.length > 0)
-      let uploadsMissing = false
-      if (uploads.length > 0) {
-        let alive = 0
-        for (const meta of uploads) {
-          try {
-            await getUpload(meta.fileKey!)
-            alive += 1
-          } catch (reason) {
-            const gone = reason instanceof ApiError && (reason.status === 404 || reason.code === 'INVALID_FILE' || reason.code === 'UPLOAD_FAILED')
-            if (!gone) alive += 1
-          }
-        }
-        uploadsMissing = alive === 0
-      }
-
       if (restored.files.length > 0) {
         await applyFilesRef.current(restored.files)
         if (cancelled) {
@@ -113,28 +160,46 @@ export function useToolFileSession<TOptions extends Record<string, unknown> = Re
         publish(restored.tooLarge ? 'too-large' : 'restored')
       } else if (restored.tooLarge) {
         publish('too-large')
-      } else if (uploadsMissing) {
-        await persistence.clearToolSession(slug)
-        publish('upload-missing')
-        restoredRef.current = true
-        return
-      } else if (uploads.length > 0) {
-        publish('resume-upload')
       }
 
-      if (restored.jobId && !uploadsMissing) {
+      if (restored.options && applyOptionsRef.current) {
+        applyOptionsRef.current(restored.options as TOptions)
+      }
+
+      const uploads = restored.metas.filter((meta) => typeof meta.fileKey === 'string' && meta.fileKey.length > 0)
+      const aliveKeys: string[] = []
+      if (uploads.length > 0) {
+        for (const meta of uploads) {
+          try {
+            await getUpload(meta.fileKey!)
+            aliveKeys.push(meta.fileKey!)
+          } catch (reason) {
+            if (!isGoneUpload(reason)) aliveKeys.push(meta.fileKey!)
+            else aliveKeys.push('')
+          }
+        }
+        const anyAlive = aliveKeys.some((key) => key.length > 0)
+        const allMissing = aliveKeys.every((key) => key.length === 0)
+        if (anyAlive) applyUploadsRef.current?.(aliveKeys)
+        if (restored.files.length === 0 && allMissing) {
+          await persistence.clearToolSession(slug)
+          publish('upload-missing')
+          restoredRef.current = true
+          return
+        }
+        if (restored.files.length === 0 && !restored.tooLarge && anyAlive && !restored.jobId) {
+          publish('resume-upload')
+        }
+      }
+
+      if (restored.jobId) {
         try {
           const job = await getJob(restored.jobId)
           if (cancelled) {
             restoredRef.current = true
             return
           }
-          applyJobRef.current?.(job)
-          if (job.status === 'completed') {
-            const payload = await getJobResult<unknown>(job.jobId)
-            const download = resolveDownloadRef.current?.(payload.result)
-            if (download) applyDownloadRef.current?.(download)
-          }
+          await resumeJob(job)
         } catch {
           await persistence.saveJobReference(slug, null)
         }
@@ -161,6 +226,15 @@ export function useToolFileSession<TOptions extends Record<string, unknown> = Re
       })
     } catch {
       /* persistence must never block the tool */
+    }
+  }, [slug])
+
+  const persistOptions = useCallback(async (toolOptions: Record<string, unknown> | undefined) => {
+    if (!restoredRef.current) return
+    try {
+      await getFilePersistence().saveOptions(slug, toolOptions)
+    } catch {
+      /* ignore */
     }
   }, [slug])
 
@@ -205,7 +279,7 @@ export function useToolFileSession<TOptions extends Record<string, unknown> = Re
     }
   }, [publish, slug])
 
-  return { notice, persist, persistJob, persistUploads, clear, setNotice: publish }
+  return { notice, persist, persistJob, persistUploads, persistOptions, clear, setNotice: publish }
 }
 
 export function isActiveJob(job: Job | null | undefined): job is Job {

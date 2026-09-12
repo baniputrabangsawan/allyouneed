@@ -1,4 +1,4 @@
-import { Download, LoaderCircle, Square } from 'lucide-react'
+import { LoaderCircle, Square } from 'lucide-react'
 import { useState } from 'react'
 import { useT } from '../../i18n'
 import { API_BASE_URL } from '../../lib/api/client'
@@ -6,6 +6,7 @@ import { cancelJob, createJob, getJob, getJobResult } from '../../lib/api/jobs'
 import type { Job } from '../../lib/api/types'
 import { remoteJobPhase } from '../../lib/media/job-phase'
 import { errorFromJob, workflowErrorCode, workflowMessage, type WorkflowErrorCode } from '../../lib/media/workflow-error'
+import { ImageResultPreview } from './ImageResultPreview'
 import type { ToolDefinition } from '../tools/tool-registry'
 
 const DEFAULT_HTML = '<div class="box">Kits</div>'
@@ -134,12 +135,18 @@ export function HtmlToImageWorkspace({ tool }: { tool: ToolDefinition }) {
             <progress max="100" value={job.progress ?? (phase === 'completed' ? 100 : undefined)} />
           </>
         )}
-        {preview && <img src={preview} alt="Rendered HTML" />}
-        {download && (
-          <a className="button primary" href={download.url} download={download.filename}>
-            <Download size={18} /> Download result
-          </a>
-        )}
+        <ImageResultPreview
+          resultSrc={preview || undefined}
+          compare={false}
+          checkerboard={format === 'png'}
+          processing={processing}
+          failed={phase === 'failed'}
+          resultAlt="Rendered HTML"
+          downloadId={job?.jobId}
+          downloadSource={download?.url}
+          downloadFilename={download?.filename}
+          meta={download ? { filename: download.filename, mime: format === 'png' ? 'image/png' : 'image/jpeg', width, height } : undefined}
+        />
       </div>
     </section>
   )

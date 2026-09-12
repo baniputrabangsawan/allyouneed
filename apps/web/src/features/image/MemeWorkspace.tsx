@@ -1,4 +1,4 @@
-import { Download, FileImage, Plus, RefreshCcw, Trash2 } from 'lucide-react'
+import { FileImage, Plus, RefreshCcw, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { FileDropzone } from '@/components/file/FileDropzone'
 import {
@@ -18,14 +18,22 @@ import {
   type MemeTextLayer,
 } from '@/features/image/meme-utils'
 import { formatBytes, outputFilename } from '@/lib/format'
+import { ImageResultPreview } from '@/features/image/ImageResultPreview'
+import { ProcessingProgressPanel } from '@/features/workspaces/processing-progress'
 import { renderMeme } from '@/processing/client/meme'
+import { type ImageOptimizeMode } from '@/processing/client/image-optimize'
+import { withProcessStages, type ProcessStage } from '@/processing/client/process-stage'
 
 interface MemeResult {
+  id: string
   blob: Blob
   url: string
   durationMs: number
   width: number
   height: number
+  originalSize: number
+  optimizedSize: number
+  recommendWebp: boolean
 }
 
 const formatLabels: Record<MemeFormat, string> = {
@@ -39,6 +47,8 @@ export function MemeWorkspace() {
   const boardRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null)
   const selectionRef = useRef(0)
+  const runningRef = useRef(false)
+  const [processStage, setProcessStage] = useState<ProcessStage>('preparing')
   const [file, setFile] = useState<File | null>(null)
   const [sourceUrl, setSourceUrl] = useState('')
   const [result, setResult] = useState<MemeResult | null>(null)
@@ -51,6 +61,8 @@ export function MemeWorkspace() {
   const [selectedId, setSelectedId] = useState('top')
   const [format, setFormat] = useState<MemeFormat>('image/png')
   const [quality, setQuality] = useState(92)
+  const [autoOptimize, setAutoOptimize] = useState(true)
+  const [optimizeMode, setOptimizeMode] = useState<ImageOptimizeMode>('auto')
 
   useEffect(() => () => {
     if (sourceUrlRef.current) URL.revokeObjectURL(sourceUrlRef.current)
@@ -90,6 +102,8 @@ export function MemeWorkspace() {
     setSelectedId('top')
     setFormat('image/png')
     setQuality(92)
+    setAutoOptimize(true)
+    setOptimizeMode('auto')
   }
 
   function removeFile() {
@@ -169,28 +183,50 @@ export function MemeWorkspace() {
   }
 
   async function run() {
-    if (!file || !hasMemeText(layers)) return
+    if (!file || !hasMemeText(layers) || runningRef.current) return
+    runningRef.current = true
     const selection = selectionRef.current
     setStatus('processing')
     setError('')
     const startedAt = performance.now()
     try {
-      const output = await renderMeme(file, layers, { format, quality: quality / 100 })
+      const output = await withProcessStages(setProcessStage, () => renderMeme(file, layers, {
+        format,
+        quality: quality / 100,
+        optimize: autoOptimize,
+        optimizeMode,
+      }), { optimize: autoOptimize && format === 'image/png' })
       if (selection !== selectionRef.current) return
       clearResult()
       const url = URL.createObjectURL(output.blob)
       resultUrlRef.current = url
-      setResult({ blob: output.blob, url, durationMs: performance.now() - startedAt, width: output.width, height: output.height })
+      setResult({
+        id: crypto.randomUUID(),
+        blob: output.blob,
+        url,
+        durationMs: performance.now() - startedAt,
+        width: output.width,
+        height: output.height,
+        originalSize: output.originalSize,
+        optimizedSize: output.optimizedSize,
+        recommendWebp: output.recommendWebp,
+      })
       setStatus('completed')
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Meme export failed.')
+      setError(reason instanceof Error ? reason.message : 'Meme rendering failed.')
       setStatus('failed')
+      setProcessStage('failed')
+    } finally {
+      runningRef.current = false
     }
   }
 
   const selected = layers.find((layer) => layer.id === selectedId) ?? layers[0]
   const extension = format === 'image/jpeg' ? 'jpg' : 'png'
   const scale = naturalWidth > 0 && boardWidth > 0 ? boardWidth / naturalWidth : 1
+  const savedPercent = result && result.originalSize > 0
+    ? Math.round((1 - result.optimizedSize / result.originalSize) * 100)
+    : 0
 
   return (
     <section className="workspace">
@@ -334,19 +370,36 @@ export function MemeWorkspace() {
                 <input aria-label="JPEG quality" type="range" min="40" max="100" value={quality} onChange={(event) => setQuality(Number(event.target.value))}/>
               </Field>
             )}
+            <label className="check-row">
+              <input type="checkbox" checked={autoOptimize} onChange={(event) => { setAutoOptimize(event.target.checked); discardRenderedMeme() }}/>
+              Auto optimize output
+            </label>
+            {autoOptimize && (
+              <div className="segmented" role="group" aria-label="Auto optimize output">
+                {(['auto', 'lossless', 'strong'] as const).map((value) => (
+                  <button key={value} type="button" className={optimizeMode === value ? 'active' : ''} aria-pressed={optimizeMode === value} onClick={() => { setOptimizeMode(value); discardRenderedMeme() }}>
+                    {value === 'auto' ? 'Auto' : value === 'lossless' ? 'Lossless' : 'Strong'}
+                  </button>
+                ))}
+              </div>
+            )}
+            {status === 'processing' && <ProcessingProgressPanel stage={processStage} title="Processing..." />}
+            {status === 'failed' && <ProcessingProgressPanel stage="failed" title="Processing failed" detail={error || 'Processing failed'} />}
             <button className={`button ${status === 'completed' ? 'success' : 'primary'} action-button`} type="button" disabled={status === 'processing' || !hasMemeText(layers)} onClick={() => void run()}>
-              {status === 'processing' ? 'Rendering...' : status === 'completed' ? 'Generate again' : 'Generate meme'}
+              {status === 'processing' ? 'Rendering...' : status === 'completed' ? 'Generate again' : status === 'failed' ? 'Try again' : 'Generate meme'}
             </button>
-            {error && <p className="field-error" role="alert">{error}</p>}
+            {error && status !== 'failed' && <p className="field-error" role="alert">{error}</p>}
             {result && (
-              <>
-                <div className="meme-output">
-                  <img src={result.url} alt="Rendered meme"/>
-                </div>
-                <a className="button secondary action-button" href={result.url} download={outputFilename(file.name, 'meme', extension)}>
-                  <Download size={17}/> Download {formatLabels[format]}
-                </a>
-              </>
+              <ImageResultPreview
+                originalSrc={sourceUrl}
+                resultSrc={result.url}
+                checkerboard={format === 'image/png'}
+                resultAlt="Rendered meme"
+                downloadId={result.id}
+                downloadSource={result.blob}
+                downloadFilename={outputFilename(file.name, 'meme', extension)}
+                meta={{ filename: outputFilename(file.name, 'meme', extension), mime: format, width: result.width, height: result.height, size: result.blob.size, originalSize: result.originalSize, savedPct: savedPercent, durationMs: result.durationMs }}
+              />
             )}
           </div>
         </div>

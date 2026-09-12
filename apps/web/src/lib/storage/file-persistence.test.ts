@@ -101,6 +101,15 @@ describe('FilePersistenceService', () => {
     expect(restored.options).toEqual({ strength: 'medium' })
   })
 
+  it('updates options without rewriting file bytes', async () => {
+    const persistence = service()
+    await persistence.saveLocalFile('noise-reduction', pngFile('recording.webm'), { strength: 'light' })
+    await persistence.saveOptions('noise-reduction', { strength: 'medium', password: 'secret' })
+    const restored = await persistence.restoreLocalFiles('noise-reduction')
+    expect(restored.files[0]?.name).toBe('recording.webm')
+    expect(restored.options).toEqual({ strength: 'medium' })
+  })
+
   it('persists and clears a job id without duplicating files', async () => {
     const persistence = service()
     await persistence.saveLocalFile('noise-reduction', pngFile())

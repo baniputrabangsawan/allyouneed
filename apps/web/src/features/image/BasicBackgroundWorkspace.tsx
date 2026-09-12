@@ -1,14 +1,16 @@
-import { Download, LoaderCircle, Square } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { LoaderCircle, Square } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { FileDropzone, type DropzoneProgress, type DropzoneStatus } from '@/components/file/FileDropzone'
 import { useT } from '@/i18n'
 import { API_BASE_URL } from '@/lib/api/client'
 import { completeUpload, createUpload, uploadFile } from '@/lib/api/files'
 import { cancelJob, createJob, getJob, getJobResult } from '@/lib/api/jobs'
 import type { Job } from '@/lib/api/types'
+import { ImageResultPreview } from '@/features/image/ImageResultPreview'
 import { formatBytes, outputFilename } from '@/lib/format'
 import { remoteJobPhase } from '@/lib/media/job-phase'
 import { errorFromJob, workflowErrorCode, workflowMessage, type WorkflowErrorCode } from '@/lib/media/workflow-error'
+import { downloadFromJobResult, restoreNoticeMessage, useToolFileSession } from '@/lib/storage/use-tool-file-session'
 import type { ToolDefinition } from '../tools/tool-registry'
 
 const accept = ['image/jpeg', 'image/png', 'image/webp'] as const
@@ -51,7 +53,7 @@ export function BasicBackgroundWorkspace({ tool }: { tool: ToolDefinition }) {
     if (sourceUrlRef.current) URL.revokeObjectURL(sourceUrlRef.current)
   }, [])
 
-  async function chooseFile(next: File) {
+  async function loadFile(next: File, keepBounds = false) {
     if (sourceUrlRef.current) URL.revokeObjectURL(sourceUrlRef.current)
     const nextUrl = URL.createObjectURL(next)
     sourceUrlRef.current = nextUrl
@@ -66,7 +68,7 @@ export function BasicBackgroundWorkspace({ tool }: { tool: ToolDefinition }) {
       const bitmap = await createImageBitmap(next)
       setNaturalWidth(bitmap.width)
       setNaturalHeight(bitmap.height)
-      setBounds(defaultBounds(bitmap.width, bitmap.height))
+      if (!keepBounds) setBounds(defaultBounds(bitmap.width, bitmap.height))
       bitmap.close()
     } catch {
       setError('This image could not be read.')
@@ -75,12 +77,75 @@ export function BasicBackgroundWorkspace({ tool }: { tool: ToolDefinition }) {
     }
   }
 
+  const applyFiles = useCallback(async (next: File[]) => {
+    const first = next[0]
+    if (first) await loadFile(first, true)
+    else {
+      if (sourceUrlRef.current) URL.revokeObjectURL(sourceUrlRef.current)
+      sourceUrlRef.current = ''
+      setFile(null)
+      setSourceUrl('')
+      setJob(null)
+      setDownload(null)
+    }
+  }, [])
+
+  const session = useToolFileSession({
+    slug: tool.id,
+    applyFiles,
+    applyOptions: (next) => {
+      setBounds((current) => ({
+        left: typeof next.left === 'number' ? next.left : current.left,
+        top: typeof next.top === 'number' ? next.top : current.top,
+        width: typeof next.width === 'number' ? next.width : current.width,
+        height: typeof next.height === 'number' ? next.height : current.height,
+      }))
+    },
+    applyJob: (next) => {
+      setJob(next)
+      if (!next) {
+        setTransfer(idleTransfer)
+        return
+      }
+      if (next.status === 'queued' || next.status === 'processing') {
+        setTransfer({
+          status: 'processing',
+          progress: { ...(file?.name ? { fileName: file.name } : {}), percent: next.progress, label: next.stage ?? 'Processing...' },
+        })
+      } else if (next.status === 'completed') {
+        setTransfer({ status: 'success', progress: { ...(file?.name ? { fileName: file.name } : {}), percent: 100, label: 'Completed' } })
+      } else if (next.status === 'failed') {
+        const failed = errorFromJob(next.error)
+        const message = workflowMessage(failed, copy.errors)
+        setErrorCode(workflowErrorCode(failed))
+        setError(message)
+        setTransfer({ status: 'error', progress: { ...(file?.name ? { fileName: file.name } : {}), label: message } })
+      } else {
+        setTransfer(idleTransfer)
+      }
+    },
+    applyDownload: setDownload,
+    resolveDownload: downloadFromJobResult,
+  })
+  const restoreError = restoreNoticeMessage(session.notice, copy.errors)
+
+  async function chooseFile(next: File) {
+    session.setNotice(null)
+    await loadFile(next)
+    void session.persist({ files: [next], options: { ...bounds } })
+  }
+
   function updateBound(key: keyof Bounds, value: number) {
-    setBounds((current) => ({ ...current, [key]: value }))
+    setBounds((current) => {
+      const next = { ...current, [key]: value }
+      void session.persistOptions({ ...next })
+      return next
+    })
   }
 
   async function run() {
     if (!file) return
+    session.setNotice(null)
     setError('')
     setErrorCode(null)
     setDownload(null)
@@ -91,6 +156,7 @@ export function BasicBackgroundWorkspace({ tool }: { tool: ToolDefinition }) {
         onProgress: (percent) => setTransfer({ status: 'uploading', progress: { fileName: file.name, percent, label: 'Uploading...' } }),
       })
       const fileKey = (await completeUpload({ fileKey: target.fileKey })).fileKey
+      void session.persistUploads([file], [fileKey], { ...bounds })
       setTransfer({ status: 'processing', progress: { fileName: file.name, percent: null, label: 'Processing...' } })
       let current = await createJob({
         toolId: tool.id,
@@ -98,6 +164,7 @@ export function BasicBackgroundWorkspace({ tool }: { tool: ToolDefinition }) {
         options: { left: bounds.left, top: bounds.top, width: bounds.width, height: bounds.height },
       })
       setJob(current)
+      void session.persistJob(current.jobId)
       while (!['completed', 'failed', 'cancelled', 'expired'].includes(current.status)) {
         await new Promise((resolve) => window.setTimeout(resolve, 500))
         current = await getJob(current.jobId)
@@ -156,9 +223,9 @@ export function BasicBackgroundWorkspace({ tool }: { tool: ToolDefinition }) {
 
   return <section className="workspace split-workspace">
     <div className="options-panel">
-      <FileDropzone accept={accept} maxFileSize={100 * 1024 * 1024} status={transfer.status} progress={transfer.progress} disabled={busy} onFileSelected={chooseFile}/>
+      <FileDropzone accept={accept} maxFileSize={100 * 1024 * 1024} status={transfer.status} progress={transfer.progress} disabled={busy} onFileSelected={(next) => void chooseFile(next)}/>
       <p role="note">Basic OpenCV GrabCut cutout, not AI segmentation. Draw a box around the subject. Hair, glass, and busy backgrounds often leave leftovers or holes.</p>
-      {file && <p className="option-help">{file.name} · {formatBytes(file.size)}{naturalWidth ? ` · ${naturalWidth}×${naturalHeight}` : ''}</p>}
+      {file && <p className="option-help">{session.notice === 'restored' ? `${copy.workspace.previousFileRestored} · ` : ''}{file.name} · {formatBytes(file.size)}{naturalWidth ? ` · ${naturalWidth}×${naturalHeight}` : ''}</p>}
       {naturalWidth > 0 && <>
         <p className="option-help">Foreground bounds are in original image pixels. Everything outside this box starts as background.</p>
         <div className="field-grid">
@@ -172,17 +239,34 @@ export function BasicBackgroundWorkspace({ tool }: { tool: ToolDefinition }) {
         <button className="button primary" type="button" disabled={!file || busy} onClick={() => void run()}>{busy && <LoaderCircle size={17}/>} Cut out background</button>
         {busy && <button className="button secondary" type="button" onClick={() => void stop()}><Square size={15}/> Cancel</button>}
       </div>
+      {restoreError && <p className="field-error" role="status">{restoreError}</p>}
       {error && transfer.status !== 'error' && <p className="field-error" role="alert">{error}</p>}
     </div>
     <div className="result-card">
       <div className="panel-label"><span>Foreground box</span><span className={`badge badge-${phase}`}>{phaseLabel}</span></div>
       {phase === 'unavailable' && <p className="field-error" role="alert">{copy.errors.apiUnreachable}</p>}
-      {sourceUrl ? <div className="image-stage" style={{ position: 'relative' }}>
-        <img src={download?.url ?? sourceUrl} alt={download ? 'Transparent PNG result' : 'Selected input'}/>
-        {!download && overlay && <span aria-hidden="true" style={{ position: 'absolute', border: '2px dashed color-mix(in srgb, var(--foreground) 70%, transparent)', boxShadow: '0 0 0 9999px color-mix(in srgb, #111114 35%, transparent)', ...overlay }}/>}
-      </div> : <p className="option-help">Upload a PNG, JPEG, or WebP to preview the starting box.</p>}
+      {download ? (
+        <ImageResultPreview
+          originalSrc={sourceUrl}
+          resultSrc={download.url}
+          checkerboard
+          processing={busy}
+          failed={phase === 'failed'}
+          originalAlt="Selected input"
+          resultAlt="Transparent PNG result"
+          downloadId={job?.jobId ?? download.url}
+          downloadSource={download.url}
+          downloadFilename={download.filename}
+          restored={session.notice === 'restored'}
+          meta={{ filename: download.filename, mime: 'image/png', ...(naturalWidth ? { width: naturalWidth } : {}), ...(naturalHeight ? { height: naturalHeight } : {}), ...(file ? { originalSize: file.size } : {}) }}
+        />
+      ) : sourceUrl ? (
+        <div className="image-stage" style={{ position: 'relative' }}>
+          <img src={sourceUrl} alt="Selected input"/>
+          {overlay && <span aria-hidden="true" style={{ position: 'absolute', border: '2px dashed color-mix(in srgb, var(--foreground) 70%, transparent)', boxShadow: '0 0 0 9999px color-mix(in srgb, #111114 35%, transparent)', ...overlay }}/>}
+        </div>
+      ) : <p className="option-help">Upload a PNG, JPEG, or WebP to preview the starting box.</p>}
       {job && <><p>{job.stage ?? job.status}</p><progress max="100" value={job.progress ?? undefined}/></>}
-      {download && <a className="button primary" href={download.url} download={download.filename}><Download size={18}/> Download PNG</a>}
     </div>
   </section>
 }
