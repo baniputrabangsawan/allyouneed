@@ -11,9 +11,26 @@ export function DiscoveryToolCard({ tool, leaving = false }: { tool: ToolDefinit
   const item = useLocalizedTool(tool)
   const favorites = useFavoriteIds()
   const favorite = favorites.includes(tool.id)
-  return <div className={`discovery-card${leaving ? ' is-leaving' : ''}`} data-flip-id={tool.id}><ToolCard tool={tool}/>{tool.available && <button className={`favorite-button${favorite ? ' active' : ''}`} type="button" aria-label={favorite ? copy.favorite.remove(item.name) : copy.favorite.add(item.name)} aria-pressed={favorite} onClick={() => {
-    const current = getFavoriteTools()
-    saveFavoriteTools(favorite ? current.filter((id) => id !== tool.id) : [tool.id, ...current])
-    window.dispatchEvent(new Event(DISCOVERY_STORAGE_EVENT))
-  }}><Star size={16} fill={favorite ? 'currentColor' : 'none'}/></button>}</div>
+  const action = tool.available ? (
+    <button
+      className={`favorite-button${favorite ? ' active' : ''}`}
+      type="button"
+      aria-label={favorite ? copy.favorite.remove(item.name) : copy.favorite.add(item.name)}
+      aria-pressed={favorite}
+      onClick={(event) => {
+        event.preventDefault()
+        event.stopPropagation()
+        const current = getFavoriteTools()
+        saveFavoriteTools(favorite ? current.filter((id) => id !== tool.id) : [tool.id, ...current])
+        window.dispatchEvent(new Event(DISCOVERY_STORAGE_EVENT))
+      }}
+    >
+      <Star size={16} fill={favorite ? 'currentColor' : 'none'} />
+    </button>
+  ) : undefined
+  return (
+    <div className={`discovery-card${leaving ? ' is-leaving' : ''}`} data-flip-id={tool.id}>
+      <ToolCard tool={tool} action={action} />
+    </div>
+  )
 }

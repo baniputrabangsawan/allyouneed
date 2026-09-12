@@ -13,14 +13,16 @@ import {
   Tag,
   X,
 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useEntitlement } from '@/features/licensing/entitlement'
-import { explorerSearch, pageNav, primaryNav } from '@/components/layout/primary-nav'
+import { pageNav, primaryNav } from '@/components/layout/primary-nav'
 import { localeLabels, locales, type Locale } from '@/i18n/config'
 import { LocaleLink } from '@/i18n/link'
 import { stripLocalePrefix, switchLocaleLocation, useLocale, useT } from '@/i18n'
 import { useGoHomeTop, useSwitchLocale } from '@/i18n/navigate'
+import { useActiveHomeSection } from '@/lib/navigation/active-home-section'
 import { gsap, useGSAP } from '@/lib/motion/gsap'
+import { motion } from '@/lib/motion/config'
 import { prefersReducedMotion } from '@/lib/motion/prefers-reduced-motion'
 import { themeIsDark } from '@/lib/theme'
 import type { ThemePreference } from '@/lib/storage/preferences'
@@ -43,9 +45,10 @@ interface MobileNavProps {
   onClose: () => void
   onSearch: () => void
   onCycleTheme: () => void
+  closeRef?: { current: (() => void) | null }
 }
 
-export function MobileNav({ theme, shortcutLabel, onClose, onSearch, onCycleTheme }: MobileNavProps) {
+export function MobileNav({ theme, shortcutLabel, onClose, onSearch, onCycleTheme, closeRef: closeHandle }: MobileNavProps) {
   const copy = useT()
   const goHomeTop = useGoHomeTop()
   const locale = useLocale()
@@ -55,55 +58,93 @@ export function MobileNav({ theme, shortcutLabel, onClose, onSearch, onCycleThem
   const licensePending = entitlement.state === 'loading'
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const searchStr = useRouterState({ select: (state) => state.location.searchStr })
-  const hash = useRouterState({ select: (state) => state.location.hash.replace(/^#/, '') })
   const path = stripLocalePrefix(pathname)
+  const activeSection = useActiveHomeSection()
   const sheetRef = useRef<HTMLElement>(null)
   const backdropRef = useRef<HTMLButtonElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
+  const closing = useRef(false)
+  const pendingSection = useRef<string | null>(null)
   const [langOpen, setLangOpen] = useState(false)
   const dark = typeof window !== 'undefined' && themeIsDark(theme)
 
-  function close() {
+  const close = useCallback(() => {
+    if (closing.current) return
+    closing.current = true
     if (prefersReducedMotion() || !sheetRef.current) {
       onClose()
       return
     }
-    gsap.to([backdropRef.current, sheetRef.current], {
+    gsap.to(backdropRef.current, { opacity: 0, duration: motion.duration.instant, ease: motion.ease.exit })
+    gsap.to(sheetRef.current, {
+      x: 28,
       opacity: 0,
-      duration: 0.18,
-      ease: 'power2.in',
+      duration: motion.duration.fast,
+      ease: motion.ease.exit,
       onComplete: onClose,
     })
-  }
+  }, [onClose])
+
+  useEffect(() => {
+    if (!closeHandle) return
+    closeHandle.current = close
+    return () => {
+      closeHandle.current = null
+    }
+  }, [closeHandle, close])
 
   useGSAP(() => {
     if (prefersReducedMotion()) return
     const sheet = sheetRef.current
     if (!sheet) return
-    gsap.from(backdropRef.current, { opacity: 0, duration: 0.18, ease: 'power2.out' })
-    gsap.from(sheet, { x: 16, opacity: 0, duration: 0.24, ease: 'power2.out' })
+    gsap.from(backdropRef.current, { opacity: 0, duration: motion.duration.instant, ease: motion.ease.enter })
+    gsap.from(sheet, { x: 28, opacity: 0, duration: motion.duration.fast, ease: motion.ease.enter })
     gsap.from(sheet.querySelectorAll('.mobile-sheet-header, .mobile-sheet-label, .mobile-sheet-row, .mobile-sheet-search'), {
       y: 4,
       opacity: 0,
-      duration: 0.2,
+      duration: motion.duration.instant,
       stagger: 0.012,
       delay: 0.03,
-      ease: 'power2.out',
+      ease: motion.ease.enter,
     })
   }, { scope: sheetRef })
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const body = document.body
-    const html = document.documentElement
-    const previousBody = body.style.overflow
-    const previousHtml = html.style.overflow
+    const y = window.scrollY
+    const previous = {
+      overflow: body.style.overflow,
+      position: body.style.position,
+      top: body.style.top,
+      width: body.style.width,
+    }
     body.style.overflow = 'hidden'
-    html.style.overflow = 'hidden'
+    body.style.position = 'fixed'
+    body.style.top = `-${y}px`
+    body.style.width = '100%'
     closeRef.current?.focus()
+    return () => {
+      body.style.overflow = previous.overflow
+      body.style.position = previous.position
+      body.style.top = previous.top
+      body.style.width = previous.width
+      const sectionId = pendingSection.current
+      pendingSection.current = null
+      window.scrollTo({ top: y, left: 0, behavior: 'instant' })
+      window.requestAnimationFrame(() => {
+        if (sectionId) document.getElementById(sectionId)?.scrollIntoView({ behavior: 'auto', block: 'start' })
+        else window.scrollTo({ top: y, left: 0, behavior: 'instant' })
+        window.dispatchEvent(new Event('kits:sync-home-section'))
+      })
+    }
+  }, [])
+
+  useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         event.preventDefault()
-        onClose()
+        event.stopPropagation()
+        close()
         return
       }
       const sheet = sheetRef.current
@@ -122,12 +163,8 @@ export function MobileNav({ theme, shortcutLabel, onClose, onSearch, onCycleThem
       }
     }
     document.addEventListener('keydown', onKey)
-    return () => {
-      body.style.overflow = previousBody
-      html.style.overflow = previousHtml
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [onClose])
+    return () => document.removeEventListener('keydown', onKey)
+  }, [close])
 
   function pathActive(to: string) {
     if (to === '/docs') return path === '/docs' || path.startsWith('/docs/')
@@ -135,7 +172,12 @@ export function MobileNav({ theme, shortcutLabel, onClose, onSearch, onCycleThem
   }
 
   function hashActive(itemHash: string) {
-    return (path === '/' || path === '') && hash === itemHash
+    return activeSection === itemHash
+  }
+
+  function closeToSection(sectionId: string) {
+    pendingSection.current = sectionId
+    close()
   }
 
   function pickLocale(next: Locale) {
@@ -163,18 +205,16 @@ export function MobileNav({ theme, shortcutLabel, onClose, onSearch, onCycleThem
           {primaryNav.map((item) => {
             const Icon = hashIcons[item.key]
             return (
-              <LocaleLink
+              <button
                 key={item.hash}
+                type="button"
                 className={`mobile-sheet-row${hashActive(item.hash) ? ' active' : ''}`}
-                to="/"
-                search={explorerSearch}
-                hash={item.hash}
-                resetScroll={false}
-                onClick={close}
+                aria-current={hashActive(item.hash) ? 'true' : undefined}
+                onClick={() => closeToSection(item.hash)}
               >
                 <Icon size={18} aria-hidden="true" />
                 <span>{copy.nav[item.key]}</span>
-              </LocaleLink>
+              </button>
             )
           })}
           {pageNav.map((item) => {
