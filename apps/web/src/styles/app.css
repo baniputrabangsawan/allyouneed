@@ -1047,7 +1047,33 @@ html.kits-scrolled .header-inner,.site-header.is-scrolled .header-inner{backgrou
   .icon-button.mobile-menu{display:none}
 }
 .header-inner nav a.active{color:var(--foreground)}
-.breadcrumb-item{display:inline-flex;align-items:center;gap:8px}
+.breadcrumb{
+  display:flex;
+  flex-wrap:nowrap;
+  align-items:center;
+  justify-content:flex-start;
+  gap:8px;
+  min-width:0;
+  font-size:12px;
+  line-height:1;
+  font-weight:550;
+  color:var(--muted);
+  text-transform:none;
+}
+.breadcrumb-sep{
+  flex:none;
+  display:block;
+  width:12px;
+  height:12px;
+}
+.breadcrumb a,
+.breadcrumb [aria-current=page]{
+  white-space:nowrap;
+}
+.content-page .breadcrumb{margin:0 0 8px}
+@media(max-width:359px){
+  .content-page .breadcrumb{flex-wrap:wrap}
+}
 .content-page .content-header{margin:28px 0 36px;max-width:760px}
 .content-page .content-header h1{margin:0;font-size:clamp(36px,5vw,64px);letter-spacing:-.05em;text-wrap:balance}
 .content-page .content-header>p:last-child{margin:16px 0 0;color:var(--muted);font-size:17px;line-height:1.65;text-wrap:pretty}

@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { ChevronRight } from 'lucide-react'
 import { absoluteUrl } from './site'
 import { LocaleLink } from '@/i18n/link'
@@ -23,23 +24,26 @@ function breadcrumbJsonLd(items: readonly BreadcrumbItem[]) {
   }
 }
 
-export function PageBreadcrumbs({ items }: { items: readonly BreadcrumbItem[] }) {
+export function Breadcrumbs({ items }: { items: readonly BreadcrumbItem[] }) {
   return (
     <>
       <script type="application/ld+json">{JSON.stringify(breadcrumbJsonLd(items))}</script>
       <nav className="breadcrumb" aria-label="Breadcrumb">
         {items.map((item, index) => {
           const last = index === items.length - 1
+          const label = last || !item.to
+            ? <span aria-current={last ? 'page' : undefined}>{item.name}</span>
+            : <LocaleLink to={item.to} params={item.params as never}>{item.name}</LocaleLink>
           return (
-            <span key={`${item.path}-${item.name}`} className="breadcrumb-item">
-              {index > 0 ? <ChevronRight size={14} aria-hidden="true" /> : null}
-              {last || !item.to ? <span>{item.name}</span> : (
-                <LocaleLink to={item.to} params={item.params as never}>{item.name}</LocaleLink>
-              )}
-            </span>
+            <Fragment key={`${item.path}-${item.name}`}>
+              {index > 0 ? <ChevronRight className="breadcrumb-sep" size={12} aria-hidden="true" /> : null}
+              {label}
+            </Fragment>
           )
         })}
       </nav>
     </>
   )
 }
+
+export const PageBreadcrumbs = Breadcrumbs
