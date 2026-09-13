@@ -34,4 +34,4 @@ export const DiscoveryToolCard = memo(function DiscoveryToolCard({ tool, leaving
       <ToolCard tool={tool} action={action} />
     </div>
   )
-}
+})
