@@ -31,7 +31,13 @@ export const Route = createRootRouteWithContext<RouterContext>()({
           : 'Fast, private browser tools for images, code, QR codes, and more.' },
         { title: locale === 'id' ? 'Kits — Semua tool yang Anda butuhkan' : 'Kits — Every tool you need' },
       ],
-      links: [{ rel: 'icon', href: 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><rect width=%2232%22 height=%2232%22 rx=%228%22 fill=%22%23292934%22/><path d=%22M9 9h6v6H9zm8 0h6v6h-6zM9 17h6v6H9zm8 0h6v6h-6z%22 fill=%22white%22/></svg>' }],
+      links: [
+        { rel: 'icon', href: '/favicon.ico', sizes: 'any' },
+        { rel: 'icon', type: 'image/png', sizes: '48x48', href: '/favicon-48x48.png' },
+        { rel: 'icon', type: 'image/png', sizes: '96x96', href: '/favicon-96x96.png' },
+        { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
+        { rel: 'manifest', href: '/site.webmanifest' },
+      ],
     }
   },
   notFoundComponent: NotFound,
