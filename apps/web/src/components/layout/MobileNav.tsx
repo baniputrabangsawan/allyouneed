@@ -16,6 +16,7 @@ import {
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useEntitlement } from '@/features/licensing/entitlement'
 import { isPrimaryNavActive, primaryNavigation } from '@/components/layout/primary-nav'
+import { InstallKitsCTA } from '@/components/common/InstallKitsCTA'
 import { localeLabels, locales, type Locale } from '@/i18n/config'
 import { LocaleLink } from '@/i18n/link'
 import { stripLocalePrefix, switchLocaleLocation, useLocale, useT } from '@/i18n'
@@ -193,6 +194,9 @@ export function MobileNav({ theme, shortcutLabel, onClose, onSearch, onCycleThem
             )
           })}
 
+          <InstallKitsCTA variant="row" />
+
+
           <p className="mobile-sheet-label">{copy.nav.sectionPro}</p>
           {licensePending ? (
             <span className="mobile-sheet-row license-chip-loading" aria-busy="true" aria-label={copy.nav.proLicense}>
@@ -205,7 +209,6 @@ export function MobileNav({ theme, shortcutLabel, onClose, onSearch, onCycleThem
               <span>{entitled ? copy.nav.managePro : copy.nav.license}</span>
             </LocaleLink>
           )}
-
           <p className="mobile-sheet-label">{copy.nav.sectionPreferences}</p>
           <button className="mobile-sheet-row" type="button" onClick={() => setLangOpen((open) => !open)}>
             <Globe size={18} aria-hidden="true" />

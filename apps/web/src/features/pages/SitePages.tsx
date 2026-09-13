@@ -10,6 +10,7 @@ import {
 } from '@/features/pages/marketing'
 import { LocaleLink } from '@/i18n/link'
 import { useLocale, useT } from '@/i18n'
+import { InstallKitsCTA } from '@/components/common/InstallKitsCTA'
 
 function homePath(locale: string) {
   return locale === 'id' ? '/id' : '/'
@@ -82,6 +83,7 @@ export function AboutPage() {
       <CTASection title={p.exploreTools} copy={p.exploreToolsCopy}>
         <LocaleLink className="button primary" to="/tools">{copy.nav.tools}</LocaleLink>
         <LocaleLink className="button" to="/pricing">{copy.nav.pricing}</LocaleLink>
+        <InstallKitsCTA />
       </CTASection>
     </ContentPage>
   )
@@ -191,6 +193,7 @@ export function SupportPage() {
       <CTASection title={copy.pages.exploreTools} copy={copy.pages.exploreToolsCopy}>
         <LocaleLink className="button primary" to="/tools">{copy.nav.tools}</LocaleLink>
         <LocaleLink className="button" to="/docs/troubleshooting">{copy.footer.troubleshooting}</LocaleLink>
+        <InstallKitsCTA />
       </CTASection>
     </ContentPage>
   )

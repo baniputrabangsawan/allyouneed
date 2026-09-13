@@ -116,21 +116,15 @@ function Root() {
       document.getElementById('kits-splash')?.setAttribute('hidden', '')
       document.getElementById('kits-splash-css')?.remove()
     }
-    let frame2 = 0
-    const frame1 = window.requestAnimationFrame(() => {
-      frame2 = window.requestAnimationFrame(() => {
-        if (reduced) {
-          finish()
-          return
-        }
-        html.classList.add('kits-splash-out')
-      })
-    })
-    const timeout = window.setTimeout(finish, reduced ? 0 : 320)
+    if (reduced) {
+      finish()
+      return
+    }
+    const hold = window.setTimeout(() => html.classList.add('kits-splash-out'), 380)
+    const done = window.setTimeout(finish, 600)
     return () => {
-      window.cancelAnimationFrame(frame1)
-      window.cancelAnimationFrame(frame2)
-      window.clearTimeout(timeout)
+      window.clearTimeout(hold)
+      window.clearTimeout(done)
     }
   }, [])
   const admin = pathname === '/admin' || pathname.startsWith('/admin/')
@@ -142,9 +136,11 @@ function Document({ children, lang }: Readonly<{ children: ReactNode; lang: stri
     <html lang={lang} suppressHydrationWarning>
       <head><HeadContent /><script src="/theme.js" /></head>
       <body suppressHydrationWarning>
-        <div id="kits-splash" className="kits-splash-screen" hidden>
+        <div id="kits-splash" className="kits-splash-screen" hidden aria-hidden="true">
           <div className="kits-splash-inner">
-            <img className="kits-splash-icon" src="/icon-192.png" width={88} height={88} alt="" />
+            <div className="kits-splash-mark">
+              <img className="kits-splash-icon" src="/icon-192.png" width={112} height={112} alt="" />
+            </div>
             <p className="kits-splash-wordmark">Kits</p>
             <p className="kits-splash-tagline">Every tool you need.<br />In one place.</p>
             <div className="kits-splash-dots" aria-hidden="true"><span /><span /><span /></div>

@@ -29,3 +29,26 @@ export function shouldShowLaunchSplash(options: {
 export function resolvedThemeBackground(dark: boolean) {
   return dark ? PWA_DARK_BACKGROUND : PWA_LIGHT_BACKGROUND
 }
+
+export type InstallStatus = 'hidden' | 'prompt' | 'ios' | 'installed'
+
+export function isIosDevice(userAgent: string, platform: string, maxTouchPoints: number) {
+  if (/iPhone|iPad|iPod/i.test(userAgent)) return true
+  return platform === 'MacIntel' && maxTouchPoints > 1
+}
+
+export function resolveInstallStatus(options: {
+  standalone: boolean
+  hasPrompt: boolean
+  ios: boolean
+}): InstallStatus {
+  if (options.standalone) return 'installed'
+  if (options.hasPrompt) return 'prompt'
+  if (options.ios) return 'ios'
+  return 'hidden'
+}
+
+export function registerKitsServiceWorker() {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return
+  void navigator.serviceWorker.register('/sw.js')
+}

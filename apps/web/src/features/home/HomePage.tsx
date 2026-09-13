@@ -3,6 +3,7 @@ import { ArrowRight, Clock3, LockKeyhole, Search, ShieldCheck, Sparkles, Star, Z
 import { startTransition, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { AvailabilityFlipGrids } from '@/components/tool/ToolFlipGrid'
 import { HorizontalToolList } from '@/components/tool/HorizontalToolList'
+import { InstallKitsCTA } from '@/components/common/InstallKitsCTA'
 import { partitionByAvailability } from '@/features/tools/tool-availability'
 import {
   filterTools,
@@ -149,7 +150,7 @@ export function Home() {
     <main ref={homeRef}>
       <section className="hero discovery-hero">
         <div className="hero-grid">
-          <div><p className="eyebrow"><Sparkles size={14}/> {copy.home.eyebrow}</p><h1><span className="hero-title-line">{copy.home.titleA}</span><br/><span className="hero-title-line">{copy.home.titleB}</span></h1><p className="hero-copy">{copy.home.copy}</p></div>
+          <div><p className="eyebrow"><Sparkles size={14}/> {copy.home.eyebrow}</p><h1><span className="hero-title-line">{copy.home.titleA}</span><br/><span className="hero-title-line">{copy.home.titleB}</span></h1><p className="hero-copy">{copy.home.copy}</p><div className="hero-actions"><LocaleLink className="button" to="/tools">{copy.footer.explore}</LocaleLink><InstallKitsCTA variant="secondary" /></div></div>
           <div className="hero-proof"><div className="proof-number">{workingCount}</div><p>{copy.home.workingTools}</p><div className="proof-rule"/><span><ShieldCheck size={17}/> {copy.home.mostRunLocally}</span></div>
         </div>
         <div className="search-combobox" onFocus={() => setSearchOpen(true)} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setSearchOpen(false) }}>

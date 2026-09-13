@@ -2,6 +2,7 @@ import { ArrowRight, Grid2X2 } from 'lucide-react'
 import { useRef } from 'react'
 import { footerToolNav } from '@/components/layout/primary-nav'
 import { LanguageChoices } from '@/components/common/LanguageSwitcher'
+import { InstallKitsCTA } from '@/components/common/InstallKitsCTA'
 import { LocaleLink } from '@/i18n/link'
 import { useT } from '@/i18n'
 import { useGoHomeTop } from '@/i18n/navigate'
@@ -32,6 +33,7 @@ export function AppFooter() {
               <ArrowRight size={16} aria-hidden="true" />
             </LocaleLink>
             <LocaleLink className="button" to="/pricing">{copy.footer.getPro}</LocaleLink>
+            <InstallKitsCTA />
           </div>
         </section>
 
@@ -64,6 +66,7 @@ export function AppFooter() {
                     {copy.footer[item.key]}
                   </LocaleLink>
                 ))}
+                <InstallKitsCTA variant="link" />
               </div>
               <div className="footer-nav-group">
                 <strong>{copy.pages.privacyEyebrow}</strong>
