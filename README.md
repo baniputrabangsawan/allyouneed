@@ -14,6 +14,9 @@ Most tools run in the browser. Pro tools that need a server (AI background remov
 └── .env.example Shared environment template
 ```
 
+See [`docs/architecture.md`](docs/architecture.md) for domain boundaries, the processing flow,
+and the checklist for adding a tool without duplicating registry or entitlement logic.
+
 - **Web:** tool explorer, workspaces, command palette (`Ctrl/Cmd K`), theme toggle, `/pricing`, `/license`
 - **API:** entitlement, admin license CLI, file uploads, background jobs
 
@@ -58,6 +61,17 @@ cd apps/api
 uv sync
 uv run playwright install chromium
 ```
+
+The default install keeps admin, licensing, image/PDF/media, and CLI work lightweight. To
+run the self-hosted speech-to-text and Piper text-to-speech providers, install the speech
+extra instead:
+
+```bash
+uv sync --extra speech
+```
+
+Optional background-removal/upscale model runtimes remain in the separate `ai` extra.
+The API Docker image installs `speech` explicitly so its production behavior is unchanged.
 
 HTML to Image needs Chromium. Skip `playwright install` only if you will not run that tool or its tests.
 

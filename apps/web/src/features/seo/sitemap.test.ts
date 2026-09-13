@@ -11,6 +11,12 @@ describe('production sitemap', () => {
 
     expect(new Set(paths).size).toBe(paths.length)
     expect(paths).toContain('/')
+    expect(paths).toContain('/about')
+    expect(paths).toContain('/guides')
+    expect(paths).toContain('/support')
+    expect(paths).toContain('/id/about')
+    expect(paths).toContain('/id/guides')
+    expect(paths).toContain('/id/support')
     expect(paths).toContain('/docs/getting-started')
     expect(paths).not.toContain('/admin')
     expect(paths).not.toContain('/api')

@@ -1,4 +1,5 @@
 import { getLocalStorage, type StorageLike } from './preferences'
+import { migrateToolIds } from '@/features/tools/tool-legacy'
 
 export const FAVORITES_STORAGE_KEY = 'utility:favorites'
 export const RECENT_TOOLS_STORAGE_KEY = 'utility:recent-tools'
@@ -9,7 +10,7 @@ const normalizeToolIds = (value: unknown): string[] | undefined => {
   if (!Array.isArray(value) || !value.every((item) => typeof item === 'string' && item.trim().length > 0)) {
     return undefined
   }
-  return [...new Set(value)]
+  return migrateToolIds(value)
 }
 
 const readToolIds = (key: string, storage: StorageLike | undefined): string[] => {

@@ -1,10 +1,11 @@
 import { useLoaderData, useNavigate, useSearch } from '@tanstack/react-router'
 import { ArrowRight, Clock3, LockKeyhole, Search, ShieldCheck, Sparkles, Star, Zap } from 'lucide-react'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { startTransition, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { AvailabilityFlipGrids } from '@/components/tool/ToolFlipGrid'
 import { HorizontalToolList } from '@/components/tool/HorizontalToolList'
 import { partitionByAvailability } from '@/features/tools/tool-availability'
 import {
+  filterTools,
   homeCategories as categories,
   homeGroups as groups,
   type CategoryFilter,
@@ -20,20 +21,17 @@ import {
 import { LocaleLink } from '@/i18n/link'
 import { useT } from '@/i18n'
 import { useLocaleNavigate } from '@/i18n/navigate'
-import { searchToolsLocalized } from '@/i18n/tools'
 import { useGSAP } from '@/lib/motion/gsap'
-import { isCompactMotion, prefersReducedMotion } from '@/lib/motion/prefers-reduced-motion'
+import { prefersReducedMotion } from '@/lib/motion/prefers-reduced-motion'
 import { refreshScroll, revealSectionOnce } from '@/lib/motion/scroll'
 import { DISCOVERY_STORAGE_EVENT, useFavoriteIds } from '@/lib/storage/discovery'
 import { RECENT_TOOLS_STORAGE_KEY, writeRecentCookie } from '@/lib/storage/tools'
 import { holdElementViewportTop } from '@/lib/storage/scroll'
 
-function filterTools(query: string, category: CategoryFilter, group: GroupFilter) {
-  return searchToolsLocalized(query).filter((tool) =>
-    (category === 'all' || (category === 'converter' ? tool.groups.includes('convert') : tool.category === category))
-    && (group === 'all' || tool.groups.includes(group)),
-  )
-}
+const workingCount = tools.filter((tool) => tool.available).length
+const newestTools = getNewTools().slice(0, 10)
+const popularTools = getPopularTools()
+
 
 function subscribeToDiscovery(callback: () => void) {
   window.addEventListener('storage', callback)
@@ -75,28 +73,26 @@ export function Home() {
   const homeRef = useRef<HTMLElement>(null)
   const catalogRef = useRef<HTMLElement>(null)
   const catalogTopRef = useRef<number | null>(null)
+  const urlSyncRef = useRef<number>(0)
+  const [query, setQuery] = useState(q)
+  const deferredQuery = useDeferredValue(query)
   const [searchOpen, setSearchOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
   const favorites = toolsForIds(useFavoriteIds(ssrFavoriteIds)).slice(0, 10)
   const recent = toolsForIds(useRecentIds(ssrRecentIds))
-  const newest = getNewTools().slice(0, 10)
-  const found = useMemo(() => filterTools(q, category, group), [q, category, group])
+  const found = useMemo(() => filterTools(deferredQuery, category, group), [deferredQuery, category, group])
   const { available: availableMatches, comingSoon: comingSoonMatches } = useMemo(() => partitionByAvailability(found), [found])
-  const suggestions = found.filter((tool) => tool.available).slice(0, 8)
-  const workingCount = tools.filter((tool) => tool.available).length
-  const showDiscovery = !q && category === 'all' && group === 'all'
+  const suggestions = useMemo(
+    () => filterTools(query, category, group).filter((tool) => tool.available).slice(0, 8),
+    [query, category, group],
+  )
+  const liveSearch = Boolean(query.trim()) || query !== deferredQuery
+  const showDiscovery = !deferredQuery && category === 'all' && group === 'all'
 
   useGSAP(() => {
     const root = homeRef.current
     if (!root || prefersReducedMotion()) return
     revealSectionOnce(root.querySelector('.privacy-section'), '.privacy-mark, h2, p, .privacy-points span')
-    if (!isCompactMotion()) return
-    for (const selector of ['#recent', '#favorites', '#new', '.popular', '#all-tools']) {
-      revealSectionOnce(
-        root.querySelector(selector),
-        '.section-heading, .tool-rail, .tool-grid, .tool-availability-group',
-      )
-    }
   }, { scope: homeRef, dependencies: [showDiscovery] })
   useEffect(() => {
     if (recent.length) writeRecentCookie(recent.map((tool) => tool.id))
@@ -112,16 +108,35 @@ export function Home() {
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
   }, [])
+  useEffect(() => {
+    if (inputRef.current === document.activeElement) return
+    setQuery(q)
+  }, [q])
+  useEffect(() => () => window.clearTimeout(urlSyncRef.current), [])
 
   useLayoutEffect(() => {
+    if (liveSearch) return
     holdElementViewportTop(catalogRef.current, catalogTopRef.current)
     catalogTopRef.current = null
     refreshScroll()
-  }, [q, category, group])
+  }, [deferredQuery, category, group, liveSearch])
 
-  function updateSearch(next: Partial<{ q: string; category: CategoryFilter; group: GroupFilter }>, history: 'replace' | 'push' = 'replace') {
+  function commitSearch(next: Partial<{ q: string; category: CategoryFilter; group: GroupFilter }>, history: 'replace' | 'push' = 'replace') {
     catalogTopRef.current = catalogRef.current?.getBoundingClientRect().top ?? null
-    void navigate({ search: { q, category, group, ...next }, replace: history === 'replace', resetScroll: false } as never)
+    void navigate({ search: { q: query, category, group, ...next }, replace: history === 'replace', resetScroll: false } as never)
+  }
+
+  function onQueryChange(value: string) {
+    setQuery(value)
+    setActiveIndex(0)
+    setSearchOpen(true)
+    window.clearTimeout(urlSyncRef.current)
+    urlSyncRef.current = window.setTimeout(() => {
+      startTransition(() => {
+        catalogTopRef.current = catalogRef.current?.getBoundingClientRect().top ?? null
+        void navigate({ search: { q: value, category, group }, replace: true, resetScroll: false } as never)
+      })
+    }, 200)
   }
 
   function openTool(tool: ToolDefinition | undefined) {
@@ -138,32 +153,32 @@ export function Home() {
           <div className="hero-proof"><div className="proof-number">{workingCount}</div><p>{copy.home.workingTools}</p><div className="proof-rule"/><span><ShieldCheck size={17}/> {copy.home.mostRunLocally}</span></div>
         </div>
         <div className="search-combobox" onFocus={() => setSearchOpen(true)} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setSearchOpen(false) }}>
-          <div className="search-box" id="search"><Search size={23}/><input ref={inputRef} value={q} role="combobox" aria-autocomplete="list" aria-controls="home-search-results" aria-expanded={searchOpen && Boolean(q)} aria-activedescendant={searchOpen && suggestions[activeIndex] ? `home-search-option-${activeIndex}` : undefined} onChange={(event) => { updateSearch({ q: event.target.value }); setActiveIndex(0); setSearchOpen(true) }} onKeyDown={(event) => {
+          <div className="search-box" id="search"><Search size={23}/><input ref={inputRef} value={query} role="combobox" aria-autocomplete="list" aria-controls="home-search-results" aria-expanded={searchOpen && Boolean(query)} aria-activedescendant={searchOpen && suggestions[activeIndex] ? `home-search-option-${activeIndex}` : undefined} onChange={(event) => onQueryChange(event.target.value)} onKeyDown={(event) => {
             if (event.key === 'ArrowDown') { event.preventDefault(); setSearchOpen(true); setActiveIndex((index) => (index + 1) % Math.max(suggestions.length, 1)) }
             if (event.key === 'ArrowUp') { event.preventDefault(); setSearchOpen(true); setActiveIndex((index) => (index - 1 + Math.max(suggestions.length, 1)) % Math.max(suggestions.length, 1)) }
             if (event.key === 'Enter' && searchOpen) { event.preventDefault(); openTool(suggestions[activeIndex]) }
             if (event.key === 'Escape') { event.preventDefault(); setSearchOpen(false); inputRef.current?.blur() }
           }} placeholder={copy.home.searchPlaceholder(tools.length)} aria-label={copy.home.searchAria} autoComplete="off"/><kbd>/</kbd></div>
-          {searchOpen && q && <div className="search-suggestions" id="home-search-results" role="listbox" aria-label={copy.home.matchingTools}>{suggestions.map((tool, index) => <button id={`home-search-option-${index}`} role="option" aria-selected={index === activeIndex} className={index === activeIndex ? 'active' : ''} type="button" key={tool.id} onMouseDown={(event) => event.preventDefault()} onMouseEnter={() => setActiveIndex(index)} onClick={() => openTool(tool)}><span><strong>{tool.name}</strong><small>{tool.shortDescription}</small></span><span className="suggestion-category">{copy.category[tool.category] ?? tool.category}</span></button>)}{!suggestions.length && <p>{copy.home.noWorkingMatch}</p>}</div>}
+          {searchOpen && query && <div className="search-suggestions" id="home-search-results" role="listbox" aria-label={copy.home.matchingTools}>{suggestions.map((tool, index) => <button id={`home-search-option-${index}`} role="option" aria-selected={index === activeIndex} className={index === activeIndex ? 'active' : ''} type="button" key={tool.id} onMouseDown={(event) => event.preventDefault()} onMouseEnter={() => setActiveIndex(index)} onClick={() => openTool(tool)}><span><strong>{tool.name}</strong><small>{tool.shortDescription}</small></span><span className="suggestion-category">{copy.category[tool.category] ?? tool.category}</span></button>)}{!suggestions.length && <p>{copy.home.noWorkingMatch}</p>}</div>}
         </div>
-        <FilterPills items={categories} value={category} label={copy.home.categories} getLabel={(item) => copy.category[item] ?? item} onChange={(value) => updateSearch({ category: value }, 'push')}/>
-        <FilterPills items={groups} value={group} label={copy.home.groups} getLabel={(item) => copy.group[item] ?? item} secondary onChange={(value) => updateSearch({ group: value }, 'push')}/>
+        <FilterPills items={categories} value={category} label={copy.home.categories} getLabel={(item) => copy.category[item] ?? item} onChange={(value) => commitSearch({ category: value }, 'push')}/>
+        <FilterPills items={groups} value={group} label={copy.home.groups} getLabel={(item) => copy.group[item] ?? item} secondary onChange={(value) => commitSearch({ group: value }, 'push')}/>
       </section>
 
       {showDiscovery && (
         <div className="discovery-stack">
           <ToolSection id="recent" eyebrow={copy.home.backToWork} title={copy.home.recentlyUsed} icon={<Clock3 size={14}/>} items={recent} empty={copy.home.recentEmpty}/>
           <ToolSection id="favorites" eyebrow={copy.home.savedByYou} title={copy.home.favorites} icon={<Star size={14}/>} items={favorites} empty={copy.home.favoritesEmpty}/>
-          <ToolSection id="new" eyebrow={copy.home.justAdded} title={copy.nav.new} icon={<Sparkles size={14}/>} items={newest} empty={copy.home.newEmpty}/>
-          <section className="page-section popular"><div className="section-heading"><div><p className="eyebrow">{copy.home.startHere}</p><h2>{copy.home.popular}</h2></div><LocaleLink to="/" hash="all-tools" search={{ q, category, group }}>{copy.home.browseAll} <ArrowRight size={16}/></LocaleLink></div><HorizontalToolList items={getPopularTools()} label={copy.home.popular}/></section>
+          <ToolSection id="new" eyebrow={copy.home.justAdded} title={copy.nav.new} icon={<Sparkles size={14}/>} items={newestTools} empty={copy.home.newEmpty}/>
+          <section className="page-section popular"><div className="section-heading"><div><p className="eyebrow">{copy.home.startHere}</p><h2>{copy.home.popular}</h2></div><LocaleLink to="/" hash="all-tools" search={{ q: query, category, group }}>{copy.home.browseAll} <ArrowRight size={16}/></LocaleLink></div><HorizontalToolList items={popularTools} label={copy.home.popular}/></section>
         </div>
       )}
 
       <section ref={catalogRef} className="page-section" id="all-tools">
-        <div className="section-heading"><div><p className="eyebrow">{q || category !== 'all' || group !== 'all' ? copy.home.matches(found.length) : copy.home.utilities(tools.length)}</p><h2>{q ? copy.home.resultsFor(q) : category !== 'all' ? copy.home.categoryTools(copy.category[category] ?? category) : group !== 'all' ? copy.home.groupTools(copy.group[group] ?? group) : copy.home.allTools}</h2></div><LocaleLink to="/tools">{copy.home.openCatalog} <ArrowRight size={16}/></LocaleLink></div>
+        <div className="section-heading"><div><p className="eyebrow">{deferredQuery || category !== 'all' || group !== 'all' ? copy.home.matches(found.length) : copy.home.utilities(tools.length)}</p><h2>{deferredQuery ? copy.home.resultsFor(deferredQuery) : category !== 'all' ? copy.home.categoryTools(copy.category[category] ?? category) : group !== 'all' ? copy.home.groupTools(copy.group[group] ?? group) : copy.home.allTools}</h2></div><LocaleLink to="/tools">{copy.home.openCatalog} <ArrowRight size={16}/></LocaleLink></div>
         {found.length
-          ? <AvailabilityFlipGrids available={availableMatches} comingSoon={comingSoonMatches} />
-          : <div className="no-results"><Search size={28}/><h3>{copy.home.noToolsFound}</h3><p>{copy.home.noToolsHint}</p><button className="button secondary" type="button" onClick={() => updateSearch({ q: '', category: 'all', group: 'all' })}>{copy.home.clearFilters}</button></div>}
+          ? <AvailabilityFlipGrids available={availableMatches} comingSoon={comingSoonMatches} animate={!liveSearch} />
+          : <div className="no-results"><Search size={28}/><h3>{copy.home.noToolsFound}</h3><p>{copy.home.noToolsHint}</p><button className="button secondary" type="button" onClick={() => { setQuery(''); commitSearch({ q: '', category: 'all', group: 'all' }) }}>{copy.home.clearFilters}</button></div>}
       </section>
 
       <section className="page-section privacy-section"><div className="privacy-mark"><ShieldCheck size={28}/></div><div><p className="eyebrow">{copy.home.privacyEyebrow}</p><h2>{copy.home.privacyTitle}</h2><p>{copy.home.privacyCopy}</p></div><div className="privacy-points"><span><LockKeyhole size={18}/><strong>{copy.home.localFirst}</strong>{copy.home.localFirstCopy}</span><span><ShieldCheck size={18}/><strong>{copy.home.clearLabels}</strong>{copy.home.clearLabelsCopy}</span><span><Zap size={18}/><strong>{copy.home.noSignIn}</strong>{copy.home.noSignInCopy}</span></div></section>

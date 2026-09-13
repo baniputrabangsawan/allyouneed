@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from app.core.config import Settings
 from app.core.exceptions import ApiError
-from app.services.job_service import _validate_media_duration
+from app.services.job_validation import validate_media_duration
 from app.tools.registry import tool_registry
 
 
@@ -88,14 +88,14 @@ async def test_combined_media_duration_is_limited(
     async def four_second_probe(_path: Path) -> dict[str, object]:
         return {"format": {"duration": "4"}}
 
-    monkeypatch.setattr("app.services.job_service.probe", four_second_probe)
+    monkeypatch.setattr("app.services.job_validation.probe", four_second_probe)
     monkeypatch.setattr(
-        "app.services.job_service.get_settings",
+        "app.services.job_validation.get_settings",
         lambda: SimpleNamespace(max_media_duration_seconds=5, stt_max_duration_seconds=3),
     )
 
     with pytest.raises(ApiError, match="Combined media duration") as error:
-        await _validate_media_duration(
+        await validate_media_duration(
             tool_registry["audio-merger"], [Path("one.wav"), Path("two.wav")]
         )
 

@@ -130,7 +130,7 @@ function RasterImageWorkspace({ tool }: { tool: ToolDefinition }) {
   const [format, setFormat] = useState<ImageFormat>(() => initialFormat(tool))
   const [quality, setQuality] = useState(mode === 'compress' ? 80 : 90)
   const [compressMode, setCompressMode] = useState<PngCompressMode>('balanced')
-  const [autoOptimize, setAutoOptimize] = useState(true)
+  const [autoOptimize, setAutoOptimize] = useState(false)
   const [optimizeMode, setOptimizeMode] = useState<ImageOptimizeMode>('auto')
   const [width, setWidth] = useState(1200)
   const [height, setHeight] = useState(800)
@@ -333,7 +333,7 @@ function RasterImageWorkspace({ tool }: { tool: ToolDefinition }) {
           ? 1
           : hasQualitySlider
             ? quality / 100
-            : rasterEncodeQuality(format, autoOptimize ? optimizeMode : 'lossless')
+            : autoOptimize ? rasterEncodeQuality(format, optimizeMode) : 1
         const processed = await runImageJob({
           op: 'processImage',
           file,

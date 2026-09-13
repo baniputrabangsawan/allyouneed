@@ -1,42 +1,38 @@
 import { useRouterState } from '@tanstack/react-router'
 import {
   BookOpen,
-  Clock,
+  CircleHelp,
   Globe,
   Grid2X2,
+  Home,
   LayoutGrid,
   Moon,
   Search,
   Sparkles,
-  Star,
   Sun,
   Tag,
   X,
 } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useEntitlement } from '@/features/licensing/entitlement'
-import { pageNav, primaryNav } from '@/components/layout/primary-nav'
+import { isPrimaryNavActive, primaryNavigation } from '@/components/layout/primary-nav'
 import { localeLabels, locales, type Locale } from '@/i18n/config'
 import { LocaleLink } from '@/i18n/link'
 import { stripLocalePrefix, switchLocaleLocation, useLocale, useT } from '@/i18n'
 import { useGoHomeTop, useSwitchLocale } from '@/i18n/navigate'
-import { useActiveHomeSection } from '@/lib/navigation/active-home-section'
 import { gsap, useGSAP } from '@/lib/motion/gsap'
 import { motion } from '@/lib/motion/config'
 import { prefersReducedMotion } from '@/lib/motion/prefers-reduced-motion'
 import { themeIsDark } from '@/lib/theme'
 import type { ThemePreference } from '@/lib/storage/preferences'
 
-const hashIcons = {
-  tools: LayoutGrid,
-  favorites: Star,
-  recent: Clock,
-  new: Sparkles,
-} as const
-
 const pageIcons = {
-  docs: BookOpen,
+  home: Home,
+  tools: LayoutGrid,
+  guides: BookOpen,
+  about: CircleHelp,
   pricing: Tag,
+  support: CircleHelp,
 } as const
 
 interface MobileNavProps {
@@ -59,12 +55,10 @@ export function MobileNav({ theme, shortcutLabel, onClose, onSearch, onCycleThem
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const searchStr = useRouterState({ select: (state) => state.location.searchStr })
   const path = stripLocalePrefix(pathname)
-  const activeSection = useActiveHomeSection()
   const sheetRef = useRef<HTMLElement>(null)
   const backdropRef = useRef<HTMLButtonElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
   const closing = useRef(false)
-  const pendingSection = useRef<string | null>(null)
   const [langOpen, setLangOpen] = useState(false)
   const dark = typeof window !== 'undefined' && themeIsDark(theme)
 
@@ -128,14 +122,7 @@ export function MobileNav({ theme, shortcutLabel, onClose, onSearch, onCycleThem
       body.style.position = previous.position
       body.style.top = previous.top
       body.style.width = previous.width
-      const sectionId = pendingSection.current
-      pendingSection.current = null
       window.scrollTo({ top: y, left: 0, behavior: 'instant' })
-      window.requestAnimationFrame(() => {
-        if (sectionId) document.getElementById(sectionId)?.scrollIntoView({ behavior: 'auto', block: 'start' })
-        else window.scrollTo({ top: y, left: 0, behavior: 'instant' })
-        window.dispatchEvent(new Event('kits:sync-home-section'))
-      })
     }
   }, [])
 
@@ -166,20 +153,6 @@ export function MobileNav({ theme, shortcutLabel, onClose, onSearch, onCycleThem
     return () => document.removeEventListener('keydown', onKey)
   }, [close])
 
-  function pathActive(to: string) {
-    if (to === '/docs') return path === '/docs' || path.startsWith('/docs/')
-    return path === to
-  }
-
-  function hashActive(itemHash: string) {
-    return activeSection === itemHash
-  }
-
-  function closeToSection(sectionId: string) {
-    pendingSection.current = sectionId
-    close()
-  }
-
   function pickLocale(next: Locale) {
     if (next === locale) return
     switchLocale(next, switchLocaleLocation(next, { pathname, searchStr, hash: '' }))
@@ -189,7 +162,7 @@ export function MobileNav({ theme, shortcutLabel, onClose, onSearch, onCycleThem
   return (
     <>
       <button ref={backdropRef} className="mobile-menu-backdrop" type="button" aria-label={copy.nav.closeMenu} onClick={close} />
-      <nav ref={sheetRef} id="mobile-navigation" className="mobile-sheet" aria-label="Mobile primary" aria-modal="true" role="dialog">
+      <nav ref={sheetRef} id="mobile-navigation" className="mobile-sheet" aria-modal="true" aria-label="Mobile primary" role="dialog">
         <div className="mobile-sheet-header">
           <LocaleLink to="/" className="brand" onClick={(event) => { close(); goHomeTop(event) }}>
             <span className="brand-mark"><Grid2X2 size={18} /></span>
@@ -202,29 +175,17 @@ export function MobileNav({ theme, shortcutLabel, onClose, onSearch, onCycleThem
 
         <div className="mobile-sheet-body">
           <p className="mobile-sheet-label">{copy.nav.sectionNav}</p>
-          {primaryNav.map((item) => {
-            const Icon = hashIcons[item.key]
-            return (
-              <button
-                key={item.hash}
-                type="button"
-                className={`mobile-sheet-row${hashActive(item.hash) ? ' active' : ''}`}
-                aria-current={hashActive(item.hash) ? 'true' : undefined}
-                onClick={() => closeToSection(item.hash)}
-              >
-                <Icon size={18} aria-hidden="true" />
-                <span>{copy.nav[item.key]}</span>
-              </button>
-            )
-          })}
-          {pageNav.map((item) => {
+          {primaryNavigation.map((item) => {
             const Icon = pageIcons[item.key]
+            const active = isPrimaryNavActive(item.to, path)
             return (
               <LocaleLink
-                key={item.to}
-                className={`mobile-sheet-row${pathActive(item.to) ? ' active' : ''}`}
+                key={item.key}
+                className={`mobile-sheet-row${active ? ' active' : ''}`}
+                activeProps={{ className: '' }}
+                aria-current={active ? 'page' : undefined}
                 to={item.to}
-                onClick={close}
+                onClick={item.key === 'home' ? (event) => { close(); goHomeTop(event) } : close}
               >
                 <Icon size={18} aria-hidden="true" />
                 <span>{copy.nav[item.key]}</span>
@@ -239,7 +200,7 @@ export function MobileNav({ theme, shortcutLabel, onClose, onSearch, onCycleThem
               <span />
             </span>
           ) : (
-            <LocaleLink className={`mobile-sheet-row${pathActive('/license') ? ' active' : ''}`} to="/license" onClick={close}>
+            <LocaleLink className={`mobile-sheet-row${path === '/license' ? ' active' : ''}`} to="/license" onClick={close}>
               <Sparkles size={18} aria-hidden="true" />
               <span>{entitled ? copy.nav.managePro : copy.nav.license}</span>
             </LocaleLink>

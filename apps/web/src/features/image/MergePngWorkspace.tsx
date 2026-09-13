@@ -72,7 +72,7 @@ export function MergePngWorkspace() {
   const [options, setOptions] = useState<MergeOptions>(defaultMergeOptions)
   const [background, setBackground] = useState<MergeBackground>('transparent')
   const [customColor, setCustomColor] = useState('#808080')
-  const [autoOptimize, setAutoOptimize] = useState(true)
+  const [autoOptimize, setAutoOptimize] = useState(false)
   const [optimizeMode, setOptimizeMode] = useState<ImageOptimizeMode>('auto')
   const [result, setResult] = useState<MergeResult | null>(null)
   const [status, setStatus] = useState<'idle' | 'ready' | 'processing' | 'completed' | 'failed'>('idle')

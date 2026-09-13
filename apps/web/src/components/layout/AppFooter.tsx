@@ -1,26 +1,12 @@
 import { ArrowRight, Grid2X2 } from 'lucide-react'
 import { useRef } from 'react'
-import type { ToolCategory } from '@/features/tools/tool-registry'
+import { footerToolNav } from '@/components/layout/primary-nav'
 import { LanguageChoices } from '@/components/common/LanguageSwitcher'
 import { LocaleLink } from '@/i18n/link'
 import { useT } from '@/i18n'
 import { useGoHomeTop } from '@/i18n/navigate'
 import { revealFooter } from '@/lib/motion/footer'
 import { useGSAP } from '@/lib/motion/gsap'
-
-const explorerSearch = { q: '', category: 'all', group: 'all' } as const
-
-const resourceKeys = [
-  { key: 'imageTools', category: 'image' },
-  { key: 'pdfTools', category: 'pdf' },
-  { key: 'audioTools', category: 'audio' },
-  { key: 'videoTools', category: 'video' },
-  { key: 'developerTools', category: 'developer' },
-  { key: 'qrTools', category: 'qr' },
-  { key: 'textTools', category: 'text' },
-  { key: 'generatorTools', category: 'generator' },
-  { key: 'converterTools', category: 'converter' },
-] as const satisfies ReadonlyArray<{ key: 'imageTools' | 'pdfTools' | 'audioTools' | 'videoTools' | 'developerTools' | 'qrTools' | 'textTools' | 'generatorTools' | 'converterTools'; category: ToolCategory }>
 
 export function AppFooter() {
   const copy = useT()
@@ -61,28 +47,29 @@ export function AppFooter() {
             </div>
             <nav className="footer-nav" aria-label="Footer">
               <div className="footer-nav-group">
-                <strong>{copy.footer.product}</strong>
-                <LocaleLink to="/tools">{copy.footer.allTools}</LocaleLink>
-                <LocaleLink to="/" search={explorerSearch} hash="all-tools" resetScroll={false}>{copy.footer.popular}</LocaleLink>
-                <LocaleLink to="/" search={explorerSearch} hash="new" resetScroll={false}>{copy.nav.new}</LocaleLink>
-                <LocaleLink to="/" search={explorerSearch} hash="favorites" resetScroll={false}>{copy.nav.favorites}</LocaleLink>
-                <LocaleLink to="/" search={explorerSearch} hash="recent" resetScroll={false}>{copy.nav.recent}</LocaleLink>
-                <LocaleLink to="/pricing">{copy.nav.pricing}</LocaleLink>
+                <strong>{copy.footer.company}</strong>
+                <LocaleLink to="/about">{copy.footer.about}</LocaleLink>
+                <LocaleLink to="/contact">{copy.footer.contact}</LocaleLink>
               </div>
               <div className="footer-nav-group">
                 <strong>{copy.footer.resources}</strong>
+                <LocaleLink to="/guides">{copy.footer.guides}</LocaleLink>
                 <LocaleLink to="/docs">{copy.footer.docs}</LocaleLink>
-                <LocaleLink to="/docs/getting-started">{copy.footer.gettingStarted}</LocaleLink>
-                <LocaleLink to="/docs/privacy-and-processing">{copy.footer.privacy}</LocaleLink>
-                <LocaleLink to="/docs/troubleshooting">{copy.footer.troubleshooting}</LocaleLink>
-                {resourceKeys.map((item) => (
-                  <LocaleLink key={item.category} to="/tools/$category" params={{ category: item.category }}>{copy.footer[item.key]}</LocaleLink>
+                <LocaleLink to="/support">{copy.footer.support}</LocaleLink>
+              </div>
+              <div className="footer-nav-group">
+                <strong>{copy.nav.tools}</strong>
+                {footerToolNav.map((item) => (
+                  <LocaleLink key={item.category} to="/tools/$category" params={{ category: item.category }}>
+                    {copy.footer[item.key]}
+                  </LocaleLink>
                 ))}
               </div>
               <div className="footer-nav-group">
-                <strong>{copy.footer.kits}</strong>
-                <LocaleLink to="/pricing">{copy.nav.pricing}</LocaleLink>
-                <LocaleLink to="/license">{copy.nav.license}</LocaleLink>
+                <strong>{copy.pages.privacyEyebrow}</strong>
+                <LocaleLink to="/privacy">{copy.footer.privacyPolicy}</LocaleLink>
+                <LocaleLink to="/terms">{copy.footer.terms}</LocaleLink>
+                <a href="/sitemap.xml">{copy.footer.sitemap}</a>
                 <LanguageChoices />
               </div>
             </nav>

@@ -10,12 +10,12 @@ test('/docs renders the landing page', async ({ page }) => {
 test('known tool guide has Open Tool CTA', async ({ page }) => {
   await page.goto('/docs/tools/compress-image')
   await expect(page.getByRole('heading', { name: 'Compress Image' })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Open Compress Image' })).toHaveAttribute('href', '/compress-image')
+  await expect(page.getByRole('link', { name: 'Open Compress Image' })).toHaveAttribute('href', '/tools/compress-image')
   await expect(page.getByText('Coming Soon. This tool is still under development.')).toHaveCount(0)
 })
 
 test('Coming Soon guide does not claim functionality', async ({ page }) => {
-  await page.goto('/docs/tools/remove-background')
+  await page.goto('/docs/tools/website-screenshot')
   await expect(page.getByText('Coming Soon', { exact: true })).toBeVisible()
   await expect(page.getByRole('link', { name: /Open / })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'How to use' })).toHaveCount(0)

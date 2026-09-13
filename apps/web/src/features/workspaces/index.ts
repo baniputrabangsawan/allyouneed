@@ -68,7 +68,7 @@ export const workspaceComponents = {
 } satisfies Partial<Record<ToolImplementation, WorkspaceComponent>>
 
 export function getSpecialWorkspace(tool: ToolDefinition): WorkspaceComponent | undefined {
-  if (tool.slug === 'word-counter' || tool.slug === 'character-counter') return WordCounterWorkspace
+  if (tool.slug === 'word-counter') return WordCounterWorkspace
   if (tool.slug === 'qris-payload-parser') return QrisParserWorkspace
   if (tool.slug === 'javascript-formatter') return JavaScriptWorkspace
   if (tool.slug === 'html-formatter') return HtmlWorkspace

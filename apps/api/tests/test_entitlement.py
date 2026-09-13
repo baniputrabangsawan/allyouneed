@@ -21,7 +21,6 @@ PRO_TOOL_CAPABILITIES = {
 }
 
 
-
 def test_entitlement_service_defers_signer_without_keys() -> None:
     service = EntitlementService(
         MagicMock(),

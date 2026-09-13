@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { LockKeyhole } from 'lucide-react'
 import type { ToolDefinition } from '@/features/tools/tool-registry'
 import { ActivateLicenseForm } from './ActivateLicenseForm'
-import { hasCapability, useEntitlement } from './entitlement'
+import { canUseTool, useEntitlement } from './entitlement'
 
 export function PremiumGate({ tool, children }: { tool: ToolDefinition; children: ReactNode }) {
   const entitlement = useEntitlement()
@@ -11,7 +11,7 @@ export function PremiumGate({ tool, children }: { tool: ToolDefinition; children
   if (entitlement.state === 'loading') {
     return <section className="workspace entitlement-loading" aria-busy="true" aria-label="Checking license" />
   }
-  if (hasCapability(entitlement.data, tool.requiredCapability)) return children
+  if (canUseTool(tool, entitlement.data)) return children
   return (
     <section className="workspace unavailable-workspace">
       <div className="unavailable-icon"><LockKeyhole size={24} /></div>

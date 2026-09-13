@@ -37,9 +37,7 @@ def _with_progress_pipe(args: list[str]) -> list[str]:
     return [args[0], "-progress", "pipe:1", "-nostats", *args[1:]]
 
 
-async def _emit_progress(
-    on_progress: CommandProgress, fraction: float
-) -> None:
+async def _emit_progress(on_progress: CommandProgress, fraction: float) -> None:
     result = on_progress(fraction)
     if isawaitable(result):
         await result
@@ -84,9 +82,7 @@ async def run_command(
             duration=duration or 0,
         )
     else:
-        stdout, stderr = await _run_simple(
-            process, cancel_event=cancel_event, timeout=timeout
-        )
+        stdout, stderr = await _run_simple(process, cancel_event=cancel_event, timeout=timeout)
 
     if process.returncode:
         detail = stderr.decode(errors="replace")[-1000:]

@@ -39,5 +39,5 @@ async def download(
         raise ApiError(status.HTTP_404_NOT_FOUND, "DOWNLOAD_EXPIRED", "Download is not available.")
     media_type = _MEDIA_TYPES.get(path.suffix.lower())
     if media_type:
-        return FileResponse(path, media_type=media_type)
-    return FileResponse(path)
+        return FileResponse(path, media_type=media_type, filename=path.name)
+    return FileResponse(path, filename=path.name)

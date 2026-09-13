@@ -1,5 +1,6 @@
 import { localeHtml, localeOg, type Locale } from './config'
 import { localizedPath } from './path'
+import { absoluteUrl } from '@/features/seo/site'
 
 export function pageSeo(locale: Locale, path: string, title: string, description: string) {
   const canonical = localizedPath(locale, path)
@@ -14,10 +15,10 @@ export function pageSeo(locale: Locale, path: string, title: string, description
       { property: 'og:locale', content: localeOg[locale] },
     ],
     links: [
-      { rel: 'canonical', href: canonical },
-      { rel: 'alternate', hrefLang: 'en', href: en },
-      { rel: 'alternate', hrefLang: 'id', href: id },
-      { rel: 'alternate', hrefLang: 'x-default', href: en },
+      { rel: 'canonical', href: absoluteUrl(canonical) },
+      { rel: 'alternate', hrefLang: 'en', href: absoluteUrl(en) },
+      { rel: 'alternate', hrefLang: 'id', href: absoluteUrl(id) },
+      { rel: 'alternate', hrefLang: 'x-default', href: absoluteUrl(en) },
     ],
   }
 }

@@ -37,7 +37,6 @@ _MIN_ASPECT = 0.55
 _MAX_ASPECT = 1.7
 
 
-
 @dataclass(frozen=True)
 class FaceDetection:
     box: FaceBox
@@ -113,17 +112,16 @@ def detect_frontal_faces(gray: NDArray[np.uint8]) -> list[FaceBox]:
     return _filter_boxes(_detect_with(cascade, prepared, gray.shape), gray.shape)
 
 
-
 def detect_faces(gray: NDArray[np.uint8]) -> list[FaceBox]:
     return [item.box for item in detect_face_detections(gray)]
 
 
 def detect_face_detections(image: GrayImage | BgrImage) -> list[FaceDetection]:
     if image.ndim == 2:
-        gray = cast(GrayImage, image)
+        gray = image
         bgr = cast(BgrImage, cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR))
     else:
-        bgr = cast(BgrImage, image)
+        bgr = image
         gray = cast(GrayImage, cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY))
     image_height, image_width = gray.shape[:2]
     detections = _detect_yunet(bgr)
@@ -142,10 +140,14 @@ def apply_face_obscure(
 ) -> BgrImage:
     image_height, image_width = bgr.shape[:2]
     expand = _MASK_EXPAND.get(intensity, _MASK_EXPAND["strong"])
-    faces = detections if detections is not None else [
-        FaceDetection(box=box, score=1.0, landmarks=tuple(_landmarks_from_box(box)))
-        for box in boxes
-    ]
+    faces = (
+        detections
+        if detections is not None
+        else [
+            FaceDetection(box=box, score=1.0, landmarks=tuple(_landmarks_from_box(box)))
+            for box in boxes
+        ]
+    )
     combined = np.zeros((image_height, image_width), dtype=np.uint8)
     face_width = 1
     for face in faces:
@@ -191,7 +193,6 @@ def face_contour_hull(
     if scaled.shape[0] < 3:
         return None
     return scaled
-
 
 
 def image_to_bgr(image: Image.Image) -> BgrImage:
@@ -337,6 +338,7 @@ def _filter_detections(
         kept.append(face)
     return kept
 
+
 def _filter_boxes(boxes: list[FaceBox], shape: tuple[int, ...]) -> list[FaceBox]:
     height, width = int(shape[0]), int(shape[1])
     min_side = max(24, int(min(width, height) * 0.04))
@@ -456,7 +458,7 @@ def _refine_with_grabcut(bgr: BgrImage, hull: Polygon, polygon: GrayImage) -> Gr
         cv2.grabCut(
             roi,
             gc,
-            None,
+            (0, 0, 1, 1),
             np.zeros((1, 65), np.float64),
             np.zeros((1, 65), np.float64),
             3,
@@ -468,12 +470,12 @@ def _refine_with_grabcut(bgr: BgrImage, hull: Polygon, polygon: GrayImage) -> Gr
     allowed = np.zeros((height, width), dtype=np.uint8)
     if expanded.shape[0] >= 3:
         cv2.fillPoly(allowed, [expanded.reshape(-1, 1, 2)], 255)
-    fg = cv2.bitwise_and(fg, allowed)
+    fg = cast(GrayImage, cv2.bitwise_and(fg, allowed))
     sure = polygon[y : y + height, x : x + width]
     fg = np.maximum(fg, sure)
     full = polygon.copy()
     full[y : y + height, x : x + width] = fg
-    return cast(GrayImage, full)
+    return full
 
 
 def _padded_bounds_box(
@@ -487,9 +489,6 @@ def _padded_bounds_box(
 ) -> FaceBox:
     pad = _feather_kernel(width, height, intensity) + 2
     return clamp_box(x - pad, y - pad, width + 2 * pad, height + 2 * pad, image_width, image_height)
-
-
-
 
 
 def _inference_image(bgr: BgrImage) -> tuple[BgrImage, float]:
@@ -620,7 +619,6 @@ def _centers_too_close(left: FaceBox, right: FaceBox) -> bool:
     dy = (ay + ah / 2) - (by + bh / 2)
     limit = 0.45 * min(hypot(aw, ah), hypot(bw, bh))
     return hypot(dx, dy) < limit
-
 
 
 def _iou(left: FaceBox, right: FaceBox) -> float:

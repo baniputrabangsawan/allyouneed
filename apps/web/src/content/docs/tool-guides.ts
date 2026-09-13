@@ -213,18 +213,6 @@ export const toolGuides: Record<string, ToolGuide> = {
     ],
     keywords: ['qr', 'barcode', 'generate qr'],
   },
-  'qr-generator': {
-    slug: 'qr-generator',
-    overview: 'QR Generator is the same browser QR workspace as QR Code Generator: text in, PNG and SVG out.',
-    steps: [
-      'Open QR Generator.',
-      'Enter text.',
-      'Adjust colors, size, margin, and error correction if needed.',
-      'Generate, then download PNG or SVG.',
-    ],
-    output: 'PNG and SVG QR images generated locally.',
-    keywords: ['qr', 'generate'],
-  },
   'audio-converter': {
     slug: 'audio-converter',
     overview: 'Audio Converter transcodes audio on the server with FFmpeg. The file is uploaded, processed as a job, then downloaded.',
@@ -300,7 +288,7 @@ export const toolGuides: Record<string, ToolGuide> = {
       'Drop or choose at least two PNG files.',
       'Reorder the list so the images appear in the order you want.',
       'Choose Vertical, Horizontal, or Grid. Gap, padding, alignment, and background stay compact. Extra sizing lives under Advanced options.',
-      'Merge PNG to build the combined image in this browser. Auto optimize output is on by default.',
+      'Merge PNG to build the combined image in this browser. Auto optimize output is off by default.',
       'Preview the result, then download the PNG. The file also downloads automatically once.',
     ],
     optionDocs: [
@@ -309,7 +297,7 @@ export const toolGuides: Record<string, ToolGuide> = {
       { name: 'Alignment', description: 'Places each image inside its column, row, or grid cell. Vertical uses left/center/right. Horizontal uses top/center/bottom. Grid uses both, defaulting to center.' },
       { name: 'Gap / Padding', description: 'Gap is space between images. Padding is the outer margin around the whole canvas. Both range from 0 to 32px.' },
       { name: 'Background', description: 'Transparent leaves pixels unfilled (default). White, black, or a custom color fills the canvas first.' },
-      { name: 'Auto optimize output', description: 'On by default. PNG encoding is optimized locally without changing format or dimensions. Auto / Lossless / Strong are under Advanced options. The download is never larger than the generated file.' },
+      { name: 'Auto optimize output', description: 'Off by default. Turn it on to optimize PNG encoding locally without changing format or dimensions. Auto / Lossless / Strong are under Advanced options. The download is never larger than the generated file.' },
     ],
     output: 'One PNG with preview, image count, dimensions, layout, generated size, optimized size, and saved percentage. Download stays on this page and auto-downloads once.',
     example: 'Two screenshots can be stacked vertically with an 8px gap and a transparent background, then downloaded as a single PNG.',

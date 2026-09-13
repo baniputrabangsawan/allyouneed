@@ -1,4 +1,5 @@
 import { validCategories } from '@/features/catalog/categories'
+import { guideArticles } from '@/content/guides/catalog'
 import { getAllTools } from '@/features/tools/tool-registry'
 import { absoluteUrl } from './site'
 
@@ -9,6 +10,15 @@ const publicDocs = [
   '/docs/troubleshooting',
 ] as const
 
+const publicPages = [
+  '/about',
+  '/contact',
+  '/guides',
+  '/pricing',
+  '/privacy',
+  '/support',
+  '/terms',
+] as const
 const escapeXml = (value: string) =>
   value
     .replaceAll('&', '&amp;')
@@ -25,10 +35,16 @@ export function publicSitemapPaths() {
     '/id/tools',
     ...publicDocs,
     ...publicDocs.map((path) => `/id${path}`),
+    ...publicPages,
+    ...publicPages.map((path) => `/id${path}`),
   ])
   for (const category of validCategories) {
     paths.add(`/tools/${category}`)
     paths.add(`/id/tools/${category}`)
+  }
+  for (const article of guideArticles) {
+    paths.add(`/guides/${article.slug}`)
+    paths.add(`/id/guides/${article.slug}`)
   }
   for (const tool of getAllTools()) {
     if (!tool.available) continue

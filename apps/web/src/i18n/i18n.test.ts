@@ -3,6 +3,7 @@ import { tools } from '@/features/tools/tool-registry'
 import { en } from './en'
 import { id } from './id'
 import { localeFromPathname, localizedPath, stripLocalePrefix, switchLocaleLocation } from './path'
+import { pageSeo } from './seo'
 import { toolsId } from './tools-id'
 import { searchToolsLocalized } from './tools'
 
@@ -60,5 +61,15 @@ describe('locale paths', () => {
       searchStr: '',
       hash: '#how-to',
     })).toBe('/docs/tools/compress-image#how-to')
+  })
+
+  it('builds absolute canonical and alternate URLs', () => {
+    const seo = pageSeo('en', '/pricing', 'Pricing', 'Plans')
+    expect(seo.links).toEqual([
+      { rel: 'canonical', href: 'https://usekits.online/pricing' },
+      { rel: 'alternate', hrefLang: 'en', href: 'https://usekits.online/pricing' },
+      { rel: 'alternate', hrefLang: 'id', href: 'https://usekits.online/id/pricing' },
+      { rel: 'alternate', hrefLang: 'x-default', href: 'https://usekits.online/pricing' },
+    ])
   })
 })

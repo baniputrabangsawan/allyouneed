@@ -9,7 +9,8 @@ import { publicToolAudienceState } from '@/features/tools/tool-availability'
 import { getRelatedTools, getToolBySlug, type ToolDefinition } from '@/features/tools/tool-registry'
 import { getLazyWorkspace } from '@/features/workspaces/lazy-workspaces'
 import { categoryLabel, categorySeoPath, getToolSeo, toolJsonLd } from '@/features/seo/tool-seo'
-import { useLocale } from '@/i18n'
+import { getToolPageCopy } from '@/features/tools/tool-content'
+import { useLocale, type Locale } from '@/i18n'
 import { localizeTool } from '@/i18n/tools'
 import { addRecentTool } from '@/lib/storage/tools'
 
@@ -85,7 +86,6 @@ function InfoSections({ tool }: { tool: ToolDefinition }) {
   const seo = getToolSeo(tool, locale)
   const item = localizeTool(tool, locale)
   const related = getRelatedTools(tool)
-  const formats = [...new Set([...(tool.acceptedFormats ?? []), ...(tool.outputFormats ?? [])])]
   return (
     <>
       {toolJsonLd(tool, locale).map((data, index) => <script key={index} type="application/ld+json">{JSON.stringify(data)}</script>)}
@@ -110,7 +110,7 @@ function InfoSections({ tool }: { tool: ToolDefinition }) {
           <p className="eyebrow">{locale === 'id' ? 'Format' : 'Formats'}</p>
           <h2>{locale === 'id' ? 'Format yang didukung' : 'Supported formats'}</h2>
         </div>
-        <p>{formats.length ? formats.map(formatLabel).join(', ') : (locale === 'id' ? 'Format bergantung pada input tool ini.' : 'Formats depend on the input used with this tool.')}</p>
+        <SupportedFormats tool={tool} locale={locale} />
       </section>
       <section className="privacy-banner">
         <ShieldCheck size={28} />
@@ -143,6 +143,14 @@ function InfoSections({ tool }: { tool: ToolDefinition }) {
   )
 }
 
-function formatLabel(format: string) {
-  return format.replace(/^image\//, '').replace(/^audio\//, '').replace(/^video\//, '').replace(/^application\//, '').replace(/^text\//, '').replace(/^x-/, '').toUpperCase()
+function SupportedFormats({ tool, locale }: { tool: ToolDefinition; locale: Locale }) {
+  const page = getToolPageCopy(tool.slug, locale)
+  const input = page?.inputFormats ?? []
+  const output = page?.outputFormats ?? []
+  return (
+    <div>
+      <p>{locale === 'id' ? 'Input' : 'Input'}: {input.join(', ')}</p>
+      <p>{locale === 'id' ? 'Keluaran' : 'Output'}: {output.join(', ')}</p>
+    </div>
+  )
 }

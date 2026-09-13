@@ -151,9 +151,7 @@ async def test_blur_face_changes_detected_roi_and_keeps_size(tmp_path: Path) -> 
     boxes = detect_frontal_faces(gray)
     assert boxes
     x, y, width, height = boxes[0]
-    result = await get_processor("blur-face").process(
-        [source], output, context=_context(tmp_path)
-    )
+    result = await get_processor("blur-face").process([source], output, context=_context(tmp_path))
     assert output.is_file()
     assert result.metadata["width"] == original_size[0]
     assert result.metadata["height"] == original_size[1]
@@ -193,7 +191,7 @@ def test_privacy_hides_identity_more_than_light() -> None:
     image = np.zeros((160, 160, 3), dtype=np.uint8)
     image[:, :] = (30, 30, 30)
     yy, xx = np.ogrid[:160, :160]
-    face = ((xx - 80) ** 2) / (50 ** 2) + ((yy - 80) ** 2) / (60 ** 2) <= 1
+    face = ((xx - 80) ** 2) / (50**2) + ((yy - 80) ** 2) / (60**2) <= 1
     image[face] = (90, 160, 220)
     image[70:90, 55:75] = (20, 20, 20)
     image[70:90, 85:105] = (20, 20, 20)
@@ -261,7 +259,6 @@ def test_scale_to_original_maps_inference_coords() -> None:
     assert mapped == (20, 40)
 
 
-
 def test_mask_expansion_is_proportional_not_a_square() -> None:
     assert _MASK_EXPAND["light"] == 0.04
     assert _MASK_EXPAND["medium"] == 0.07
@@ -306,7 +303,6 @@ def test_busy_background_does_not_invent_extra_masks() -> None:
     assert np.array_equal(image[10, 10], obscured[10, 10])
     assert np.array_equal(image[185, 185], obscured[185, 185])
     assert not np.array_equal(image[80, 80], obscured[80, 80])
-
 
 
 def test_multiple_faces_get_independent_masks() -> None:
@@ -355,7 +351,7 @@ def _changed_components(original: np.ndarray, obscured: np.ndarray, thresh: int 
 def test_single_face_produces_one_blur_region() -> None:
     image = np.full((180, 180, 3), 24, dtype=np.uint8)
     yy, xx = np.ogrid[:180, :180]
-    face = ((xx - 90) ** 2) / (42 ** 2) + ((yy - 88) ** 2) / (52 ** 2) <= 1
+    face = ((xx - 90) ** 2) / (42**2) + ((yy - 88) ** 2) / (52**2) <= 1
     image[face] = (88, 150, 210)
     detections = [
         FaceDetection(
@@ -374,7 +370,7 @@ def test_single_face_produces_one_blur_region() -> None:
 def test_light_medium_privacy_change_blur_strength() -> None:
     image = np.full((160, 160, 3), 30, dtype=np.uint8)
     yy, xx = np.ogrid[:160, :160]
-    face = ((xx - 80) ** 2) / (48 ** 2) + ((yy - 80) ** 2) / (58 ** 2) <= 1
+    face = ((xx - 80) ** 2) / (48**2) + ((yy - 80) ** 2) / (58**2) <= 1
     image[face] = (90, 160, 220)
     image[70:90, 55:75] = (20, 20, 20)
     image[70:90, 85:105] = (20, 20, 20)
@@ -388,5 +384,3 @@ def test_light_medium_privacy_change_blur_strength() -> None:
 
     assert detail(privacy) < detail(medium) < detail(light)
     assert np.array_equal(image[4, 4], privacy[4, 4])
-
-

@@ -24,11 +24,13 @@ dependencies = [
     "opencv-python-headless>=4.10,<5",
     "playwright>=1.48.0",
     "argon2-cffi>=23.1.0",
-    "faster-whisper>=1.1.0",
-    "piper-tts>=1.2.0",
 ]
 
 [project.optional-dependencies]
+speech = [
+    "faster-whisper>=1.1.0",
+    "piper-tts>=1.2.0",
+]
 ai = [
     "rembg>=2.0.60",
     "torch>=2.4.0",

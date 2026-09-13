@@ -2893,11 +2893,9 @@ dependencies = [
     { name = "cryptography" },
     { name = "dramatiq", extra = ["redis"] },
     { name = "fastapi" },
-    { name = "faster-whisper" },
     { name = "httpx" },
     { name = "opencv-python-headless" },
     { name = "pillow" },
-    { name = "piper-tts" },
     { name = "playwright" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
@@ -2920,6 +2918,10 @@ ai = [
     { name = "torchvision" },
     { name = "transformers" },
 ]
+speech = [
+    { name = "faster-whisper" },
+    { name = "piper-tts" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -2940,12 +2942,12 @@ requires-dist = [
     { name = "dramatiq", extras = ["redis"], specifier = ">=1.17.0" },
     { name = "einops", marker = "extra == 'ai'", specifier = ">=0.8.0" },
     { name = "fastapi", specifier = ">=0.115.0" },
-    { name = "faster-whisper", specifier = ">=1.1.0" },
+    { name = "faster-whisper", marker = "extra == 'speech'", specifier = ">=1.1.0" },
     { name = "httpx", specifier = ">=0.27.0" },
     { name = "kornia", marker = "extra == 'ai'", specifier = ">=0.7.0" },
     { name = "opencv-python-headless", specifier = ">=4.10,<5" },
     { name = "pillow", specifier = ">=11.0.0" },
-    { name = "piper-tts", specifier = ">=1.2.0" },
+    { name = "piper-tts", marker = "extra == 'speech'", specifier = ">=1.2.0" },
     { name = "playwright", specifier = ">=1.48.0" },
     { name = "pydantic", specifier = ">=2.8.0" },
     { name = "pydantic-settings", specifier = ">=2.4.0" },
@@ -2962,7 +2964,7 @@ requires-dist = [
     { name = "transformers", marker = "extra == 'ai'", specifier = ">=4.45.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30.0" },
 ]
-provides-extras = ["ai"]
+provides-extras = ["speech", "ai"]
 
 [package.metadata.requires-dev]
 dev = [

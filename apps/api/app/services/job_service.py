@@ -1,7 +1,6 @@
 import asyncio
 import hashlib
 import json
-import mimetypes
 import shutil
 from functools import partial
 from pathlib import Path
@@ -15,17 +14,18 @@ from app.core.capabilities import capability_for_tool
 from app.core.config import get_settings
 from app.core.enums import JobStatus
 from app.core.exceptions import ApiError
+from app.core.job_payload import input_keys
 from app.core.state_machine import TERMINAL, ensure_transition
 from app.processors.base import ProcessingError, ProcessorContext
-from app.processors.media import MEDIA_TOOLS, resolve_audio_convert_format
-from app.processors.registry import IMAGE_TOOLS, PDF_TOOLS, get_processor
+from app.processors.registry import get_processor
 from app.repositories.jobs import JobRepository
 from app.schemas.jobs import CreateJobRequest, Job
 from app.services.entitlement_service import EntitlementService
 from app.services.job_concurrency import JobConcurrencyLimiter, get_job_concurrency_limiter
+from app.services.job_output import output_format
+from app.services.job_validation import validate_job_payload, validate_media_duration
 from app.services.upload_service import get_upload_service
 from app.tools.registry import Tool, tool_registry
-from app.utils.media import duration_seconds, probe
 from app.utils.media_accept import content_type_accepted
 from app.utils.signing import signed_download_path
 from app.utils.temp import cleanup_work_dir, job_work_dir
@@ -50,7 +50,7 @@ class JobService:
     ) -> Job:
         tool = self._tool(payload.tool_id)
         identity = await self._require_premium(tool, entitlement_token, entitlements)
-        self._validate_payload(tool, payload)
+        validate_job_payload(tool, payload, get_upload_service())
         fingerprint = hashlib.sha256(
             json.dumps(payload.model_dump(mode="json"), sort_keys=True).encode()
         ).hexdigest()
@@ -222,7 +222,7 @@ class JobService:
                 dest = work / f"input-{index}{_source_suffix(upload_service, keys[index], source)}"
                 shutil.copy2(source, dest)
                 inputs.append(dest)
-            await _validate_media_duration(tool, inputs)
+            await validate_media_duration(tool, inputs)
             if not inputs:
                 if tool.id == "html-to-image":
                     inputs = [work / "input-0.html"]
@@ -351,85 +351,6 @@ class JobService:
             )
         return await entitlements.require(entitlement_token, capability or tool.id)
 
-    def _validate_payload(self, tool: Tool, payload: CreateJobRequest) -> None:
-        if not tool.enabled or tool.execution_mode == "disabled":
-            raise ApiError(status.HTTP_404_NOT_FOUND, "JOB_NOT_FOUND", "Tool is not available.")
-        if tool.execution_mode == "local-only":
-            raise ApiError(
-                status.HTTP_422_UNPROCESSABLE_CONTENT,
-                "VALIDATION_ERROR",
-                "Tool must run client-side.",
-            )
-        if tool.id == "audio-converter":
-            try:
-                resolve_audio_convert_format(payload.options)
-            except ProcessingError as exc:
-                raise ApiError(
-                    status.HTTP_422_UNPROCESSABLE_CONTENT,
-                    "UNSUPPORTED_FORMAT",
-                    str(exc),
-                ) from exc
-        if tool.id == "speech-to-text":
-            from app.providers.stt import resolve_stt_format, resolve_stt_language
-
-            try:
-                resolve_stt_format(payload.options)
-                resolve_stt_language(payload.options)
-            except ProcessingError as exc:
-                raise ApiError(
-                    status.HTTP_422_UNPROCESSABLE_CONTENT,
-                    "UNSUPPORTED_FORMAT",
-                    str(exc),
-                ) from exc
-        if tool.id == "text-to-speech":
-            from app.providers.tts import (
-                resolve_tts_format,
-                resolve_tts_speed,
-                resolve_tts_style,
-                resolve_tts_text,
-                resolve_tts_voice,
-            )
-
-            try:
-                resolve_tts_text(str(payload.options.get("text", "")))
-                voice = resolve_tts_voice(payload.options)
-                resolve_tts_style(payload.options, voice)
-                resolve_tts_speed(payload.options)
-                resolve_tts_format(payload.options)
-            except ProcessingError as exc:
-                code = exc.code if exc.code != "PROCESSING_FAILED" else "VALIDATION_ERROR"
-                raise ApiError(
-                    status.HTTP_422_UNPROCESSABLE_CONTENT,
-                    code,
-                    str(exc),
-                ) from exc
-        keys = input_keys(payload.input)
-        allow_empty = (
-            tool.id == "text-to-speech" and bool(str(payload.options.get("text") or "").strip())
-        ) or (tool.id == "html-to-image" and bool(str(payload.options.get("html") or "").strip()))
-        if allow_empty and not keys:
-            return
-        if tool.id == "add-subtitle" and len(keys) != 2:
-            raise ApiError(
-                status.HTTP_422_UNPROCESSABLE_CONTENT,
-                "VALIDATION_ERROR",
-                "Add Subtitle needs one video file and one subtitle file.",
-            )
-        if not keys or len(keys) > tool.max_files:
-            raise ApiError(
-                status.HTTP_422_UNPROCESSABLE_CONTENT,
-                "VALIDATION_ERROR",
-                "Invalid number of input files.",
-            )
-        if len(keys) > get_settings().max_batch_files:
-            raise ApiError(
-                status.HTTP_422_UNPROCESSABLE_CONTENT,
-                "TOO_MANY_FILES",
-                "Too many files in this request.",
-            )
-        for key in keys:
-            get_upload_service().require_completed(key)
-
     @staticmethod
     def _tool(tool_id: str) -> Tool:
         try:
@@ -447,150 +368,6 @@ def _source_suffix(upload_service: Any, file_key: str, source: Path) -> str:
         if suffix:
             return suffix
     return source.suffix.lower()
-
-
-def input_keys(input_data: dict[str, Any]) -> list[str]:
-    if isinstance(input_data.get("fileKey"), str):
-        return [input_data["fileKey"]]
-    files = input_data.get("files")
-    if isinstance(files, list) and all(isinstance(item, str) for item in files):
-        return files
-    return []
-
-
-async def _validate_media_duration(tool: Tool, inputs: list[Path]) -> None:
-    if tool.queue not in {"audio", "video", "stt"}:
-        return
-    settings = get_settings()
-    maximum = (
-        settings.stt_max_duration_seconds
-        if tool.queue == "stt"
-        else settings.max_media_duration_seconds
-    )
-    total = 0.0
-    for source in inputs:
-        media_duration = duration_seconds(await probe(source))
-        if media_duration is not None:
-            total += media_duration
-    if total > maximum:
-        raise ApiError(
-            status.HTTP_422_UNPROCESSABLE_CONTENT,
-            "MEDIA_TOO_LONG",
-            f"Combined media duration exceeds the {maximum}-second safety limit.",
-        )
-
-
-def output_format(tool_id: str, options: dict[str, Any], source: Path) -> tuple[str, str]:
-    fixed = {
-        "convert-to-jpg": "jpg",
-        "png-to-jpg": "jpg",
-        "webp-to-jpg": "jpg",
-        "jpg-to-png": "png",
-        "jpg-to-webp": "webp",
-        "png-to-webp": "webp",
-        "jpg-to-pdf": "pdf",
-        "png-to-pdf": "pdf",
-        "pdf-to-jpg": "jpg",
-        "pdf-to-png": "png",
-        "pdf-metadata-viewer": "json",
-        "pdf-to-text": "json",
-        "video-metadata-viewer": "json",
-        "generate-thumbnail": "jpg",
-        "video-screenshot": "jpg",
-        "extract-audio": "mp3",
-        "extract-audio-from-video": "mp3",
-        "video-to-gif": "gif",
-        "gif-to-video": "mp4",
-        "ocr-pdf": "json",
-        "remove-background": "png",
-        "basic-background-removal": "png",
-    }
-    extension = fixed.get(tool_id)
-    if extension is None and tool_id == "html-to-image":
-        raw = str(options.get("format", "png")).split("/")[-1].lower().replace("jpeg", "jpg")
-        if raw not in {"png", "jpg"}:
-            raise ApiError(
-                status.HTTP_422_UNPROCESSABLE_CONTENT,
-                "UNSUPPORTED_FORMAT",
-                "Output format is not supported.",
-            )
-        extension = raw
-    if extension is None and tool_id == "speech-to-text":
-        from app.providers.stt import resolve_stt_format
-
-        try:
-            extension = resolve_stt_format(options)
-        except ProcessingError as exc:
-            raise ApiError(
-                status.HTTP_422_UNPROCESSABLE_CONTENT,
-                "UNSUPPORTED_FORMAT",
-                str(exc),
-            ) from exc
-    if extension is None and tool_id == "text-to-speech":
-        from app.providers.tts import (
-            resolve_tts_format,
-            resolve_tts_style,
-            resolve_tts_text,
-            resolve_tts_voice,
-        )
-
-        try:
-            resolve_tts_text(str(options.get("text", "")))
-            voice = resolve_tts_voice(options)
-            resolve_tts_style(options, voice)
-            extension = resolve_tts_format(options)
-        except ProcessingError as exc:
-            code = exc.code if exc.code != "PROCESSING_FAILED" else "VALIDATION_ERROR"
-            raise ApiError(
-                status.HTTP_422_UNPROCESSABLE_CONTENT,
-                code,
-                str(exc),
-            ) from exc
-    if extension is None and tool_id == "image-converter":
-        extension = str(options.get("format", "jpeg")).split("/")[-1].replace("jpeg", "jpg")
-    if extension is None and tool_id in PDF_TOOLS:
-        extension = "pdf"
-    if extension is None and tool_id == "add-subtitle":
-        extension = str(options.get("format", "mp4")).split("/")[-1].lower().lstrip(".")
-    if extension is None and tool_id == "audio-converter":
-        try:
-            extension = resolve_audio_convert_format(options).ext
-        except ProcessingError as exc:
-            raise ApiError(
-                status.HTTP_422_UNPROCESSABLE_CONTENT,
-                "UNSUPPORTED_FORMAT",
-                str(exc),
-            ) from exc
-    if extension is None and tool_id in MEDIA_TOOLS:
-        extension = str(options.get("format", "mp4" if "video" in tool_id else "mp3")).lstrip(".")
-    if extension is None and tool_id in IMAGE_TOOLS:
-        extension = source.suffix.lower().lstrip(".").replace("jpeg", "jpg") or "jpg"
-    if extension not in {
-        "jpg",
-        "png",
-        "webp",
-        "avif",
-        "pdf",
-        "json",
-        "txt",
-        "srt",
-        "vtt",
-        "mp3",
-        "wav",
-        "ogg",
-        "m4a",
-        "flac",
-        "opus",
-        "mp4",
-        "webm",
-        "gif",
-    }:
-        raise ApiError(
-            status.HTTP_422_UNPROCESSABLE_CONTENT,
-            "UNSUPPORTED_FORMAT",
-            "Output format is not supported.",
-        )
-    return extension, mimetypes.guess_type(f"result.{extension}")[0] or "application/octet-stream"
 
 
 _service = JobService()
