@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  decodeBase64Text, decodeJwtPayload, encodeBase64Text, hexToRgb, hslToRgb, htmlToMarkdown,
+  contrastForeground, decodeBase64Text, decodeJwtPayload, encodeBase64Text, hexToRgb, hslToRgb, htmlToMarkdown,
   markdownToSafeHtml, rgbToHex, rgbToHsl, secureRandomInt, secureString, transformText,
 } from './workspace-utils'
 
@@ -48,6 +48,10 @@ describe('workspace color and randomness utilities', () => {
     expect(rgbToHex(red)).toBe('#FF0000')
     expect(rgbToHsl(red)).toEqual({ h: 0, s: 100, l: 50 })
     expect(hslToRgb({ h: 240, s: 100, l: 50 })).toEqual({ r: 0, g: 0, b: 255 })
+    expect(contrastForeground('#FFFFFF')).toBe('#111111')
+    expect(contrastForeground('#000000')).toBe('#FFFFFF')
+    expect(contrastForeground('#BFA41D')).toBe('#111111')
+    expect(contrastForeground('#1E3A5F')).toBe('#FFFFFF')
   })
 
   it('keeps secure generated values inside requested boundaries', () => {

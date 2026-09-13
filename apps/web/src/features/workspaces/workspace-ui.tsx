@@ -2,23 +2,36 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useT } from '@/i18n'
 import { downloadBlob } from '@/lib/media/download'
 
-export function CopyButton({ value }: { value: string }) {
+export function CopyButton({ value, label, className, keepWidth }: { value: string; label?: string; className?: string; keepWidth?: boolean }) {
   const copy = useT()
-  const [status, setStatus] = useState<string>(copy.workspace.copy)
+  const idle = label ?? copy.workspace.copy
+  const [status, setStatus] = useState(idle)
   const resetTimer = useRef<number | undefined>(undefined)
   useEffect(() => () => window.clearTimeout(resetTimer.current), [])
+  useEffect(() => { setStatus(idle) }, [idle])
   async function onCopy() {
     if (!value) return
     try {
       await navigator.clipboard.writeText(value)
       setStatus(copy.workspace.copied)
       window.clearTimeout(resetTimer.current)
-      resetTimer.current = window.setTimeout(() => setStatus(copy.workspace.copy), 1500)
+      resetTimer.current = window.setTimeout(() => setStatus(idle), 1500)
     } catch {
       setStatus(copy.workspace.copyFailed)
     }
   }
-  return <button className="button secondary" type="button" disabled={!value} onClick={onCopy}>{status}</button>
+  return (
+    <button className={['button', 'secondary', className].filter(Boolean).join(' ')} type="button" disabled={!value} aria-label={keepWidth ? status : undefined} onClick={onCopy}>
+      {keepWidth ? (
+        <span className="copy-button-label">
+          <span>{idle}</span>
+          <span>{copy.workspace.copied}</span>
+          <span>{copy.workspace.copyFailed}</span>
+          <span className="copy-button-status">{status}</span>
+        </span>
+      ) : status}
+    </button>
+  )
 }
 
 export function DownloadButton({ value, filename, type = 'text/plain', label }: { value: string; filename: string; type?: string; label?: string }) {

@@ -136,4 +136,19 @@ export const hslToRgb = ({ h, s, l }: Hsl): Rgb => {
   return { r: Math.round((red + offset) * 255), g: Math.round((green + offset) * 255), b: Math.round((blue + offset) * 255) }
 }
 
+export const relativeLuminance = ({ r, g, b }: Rgb): number => {
+  const toLinear = (value: number) => {
+    const channel = value / 255
+    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+  }
+  return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b)
+}
+
+export const contrastForeground = (hex: string): '#111111' | '#FFFFFF' => {
+  const luminance = relativeLuminance(hexToRgb(hex))
+  const contrastWithWhite = 1.05 / (luminance + 0.05)
+  const contrastWithBlack = (luminance + 0.05) / 0.05
+  return contrastWithWhite >= contrastWithBlack ? '#FFFFFF' : '#111111'
+}
+
 export const formatBytes = (bytes: number): string => bytes < 1024 ? `${bytes} B` : bytes < 1024 ** 2 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / 1024 ** 2).toFixed(1)} MB`
