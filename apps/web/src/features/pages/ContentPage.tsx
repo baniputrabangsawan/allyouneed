@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { PageBreadcrumbs, type BreadcrumbItem } from '@/features/seo/breadcrumbs'
+import { Breadcrumbs, type BreadcrumbItem } from '@/features/seo/breadcrumbs'
 
 export function ContentPage({
   eyebrow,
@@ -17,7 +17,7 @@ export function ContentPage({
   return (
     <main className="content-page">
       <div className="tool-container">
-        <PageBreadcrumbs items={crumbs} />
+        <Breadcrumbs items={crumbs} />
         <header className="content-header">
           <p className="eyebrow">{eyebrow}</p>
           <h1>{title}</h1>
