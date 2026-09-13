@@ -23,19 +23,29 @@ const contentSecurityPolicy = [
   ...(production ? ["upgrade-insecure-requests"] : []),
 ].join('; ')
 
+function withSecurityHeaders(response: Response) {
+  const headers = new Headers(response.headers)
+  headers.set('Content-Security-Policy', contentSecurityPolicy)
+  if (production) {
+    headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+  }
+  headers.set('X-Content-Type-Options', 'nosniff')
+  headers.set('X-Frame-Options', 'DENY')
+  headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  headers.set('Permissions-Policy', 'camera=(), microphone=(self), geolocation=(), payment=()')
+  headers.set('Cross-Origin-Opener-Policy', 'same-origin')
+  headers.set('Cross-Origin-Resource-Policy', 'same-origin')
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
+
 const securityHeaders = createMiddleware().server(async ({ next }) => {
   const result = await next()
-  result.response.headers.set('Content-Security-Policy', contentSecurityPolicy)
-  if (production) {
-    result.response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
-  }
-  result.response.headers.set('X-Content-Type-Options', 'nosniff')
-  result.response.headers.set('X-Frame-Options', 'DENY')
-  result.response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-  result.response.headers.set('Permissions-Policy', 'camera=(), microphone=(self), geolocation=(), payment=()')
-  result.response.headers.set('Cross-Origin-Opener-Policy', 'same-origin')
-  result.response.headers.set('Cross-Origin-Resource-Policy', 'same-origin')
-  return result
+  if (!result.response) return result
+  return { ...result, response: withSecurityHeaders(result.response) }
 })
 
 export const startInstance = createStart(() => ({
