@@ -60,7 +60,7 @@ export function MemeWorkspace() {
   const [selectedId, setSelectedId] = useState('top')
   const [format, setFormat] = useState<MemeFormat>('image/png')
   const [quality, setQuality] = useState(92)
-  const [autoOptimize, setAutoOptimize] = useState(true)
+  const [autoOptimize, setAutoOptimize] = useState(false)
   const [optimizeMode, setOptimizeMode] = useState<ImageOptimizeMode>('auto')
 
   useEffect(() => () => {

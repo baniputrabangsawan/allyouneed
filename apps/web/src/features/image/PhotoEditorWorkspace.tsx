@@ -78,7 +78,7 @@ export function PhotoEditorWorkspace() {
   const [cropMode, setCropMode] = useState(false)
   const [format, setFormat] = useState<PhotoEditorFormat>('image/jpeg')
   const [quality, setQuality] = useState(90)
-  const [autoOptimize, setAutoOptimize] = useState(true)
+  const [autoOptimize, setAutoOptimize] = useState(false)
   const [optimizeMode, setOptimizeMode] = useState<ImageOptimizeMode>('auto')
   const [result, setResult] = useState<ExportResult | null>(null)
   const [status, setStatus] = useState<'idle' | 'ready' | 'processing' | 'completed' | 'failed'>('idle')
@@ -308,7 +308,7 @@ export function PhotoEditorWorkspace() {
         },
         mime: spec.mime,
         ...(spec.quality == null ? {} : { quality: spec.quality }),
-        optimize: { ...(autoOptimize ? {} : { enabled: false }), mode: optimizeMode },
+        optimize: { enabled: autoOptimize, mode: optimizeMode },
       })
       if (selection !== selectionRef.current) return
       clearResult()

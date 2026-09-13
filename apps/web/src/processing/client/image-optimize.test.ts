@@ -49,7 +49,7 @@ describe('optimizeImageOutput', () => {
   it('never returns a larger PNG and preserves dimensions', async () => {
     const bytes = rgbaGraphic(48, 32)
     const source = new Blob([Uint8Array.from(bytes)], { type: 'image/png' })
-    const result = await optimizeImageOutput(source, { mime: 'image/png', mode: 'auto' })
+    const result = await optimizeImageOutput(source, { mime: 'image/png', mode: 'auto', enabled: true })
     expect(result.mime).toBe('image/png')
     expect(result.optimizedSize).toBeLessThanOrEqual(result.originalSize)
     expect(result.blob.size).toBe(result.optimizedSize)
@@ -59,11 +59,13 @@ describe('optimizeImageOutput', () => {
     expect(result.savedBytes).toBe(result.originalSize - result.optimizedSize)
   })
 
-  it('skips work when disabled and falls back if PNG decode fails', async () => {
+  it('skips PNG work unless enabled is true', async () => {
     const source = new Blob([new Uint8Array([1, 2, 3, 4])], { type: 'image/png' })
+    const omitted = await optimizeImageOutput(source, { mime: 'image/png' })
+    expect(omitted.blob).toBe(source)
     const skipped = await optimizeImageOutput(source, { mime: 'image/png', enabled: false })
     expect(skipped.blob).toBe(source)
-    const fallback = await optimizeImageOutput(source, { mime: 'image/png' })
+    const fallback = await optimizeImageOutput(source, { mime: 'image/png', enabled: true })
     expect(fallback.blob).toBe(source)
     expect(fallback.optimizedSize).toBe(source.size)
   })
@@ -71,7 +73,7 @@ describe('optimizeImageOutput', () => {
   it('keeps screenshot-like PNG dimensions and MIME and never grows the file', async () => {
     const bytes = screenshotPng(64, 40)
     const source = new Blob([Uint8Array.from(bytes)], { type: 'image/png' })
-    const result = await optimizeImageOutput(source, { mime: 'image/png', mode: 'auto' })
+    const result = await optimizeImageOutput(source, { mime: 'image/png', mode: 'auto', enabled: true })
     expect(result.mime).toBe('image/png')
     expect(result.blob.type).toBe('image/png')
     expect(result.blob.size).toBeGreaterThan(0)
@@ -98,10 +100,12 @@ describe('exportCanvasImage', () => {
         callback(new Blob([Uint8Array.from(rgbaGraphic(16, 12))], { type: 'image/png' }))
       },
     } as unknown as HTMLCanvasElement
-    const result = await exportCanvasImage(canvas, 'image/png')
+    const result = await exportCanvasImage(canvas, 'image/png', { enabled: true })
     expect(draws).toEqual(['image/png'])
     expect(result.mime).toBe('image/png')
     expect(result.optimizedSize).toBeLessThanOrEqual(result.originalSize)
+    const passthrough = await exportCanvasImage(canvas, 'image/png')
+    expect(passthrough.savedBytes).toBe(0)
     expect(result.width).toBe(16)
     expect(result.height).toBe(12)
     vi.unstubAllGlobals()
