@@ -1,3 +1,4 @@
+import { memo, type ReactNode } from 'react'
 import {
   AudioLines,
   Braces,
@@ -11,7 +12,6 @@ import {
   Wrench,
   type LucideIcon,
 } from 'lucide-react'
-import type { ReactNode } from 'react'
 import type { ToolDefinition } from '@/features/tools/tool-registry'
 import { LocaleLink } from '@/i18n/link'
 import { useT } from '@/i18n'
@@ -29,7 +29,7 @@ const iconMap: Record<string, LucideIcon> = {
   RefreshCw,
 }
 
-export function ToolCard({ tool, action }: { tool: ToolDefinition; action?: ReactNode }) {
+export const ToolCard = memo(function ToolCard({ tool, action }: { tool: ToolDefinition; action?: ReactNode }) {
   const copy = useT()
   const item = useLocalizedTool(tool)
   const Icon = iconMap[tool.icon] ?? Wrench
@@ -74,4 +74,4 @@ export function ToolCard({ tool, action }: { tool: ToolDefinition; action?: Reac
       </div>
     </div>
   )
-}
+})
