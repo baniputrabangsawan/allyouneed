@@ -5,10 +5,10 @@ import { CommandPalette } from '@/components/common/CommandPalette'
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher'
 import { useEntitlement } from '@/features/licensing/entitlement'
 import { LocaleLink } from '@/i18n/link'
-import { useT } from '@/i18n'
+import { stripLocalePrefix, useT } from '@/i18n'
 import { useGoHomeTop } from '@/i18n/navigate'
 import { MobileNav } from '@/components/layout/MobileNav'
-import { explorerSearch, pageNav, primaryNav } from '@/components/layout/primary-nav'
+import { navItemActive, primaryPageNav } from '@/components/layout/primary-nav'
 import {
   getThemePreference,
   saveThemePreference,
@@ -117,27 +117,31 @@ export function AppHeader() {
   }
 
   const closeMenu = () => setMenuOpen(false)
-  const navLabel = (key: (typeof primaryNav)[number]['key']) => copy.nav[key]
+  const path = stripLocalePrefix(pathname)
 
   return <>
     <header ref={headerRef} className="site-header">
       <div ref={innerRef} className="header-inner bg-background/70 backdrop-blur-xl border border-border/50 shadow-sm rounded-2xl md:rounded-full px-6 md:px-10">
         <LocaleLink to="/" className="brand" onClick={(event) => { closeMenu(); goHomeTop(event) }}><span className="brand-mark"><Grid2X2 size={18} /></span>{copy.brand}</LocaleLink>
         <nav aria-label="Primary">
-          {primaryNav.map((item) => (
-            <LocaleLink key={item.hash} className="transition-colors duration-200" to="/" search={explorerSearch} hash={item.hash} resetScroll={false}>{navLabel(item.key)}</LocaleLink>
-          ))}
-          {pageNav.map((item) => (
-            <LocaleLink key={item.to} className="transition-colors duration-200" to={item.to}>{copy.nav[item.key]}</LocaleLink>
+          {primaryPageNav.map((item) => (
+            <LocaleLink
+              key={item.key}
+              className={navItemActive(path, item.key) ? 'active' : undefined}
+              to={item.to}
+              onClick={item.key === 'home' ? (event) => { closeMenu(); goHomeTop(event) } : closeMenu}
+            >
+              {copy.nav[item.key]}
+            </LocaleLink>
           ))}
         </nav>
         <div className="header-actions">
-          <LicenseStatusLink />
           <button className="search-shortcut" type="button" onClick={() => setPaletteOpen(true)} aria-label={copy.nav.searchAria} aria-keyshortcuts="Control+K Meta+K">
             <Search size={16} aria-hidden="true" />
             {copy.nav.search}
             <kbd className="hidden sm:inline-flex items-center rounded-md border border-border/60 bg-muted/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground shadow-sm">{shortcutLabel}</kbd>
           </button>
+          <LicenseStatusLink />
           <div className="header-desktop-controls">
             <LanguageSwitcher />
             <button className="icon-button" type="button" onClick={cycleTheme} aria-label={`${copy.nav.theme}: ${theme}`} title={`${copy.nav.theme}: ${theme}`}>
