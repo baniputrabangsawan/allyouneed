@@ -52,9 +52,9 @@ test('browser back restores the previous category filter', async ({ page }) => {
 test('tool page and pricing survive hard refresh', async ({ page }) => {
   await page.goto('/json-formatter')
   await waitForClient(page)
-  await expect(page.getByRole('heading', { name: 'JSON Formatter' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'JSON Formatter', level: 1 })).toBeVisible()
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'JSON Formatter' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'JSON Formatter', level: 1 })).toBeVisible()
   await page.goto('/pricing')
   await waitForClient(page)
   await expect(page.getByRole('heading', { name: /Simple pricing/i })).toBeVisible()

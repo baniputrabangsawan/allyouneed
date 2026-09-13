@@ -213,18 +213,6 @@ export const toolGuides: Record<string, ToolGuide> = {
     ],
     keywords: ['qr', 'barcode', 'generate qr'],
   },
-  'qr-generator': {
-    slug: 'qr-generator',
-    overview: 'QR Generator is the same browser QR workspace as QR Code Generator: text in, PNG and SVG out.',
-    steps: [
-      'Open QR Generator.',
-      'Enter text.',
-      'Adjust colors, size, margin, and error correction if needed.',
-      'Generate, then download PNG or SVG.',
-    ],
-    output: 'PNG and SVG QR images generated locally.',
-    keywords: ['qr', 'generate'],
-  },
   'audio-converter': {
     slug: 'audio-converter',
     overview: 'Audio Converter transcodes audio on the server with FFmpeg. The file is uploaded, processed as a job, then downloaded.',

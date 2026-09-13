@@ -138,8 +138,8 @@ def _load_quality_model() -> Any:
 
 def _load_rembg_session(name: str) -> Any:
     try:
-        import onnxruntime as ort  # type: ignore[import-not-found]
-        from rembg import new_session, remove  # type: ignore[import-not-found]
+        import onnxruntime as ort  # type: ignore[import-untyped]
+        from rembg import new_session, remove  # type: ignore[import-untyped]
     except ImportError as exc:
         raise ProcessingError(_MODEL_UNAVAILABLE_MESSAGE, code=ERROR_MODEL) from exc
     sess_opts = ort.SessionOptions()
@@ -176,9 +176,9 @@ def _torch_cuda_build_present() -> bool:
 
 def _try_load_cuda_birefnet() -> Any | None:
     try:
-        import torch  # type: ignore[import-not-found]
-        from torchvision import transforms  # type: ignore[import-not-found]
-        from transformers import AutoModelForImageSegmentation  # type: ignore[import-not-found]
+        import torch
+        from torchvision import transforms  # type: ignore[import-untyped]
+        from transformers import AutoModelForImageSegmentation
     except ImportError:
         return None
     device = _select_torch_device(torch)

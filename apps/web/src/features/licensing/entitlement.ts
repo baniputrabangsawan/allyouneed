@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useSyncExternalStore } from 'react'
 import { ApiError } from '@/lib/api/client'
-import { getLicenseStatus, type LicenseStatusView } from '@/lib/api/licenses'
+import { getLicenseStatus } from '@/lib/api/licenses'
 import {
   ENTITLEMENT_STORAGE_EVENT,
   clearEntitlement,
@@ -9,6 +9,9 @@ import {
   getStoredEntitlementToken,
   type EntitlementCache,
 } from '@/lib/storage/entitlement'
+import type { ToolDefinition } from '@/features/tools/tool-registry'
+import type { Entitlement, LicenseStatusView } from './types'
+import { entitlementQueryKeys } from './query-keys'
 
 export type EntitlementState = 'loading' | 'free' | 'pro'
 
@@ -60,7 +63,7 @@ export function useEntitlement() {
   const token = useStoredEntitlementToken()
   const cached = hydrated ? getStoredEntitlementCache() : undefined
   const query = useQuery({
-    queryKey: ['license-status', token],
+    queryKey: entitlementQueryKeys.status(token),
     queryFn: async () => {
       try {
         return await getLicenseStatus()
@@ -85,16 +88,21 @@ export function useEntitlement() {
   return { ...query, state }
 }
 
-export function isPro(status: LicenseStatusView | EntitlementCache | undefined) {
+export function isPro(status: Entitlement | undefined) {
   return status?.status === 'active'
 }
 
 export function hasCapability(
-  status: LicenseStatusView | EntitlementCache | undefined,
+  status: Entitlement | undefined,
   capability: string | undefined,
 ) {
   if (!capability) return isPro(status)
   return Boolean(isPro(status) && status?.capabilities.includes(capability))
+}
+
+export function canUseTool(tool: ToolDefinition, entitlement: Entitlement | undefined): boolean {
+  if (!tool.requiresPro) return true
+  return hasCapability(entitlement, tool.requiredCapability)
 }
 
 function cacheToStatus(cache: EntitlementCache): LicenseStatusView {

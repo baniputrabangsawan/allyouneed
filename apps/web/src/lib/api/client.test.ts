@@ -74,4 +74,24 @@ describe('API client', () => {
     const headers = new Headers(init?.headers)
     expect(headers.get('X-Entitlement-Token')).toBe('token.sig')
   })
+
+  it('does not leak configured API headers to an external absolute URL', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await createApiClient({
+      baseUrl: 'https://api.example.test',
+      headers: () => ({
+        'X-Entitlement-Token': 'token.sig',
+        'X-CSRF-Token': 'csrf-secret',
+      }),
+    }).request('https://storage.example.test/presigned-object', {
+      method: 'PUT',
+      body: new Blob(['file']),
+    })
+
+    const headers = new Headers(fetchMock.mock.calls[0]?.[1]?.headers)
+    expect(headers.has('X-Entitlement-Token')).toBe(false)
+    expect(headers.has('X-CSRF-Token')).toBe(false)
+  })
 })

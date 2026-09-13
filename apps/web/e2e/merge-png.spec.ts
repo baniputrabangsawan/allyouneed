@@ -13,7 +13,8 @@ function crc32(bytes: Uint8Array) {
   let crc = 0xffffffff
   for (const byte of bytes) {
     crc ^= byte
-    for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1))
+    for (let bit = 0; bit < 8; bit += 1)
+      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1))
   }
   return (crc ^ 0xffffffff) >>> 0
 }
@@ -62,20 +63,29 @@ async function readDownloadPng(page: Page) {
   return Buffer.concat(chunks)
 }
 
-test('merges two PNGs locally with reorder, vertical, and horizontal layouts', async ({ page }) => {
+test('merges two PNGs locally with reorder, vertical, and horizontal layouts', async ({
+  page,
+}) => {
   const errors: string[] = []
   const requests: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   page.on('request', (request) => {
     const url = request.url()
-    if (url.includes('/api/v1/uploads') || url.includes('/api/v1/jobs') || url.includes('/r2') || url.includes('/api/v1/files')) {
+    if (
+      url.includes('/api/v1/uploads') ||
+      url.includes('/api/v1/jobs') ||
+      url.includes('/r2') ||
+      url.includes('/api/v1/files')
+    ) {
       requests.push(`${request.method()} ${url}`)
     }
   })
 
   await page.goto('/merge-png')
   await waitForClient(page)
-  await expect(page.getByRole('heading', { name: 'Merge PNG' })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Merge PNG', level: 1 }),
+  ).toBeVisible()
   await expect(page.getByText('is not available yet')).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Merge PNG' })).toBeDisabled()
 
@@ -85,7 +95,9 @@ test('merges two PNGs locally with reorder, vertical, and horizontal layouts', a
   ])
   await expect(page.getByText('first.png')).toBeVisible()
   await expect(page.getByText('second.png')).toBeVisible()
-  await expect(page.getByRole('img', { name: 'Merge layout preview' })).toBeVisible()
+  await expect(
+    page.getByRole('img', { name: 'Merge layout preview' }),
+  ).toBeVisible()
 
   const names = page.locator('.merge-file-meta strong')
   await expect(names.nth(0)).toHaveText('first.png')
@@ -96,12 +108,18 @@ test('merges two PNGs locally with reorder, vertical, and horizontal layouts', a
 
   await page.getByRole('button', { name: 'Vertical' }).click()
   await page.getByRole('button', { name: 'Merge PNG' }).click()
-  await expect(page.getByRole('img', { name: 'Merged PNG result' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Download again' })).toBeVisible()
+  await expect(
+    page.getByRole('img', { name: 'Merged PNG result' }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'Download again' }),
+  ).toBeVisible()
   await expect(page.getByText('32×40px')).toBeVisible()
 
   const vertical = await readDownloadPng(page)
-  expect([...vertical.subarray(0, 8)]).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+  expect([...vertical.subarray(0, 8)]).toEqual([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+  ])
   expect(vertical.readUInt32BE(16)).toBe(32)
   expect(vertical.readUInt32BE(20)).toBe(40)
 
@@ -109,16 +127,20 @@ test('merges two PNGs locally with reorder, vertical, and horizontal layouts', a
   await page.getByRole('button', { name: 'Merge PNG' }).click()
   await expect(page.getByText('56×24px')).toBeVisible()
   const horizontal = await readDownloadPng(page)
-  expect([...horizontal.subarray(0, 8)]).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+  expect([...horizontal.subarray(0, 8)]).toEqual([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+  ])
   expect(horizontal.readUInt32BE(16)).toBe(56)
   expect(horizontal.readUInt32BE(20)).toBe(24)
 
   await page.getByRole('button', { name: 'Grid' }).click()
   await page.getByRole('button', { name: 'Merge PNG' }).click()
-  await expect(page.getByText('56×24px')).toBeVisible()
+  await expect(page.getByText('64×24px')).toBeVisible()
   const grid = await readDownloadPng(page)
-  expect([...grid.subarray(0, 8)]).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
-  expect(grid.readUInt32BE(16)).toBe(56)
+  expect([...grid.subarray(0, 8)]).toEqual([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+  ])
+  expect(grid.readUInt32BE(16)).toBe(64)
   expect(grid.readUInt32BE(20)).toBe(24)
 
   expect(requests).toEqual([])
@@ -128,7 +150,15 @@ test('merges two PNGs locally with reorder, vertical, and horizontal layouts', a
 test('merge png docs stay client-side and available', async ({ page }) => {
   await page.goto('/docs/tools/merge-png')
   await expect(page.getByRole('heading', { name: 'Merge PNG' })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Open Merge PNG' })).toHaveAttribute('href', '/merge-png')
-  await expect(page.getByText('Coming Soon. This tool is still under development.')).toHaveCount(0)
-  await expect(page.getByText(/does not need to be uploaded to the Kits processing server/i)).toBeVisible()
+  await expect(
+    page.getByRole('link', { name: 'Open Merge PNG' }),
+  ).toHaveAttribute('href', '/tools/merge-png')
+  await expect(
+    page.getByText('Coming Soon. This tool is still under development.'),
+  ).toHaveCount(0)
+  await expect(
+    page.getByText(
+      /does not need to be uploaded to the Kits processing server/i,
+    ),
+  ).toBeVisible()
 })

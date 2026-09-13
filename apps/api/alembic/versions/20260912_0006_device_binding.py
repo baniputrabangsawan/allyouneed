@@ -30,7 +30,9 @@ def upgrade() -> None:
         sa.Column("redeemed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
     )
-    op.create_index("ix_license_transfers_token_hash", "license_transfers", ["token_hash"], unique=True)
+    op.create_index(
+        "ix_license_transfers_token_hash", "license_transfers", ["token_hash"], unique=True
+    )
     op.create_index("ix_license_transfers_license_id", "license_transfers", ["license_id"])
     op.create_index("ix_license_transfers_expires_at", "license_transfers", ["expires_at"])
 

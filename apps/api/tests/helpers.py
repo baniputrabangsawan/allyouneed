@@ -9,7 +9,9 @@ from app.core.license_crypto import generate_device_secret
 DEVICE_SECRET = generate_device_secret()
 
 
-def activate_json(license_key: str, installation_id: str, secret: str | None = None) -> dict[str, str]:
+def activate_json(
+    license_key: str, installation_id: str, secret: str | None = None
+) -> dict[str, str]:
     return {
         "licenseKey": license_key,
         "installationId": installation_id,

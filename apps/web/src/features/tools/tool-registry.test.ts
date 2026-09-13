@@ -40,7 +40,7 @@ describe('tool registry', () => {
   })
 
   it('includes every documented section and conversion grouping', () => {
-    expect(tools.length).toBe(161)
+    expect(tools.length).toBe(153)
     expect(getToolBySlug('social-media-image-resizer')).toBeDefined()
     expect(getToolBySlug('certificate-generator')).toBeDefined()
     expect(getToolsByGroup('convert').length).toBeGreaterThan(0)
@@ -106,6 +106,7 @@ describe('tool registry', () => {
     expect(getToolBySlug('noise-reduction')).toMatchObject({ requiresPro: true, requiredCapability: 'audio.noise_reduction' })
     expect(getToolBySlug('upscale-image')).toMatchObject({ requiresPro: true, requiredCapability: 'image.ai.upscale' })
     expect(getToolBySlug('ocr-pdf')).toMatchObject({ requiresPro: true, requiredCapability: 'document.ocr.advanced' })
+    expect(getAllTools().every((tool) => tool.requiresPro === Boolean(tool.requiredCapability))).toBe(true)
   })
 
   it('searches names, descriptions, and aliases', () => {

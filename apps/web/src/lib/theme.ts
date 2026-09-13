@@ -16,6 +16,8 @@ export function applyThemePreference(theme: ThemePreference) {
   if (hashEl) hashEl.id = ''
   html.setAttribute('data-theme', theme)
   html.classList.toggle('dark', themeIsDark(theme))
+  const themeColor = document.querySelector('meta[name="theme-color"]')
+  if (themeColor) themeColor.setAttribute('content', themeIsDark(theme) ? '#111114' : '#f5f5fa')
   window.scrollTo({ left: x, top: y, behavior: 'auto' })
   if (hashEl) hashEl.id = hashId
   window.scrollTo({ left: x, top: y, behavior: 'auto' })

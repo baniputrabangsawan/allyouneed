@@ -36,9 +36,7 @@ async def restore_license(
     payload: RestoreEntitlementRequest,
     service: Annotated[EntitlementService, Depends(entitlement_service)],
 ) -> DataResponse[EntitlementPayload]:
-    return DataResponse(
-        data=await service.restore(payload.installation_id, payload.device_secret)
-    )
+    return DataResponse(data=await service.restore(payload.installation_id, payload.device_secret))
 
 
 @router.post("/refresh", response_model=DataResponse[EntitlementPayload])

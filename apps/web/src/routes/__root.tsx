@@ -26,7 +26,13 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       meta: [
         { charSet: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { name: 'theme-color', content: '#292934' },
+        { name: 'theme-color', content: '#111114' },
+        { name: 'color-scheme', content: 'dark light' },
+        { name: 'mobile-web-app-capable', content: 'yes' },
+        { name: 'apple-mobile-web-app-capable', content: 'yes' },
+        { name: 'apple-mobile-web-app-title', content: 'Kits' },
+        { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
+        { name: 'msapplication-TileColor', content: '#111114' },
         { name: 'description', content: locale === 'id'
           ? 'Tools browser cepat dan privat untuk gambar, kode, QR, dan lainnya.'
           : 'Fast, private browser tools for images, code, QR codes, and more.' },
@@ -62,7 +68,7 @@ function Root() {
     const html = document.documentElement
     const reveal = () => {
       html.style.visibility = ''
-      html.style.background = ''
+      if (!html.classList.contains('kits-splash')) html.style.background = ''
     }
     if (restoreKeepScroll()) {
       reveal()
@@ -100,10 +106,54 @@ function Root() {
 
   useEffect(() => { ensureInstallationId() }, [])
   useEffect(() => { void cleanupExpiredFiles() }, [])
+  useEffect(() => {
+    const html = document.documentElement
+    if (!html.classList.contains('kits-splash')) return
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const finish = () => {
+      html.classList.remove('kits-splash', 'kits-splash-out')
+      html.style.background = ''
+      document.getElementById('kits-splash')?.setAttribute('hidden', '')
+      document.getElementById('kits-splash-css')?.remove()
+    }
+    let frame2 = 0
+    const frame1 = window.requestAnimationFrame(() => {
+      frame2 = window.requestAnimationFrame(() => {
+        if (reduced) {
+          finish()
+          return
+        }
+        html.classList.add('kits-splash-out')
+      })
+    })
+    const timeout = window.setTimeout(finish, reduced ? 0 : 320)
+    return () => {
+      window.cancelAnimationFrame(frame1)
+      window.cancelAnimationFrame(frame2)
+      window.clearTimeout(timeout)
+    }
+  }, [])
   const admin = pathname === '/admin' || pathname.startsWith('/admin/')
   return <Document lang={documentLang(locale)}><QueryClientProvider client={queryClient}><a className="skip-link" href="#main-content">{copy.nav.skip}</a>{!admin && <AppHeader />}<div id="main-content" tabIndex={-1}><Outlet /></div>{!admin && <AppFooter />}</QueryClientProvider></Document>
 }
 
 function Document({ children, lang }: Readonly<{ children: ReactNode; lang: string }>) {
-  return <html lang={lang} suppressHydrationWarning><head><HeadContent /><script src="/theme.js" /></head><body suppressHydrationWarning>{children}<script src="/restore-scroll.js" /><Scripts /></body></html>
+  return (
+    <html lang={lang} suppressHydrationWarning>
+      <head><HeadContent /><script src="/theme.js" /></head>
+      <body suppressHydrationWarning>
+        <div id="kits-splash" className="kits-splash-screen" hidden>
+          <div className="kits-splash-inner">
+            <img className="kits-splash-icon" src="/icon-192.png" width={88} height={88} alt="" />
+            <p className="kits-splash-wordmark">Kits</p>
+            <p className="kits-splash-tagline">Every tool you need.<br />In one place.</p>
+            <div className="kits-splash-dots" aria-hidden="true"><span /><span /><span /></div>
+          </div>
+        </div>
+        {children}
+        <script src="/restore-scroll.js" />
+        <Scripts />
+      </body>
+    </html>
+  )
 }

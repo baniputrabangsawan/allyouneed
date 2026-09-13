@@ -39,7 +39,6 @@ const implementationWorkspaces: Partial<Record<ToolImplementation, LazyWorkspace
 
 const specialWorkspaces: Record<string, LazyWorkspace> = {
   'word-counter': workspace(() => import('./WordCounterWorkspace'), 'WordCounterWorkspace'),
-  'character-counter': workspace(() => import('./WordCounterWorkspace'), 'WordCounterWorkspace'),
   'qris-payload-parser': workspace(() => import('./QrisParserWorkspace'), 'QrisParserWorkspace'),
   'javascript-formatter': workspace(() => import('./JavaScriptWorkspace'), 'JavaScriptWorkspace'),
   'html-formatter': workspace(() => import('./HtmlWorkspace'), 'HtmlWorkspace'),

@@ -10,7 +10,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && pip install --no-cache-dir uv
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev \
+RUN uv sync --frozen --no-dev --extra speech \
     && .venv/bin/playwright install --with-deps chromium
 
 COPY app ./app

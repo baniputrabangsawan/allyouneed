@@ -2,12 +2,14 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 import { CategoryCatalog } from '@/features/catalog/CategoryCatalog'
 import { validCategories } from '@/features/catalog/categories'
 import { getToolBySlug, type ToolCategory } from '@/features/tools/tool-registry'
+import { throwIfLegacyTool } from '@/features/tools/tool-legacy'
 import { categoryLabel, categorySeoPath, toolHead } from '@/features/seo/tool-seo'
 import { absoluteUrl } from '@/features/seo/site'
 import { ToolRoute } from '@/features/tools/ToolPage'
 
 export const Route = createFileRoute('/tools/$category')({
   beforeLoad: ({ params }) => {
+    throwIfLegacyTool(params.category, 'tools', 'en')
     const tool = getToolBySlug(params.category)
     if (tool) return { tool }
     if (!validCategories.includes(params.category as ToolCategory)) throw notFound()

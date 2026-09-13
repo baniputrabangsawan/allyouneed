@@ -1,4 +1,5 @@
 import { getRelatedTools, getToolBySlug, type ToolDefinition } from '@/features/tools/tool-registry'
+import { getToolPageCopy } from '@/features/tools/tool-content'
 import type { Locale } from '@/i18n/config'
 import { localizeTool } from '@/i18n/tools'
 import { absoluteUrl, seoImage, SITE_NAME, SITE_URL } from './site'
@@ -80,15 +81,6 @@ const priorityCopy: Record<string, Partial<Record<Locale, Partial<ToolSeoCopy>>>
   },
 }
 
-const fallbackSteps = {
-  en: ['Open the tool page.', 'Add your file or text.', 'Choose the available options.', 'Process the tool.', 'Download or copy the result.'],
-  id: ['Buka halaman tool.', 'Tambahkan file atau teks.', 'Pilih opsi yang tersedia.', 'Jalankan proses.', 'Unduh atau salin hasilnya.'],
-}
-
-const fallbackBenefits = {
-  en: ['Works in a focused web interface.', 'Uses clear processing labels.', 'Keeps related tools close when you need another conversion.'],
-  id: ['Bekerja di antarmuka web yang fokus.', 'Menampilkan label pemrosesan dengan jelas.', 'Menyediakan tool terkait saat Anda perlu konversi lain.'],
-}
 
 export function toolSeoPath(locale: Locale, slug: string) {
   return locale === 'id' ? `/id/tools/${slug}` : `/tools/${slug}`
@@ -96,23 +88,25 @@ export function toolSeoPath(locale: Locale, slug: string) {
 
 export function getToolSeo(tool: ToolDefinition, locale: Locale): ToolSeoCopy {
   const localized = localizeTool(tool, locale)
+  const page = getToolPageCopy(tool.slug, locale)
   const custom = priorityCopy[tool.slug]?.[locale] ?? {}
   const isId = locale === 'id'
+  const processing = tool.processingMode === 'client'
+    ? (isId ? 'Pemrosesan berjalan di browser.' : 'Processing runs in your browser.')
+    : (isId ? 'Pemrosesan memakai server Kits.' : 'Processing uses the Kits server.')
   const title = custom.title ?? `${localized.name} Online | ${SITE_NAME}`
-  const description = custom.description ?? (isId
-    ? `${localized.name} online dengan Kits. ${localized.shortDescription} Pemrosesan ${tool.processingMode === 'client' ? 'berjalan di browser' : 'dilakukan di server Kits'}.`
-    : `${localized.name} online with Kits. ${localized.shortDescription} Processing ${tool.processingMode === 'client' ? 'runs in your browser' : 'uses the Kits server'}.`)
-  const h1 = custom.h1 ?? (isId ? `${localized.name} Online` : `${localized.name} Online`)
-  const intro = custom.intro ?? (isId
-    ? `${localized.description} Kits membantu Anda menyelesaikan pekerjaan ini dengan alur yang sederhana dan label pemrosesan yang jelas.`
-    : `${localized.description} Kits keeps the workflow simple, shows where processing happens, and links to related utilities when you need the next step.`)
+  const description = custom.description ?? (page
+    ? `${page.shortDescription} ${processing}`
+    : `${localized.name} online with Kits. ${localized.shortDescription}`)
+  const h1 = custom.h1 ?? `${localized.name} Online`
+  const intro = custom.intro ?? page?.intro ?? localized.description
   return {
     title,
     description,
     h1,
     intro,
-    steps: custom.steps ?? fallbackSteps[locale],
-    benefits: custom.benefits ?? fallbackBenefits[locale],
+    steps: custom.steps ?? page?.howTo ?? [],
+    benefits: custom.benefits ?? page?.benefits ?? [],
     faq: custom.faq ?? defaultFaq(tool, locale),
   }
 }

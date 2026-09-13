@@ -19,7 +19,6 @@ const publicPages = [
   '/support',
   '/terms',
 ] as const
-
 const escapeXml = (value: string) =>
   value
     .replaceAll('&', '&amp;')

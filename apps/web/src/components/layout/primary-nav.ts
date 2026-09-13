@@ -16,7 +16,7 @@ export const toolCategoryNav = [
 
 export const footerToolNav = toolCategoryNav.filter((item) => item.category !== 'generator' && item.category !== 'converter')
 
-export const primaryPageNav = [
+export const primaryNavigation = [
   { key: 'home', to: '/' satisfies EnglishTo },
   { key: 'tools', to: '/tools' satisfies EnglishTo },
   { key: 'guides', to: '/guides' satisfies EnglishTo },
@@ -25,18 +25,25 @@ export const primaryPageNav = [
   { key: 'support', to: '/support' satisfies EnglishTo },
 ] as const
 
+export type PrimaryNavHref = (typeof primaryNavigation)[number]['to']
+export type PrimaryNavKey = (typeof primaryNavigation)[number]['key']
+
 export function isToolsPath(path: string) {
   if (path === '/tools' || path.startsWith('/tools/')) return true
   const slug = path.replace(/^\//, '')
   return Boolean(slug) && Boolean(getToolBySlug(slug))
 }
 
-export function navItemActive(path: string, key: (typeof primaryPageNav)[number]['key']) {
-  if (key === 'home') return path === '/' || path === ''
-  if (key === 'tools') return isToolsPath(path)
-  if (key === 'guides') return path === '/guides' || path.startsWith('/guides/')
-  if (key === 'about') return path === '/about'
-  if (key === 'pricing') return path === '/pricing'
-  if (key === 'support') return path === '/support'
-  return false
+export function isPrimaryNavActive(href: PrimaryNavHref, path: string) {
+  if (href === '/') return path === '/' || path === ''
+  if (href === '/tools') return isToolsPath(path)
+  if (href === '/guides') {
+    return path === '/guides' || path.startsWith('/guides/') || path === '/docs' || path.startsWith('/docs/')
+  }
+  return path === href || path.startsWith(`${href}/`)
+}
+
+export function navItemActive(path: string, key: PrimaryNavKey) {
+  const item = primaryNavigation.find((entry) => entry.key === key)
+  return item ? isPrimaryNavActive(item.to, path) : false
 }

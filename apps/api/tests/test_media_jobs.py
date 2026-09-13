@@ -139,7 +139,10 @@ def test_noise_reduction_presets_map_to_afftdn() -> None:
     )
     assert NOISE_REDUCTION_PRESETS["medium"] == (28, -60, -42)
     args = ffmpeg_args(
-        "noise-reduction", [Path("tone.wav")], {"mode": "standard", "strength": "light"}, Path("out.mp3")
+        "noise-reduction",
+        [Path("tone.wav")],
+        {"mode": "standard", "strength": "light"},
+        Path("out.mp3"),
     )
     graph = args[args.index("-af") + 1]
     assert graph == "afftdn=nr=18:nf=-55:tn=1:tr=1:om=o"
@@ -179,7 +182,9 @@ def test_noise_reduction_smart_uses_arnndn() -> None:
     assert "-c" not in args and "copy" not in joined
 
 
-def test_noise_reduction_smart_missing_model(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_noise_reduction_smart_missing_model(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     missing = tmp_path / "missing.rnnn"
     monkeypatch.setattr("app.processors.media.rnnoise_model_file", lambda: missing)
     with pytest.raises(ProcessingError) as caught:
@@ -263,7 +268,12 @@ async def test_noise_reduction_job(admin_api: AsyncClient, tmp_path: Path) -> No
     source_duration = duration_seconds(await probe(source))
     assert source_duration is not None
     file_key = await upload_bytes(
-        api, data, filename="noisy.wav", content_type="audio/wav", tool_id="noise-reduction", headers=headers
+        api,
+        data,
+        filename="noisy.wav",
+        content_type="audio/wav",
+        tool_id="noise-reduction",
+        headers=headers,
     )
     created = await api.post(
         "/api/v1/jobs",
@@ -590,7 +600,12 @@ async def test_add_subtitle_job(admin_api: AsyncClient, tmp_path: Path) -> None:
     clip = tmp_path / "clip.mp4"
     video = await _make_clip(clip)
     video_key = await upload_bytes(
-        api, video, filename="clip.mp4", content_type="video/mp4", tool_id="add-subtitle", headers=headers
+        api,
+        video,
+        filename="clip.mp4",
+        content_type="video/mp4",
+        tool_id="add-subtitle",
+        headers=headers,
     )
     subtitle_key = await upload_bytes(
         api,
@@ -820,7 +835,9 @@ async def _make_video_only_webm(path: Path) -> bytes:
 
 
 @pytest.mark.skipif(needs_ffmpeg, reason="ffmpeg")
-async def test_noise_reduction_accepts_audio_only_webm(admin_api: AsyncClient, tmp_path: Path) -> None:
+async def test_noise_reduction_accepts_audio_only_webm(
+    admin_api: AsyncClient, tmp_path: Path
+) -> None:
     api = admin_api
     headers = await pro_headers(api, "install-noise-webm")
     source = tmp_path / "recording.webm"
