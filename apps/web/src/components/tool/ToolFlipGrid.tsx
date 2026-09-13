@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { memo, useLayoutEffect, useRef, useState } from 'react'
 import { DiscoveryToolCard } from '@/components/common/DiscoveryToolCard'
 import type { ToolDefinition } from '@/features/tools/tool-registry'
 import { useT } from '@/i18n'
@@ -14,7 +14,7 @@ function idOf(tool: ToolDefinition) {
   return tool.id
 }
 
-function useFlipItems(next: readonly ToolDefinition[]) {
+function useFlipItems(next: readonly ToolDefinition[], animate = true) {
   const [rendered, setRendered] = useState<ToolDefinition[]>(() => [...next])
   const scopeRef = useRef<HTMLDivElement>(null)
   const stateRef = useRef<Flip.FlipState | null>(null)
@@ -30,7 +30,13 @@ function useFlipItems(next: readonly ToolDefinition[]) {
     const upcoming = nextRef.current
     if (itemSignature(renderedRef.current, idOf) === signature) return
     const root = scopeRef.current
-    if (prefersReducedMotion() || isCompactMotion() || !root || renderedRef.current.length === 0) {
+    if (!animate || prefersReducedMotion() || isCompactMotion() || !root || renderedRef.current.length === 0) {
+      if (root) {
+        const cards = root.querySelectorAll('[data-flip-id]')
+        gsap.killTweensOf(cards)
+        Flip.killFlipsOf(cards)
+      }
+      stateRef.current = null
       setRendered([...upcoming])
       return
     }
@@ -43,7 +49,7 @@ function useFlipItems(next: readonly ToolDefinition[]) {
     gsap.set(cards, { clearProps: 'opacity,visibility,transform,filter' })
     stateRef.current = Flip.getState(cards)
     setRendered([...upcoming])
-  }, [signature])
+  }, [signature, animate])
 
   useLayoutEffect(() => {
     const root = scopeRef.current
@@ -69,15 +75,15 @@ function useFlipItems(next: readonly ToolDefinition[]) {
     const cards = root.querySelectorAll('[data-flip-id]')
     if (!cards.length) return
     bootedRef.current = true
-    if (root.closest('.discovery-personal') || isRestoringNavigation() || isCompactMotion()) return
+    if (!animate || root.closest('.discovery-personal') || isRestoringNavigation() || isCompactMotion()) return
     batchRevealCards(cards)
-  }, [signature])
+  }, [signature, animate])
 
-  return { scopeRef, rendered }
+  return { scopeRef, rendered: animate ? rendered : next }
 }
 
-export function ToolFlipGrid({ items }: { items: readonly ToolDefinition[] }) {
-  const { scopeRef, rendered } = useFlipItems(items)
+export const ToolFlipGrid = memo(function ToolFlipGrid({ items, animate = true }: { items: readonly ToolDefinition[]; animate?: boolean }) {
+  const { scopeRef, rendered } = useFlipItems(items, animate)
   return (
     <div ref={scopeRef} className="tool-grid tool-flip-scope">
       {rendered.map((tool) => (
@@ -85,17 +91,19 @@ export function ToolFlipGrid({ items }: { items: readonly ToolDefinition[] }) {
       ))}
     </div>
   )
-}
+})
 
-export function AvailabilityFlipGrids({
+export const AvailabilityFlipGrids = memo(function AvailabilityFlipGrids({
   available,
   comingSoon,
+  animate = true,
 }: {
   available: readonly ToolDefinition[]
   comingSoon: readonly ToolDefinition[]
+  animate?: boolean
 }) {
   const copy = useT()
-  const { scopeRef, rendered } = useFlipItems([...available, ...comingSoon])
+  const { scopeRef, rendered } = useFlipItems([...available, ...comingSoon], animate)
   const shownAvailable = rendered.filter((tool) => tool.available)
   const shownSoon = rendered.filter((tool) => !tool.available)
   return (
@@ -122,4 +130,4 @@ export function AvailabilityFlipGrids({
       )}
     </div>
   )
-}
+})

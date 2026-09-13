@@ -11,11 +11,16 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ToolRouteImport } from './routes/$tool'
+import { Route as AboutRouteImport } from './routes/about'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as ContactRouteImport } from './routes/contact'
 import { Route as LicenseRouteImport } from './routes/license'
 import { Route as PricingRouteImport } from './routes/pricing'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as SupportRouteImport } from './routes/support'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AdminAuditRouteImport } from './routes/admin.audit'
 import { Route as AdminLicensesRouteImport } from './routes/admin.licenses'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
@@ -24,10 +29,17 @@ import { Route as DocsIndexRouteImport } from './routes/docs.index'
 import { Route as DocsGettingStartedRouteImport } from './routes/docs.getting-started'
 import { Route as DocsPrivacyAndProcessingRouteImport } from './routes/docs.privacy-and-processing'
 import { Route as DocsTroubleshootingRouteImport } from './routes/docs.troubleshooting'
+import { Route as GuidesIndexRouteImport } from './routes/guides.index'
+import { Route as GuidesSlugRouteImport } from './routes/guides.$slug'
 import { Route as IdIndexRouteImport } from './routes/id.index'
 import { Route as IdToolRouteImport } from './routes/id.$tool'
+import { Route as IdAboutRouteImport } from './routes/id.about'
+import { Route as IdContactRouteImport } from './routes/id.contact'
 import { Route as IdLicenseRouteImport } from './routes/id.license'
 import { Route as IdPricingRouteImport } from './routes/id.pricing'
+import { Route as IdPrivacyRouteImport } from './routes/id.privacy'
+import { Route as IdSupportRouteImport } from './routes/id.support'
+import { Route as IdTermsRouteImport } from './routes/id.terms'
 import { Route as ToolsIndexRouteImport } from './routes/tools.index'
 import { Route as ToolsCategoryRouteImport } from './routes/tools.$category'
 import { Route as DocsToolsSlugRouteImport } from './routes/docs.tools.$slug'
@@ -35,6 +47,8 @@ import { Route as IdDocsIndexRouteImport } from './routes/id.docs.index'
 import { Route as IdDocsGettingStartedRouteImport } from './routes/id.docs.getting-started'
 import { Route as IdDocsPrivacyAndProcessingRouteImport } from './routes/id.docs.privacy-and-processing'
 import { Route as IdDocsTroubleshootingRouteImport } from './routes/id.docs.troubleshooting'
+import { Route as IdGuidesIndexRouteImport } from './routes/id.guides.index'
+import { Route as IdGuidesSlugRouteImport } from './routes/id.guides.$slug'
 import { Route as IdToolsIndexRouteImport } from './routes/id.tools.index'
 import { Route as IdToolsCategoryRouteImport } from './routes/id.tools.$category'
 import { Route as IdDocsToolsSlugRouteImport } from './routes/id.docs.tools.$slug'
@@ -49,9 +63,19 @@ const ToolRoute = ToolRouteImport.update({
   path: '/$tool',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LicenseRoute = LicenseRouteImport.update({
@@ -64,6 +88,11 @@ const PricingRoute = PricingRouteImport.update({
   path: '/pricing',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
   id: '/robots.txt',
   path: '/robots.txt',
@@ -72,6 +101,16 @@ const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SupportRoute = SupportRouteImport.update({
+  id: '/support',
+  path: '/support',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminAuditRoute = AdminAuditRouteImport.update({
@@ -115,6 +154,16 @@ const DocsTroubleshootingRoute = DocsTroubleshootingRouteImport.update({
   path: '/docs/troubleshooting',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GuidesIndexRoute = GuidesIndexRouteImport.update({
+  id: '/guides/',
+  path: '/guides/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuidesSlugRoute = GuidesSlugRouteImport.update({
+  id: '/guides/$slug',
+  path: '/guides/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IdIndexRoute = IdIndexRouteImport.update({
   id: '/id/',
   path: '/id/',
@@ -125,6 +174,16 @@ const IdToolRoute = IdToolRouteImport.update({
   path: '/id/$tool',
   getParentRoute: () => rootRouteImport,
 } as any)
+const IdAboutRoute = IdAboutRouteImport.update({
+  id: '/id/about',
+  path: '/id/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IdContactRoute = IdContactRouteImport.update({
+  id: '/id/contact',
+  path: '/id/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IdLicenseRoute = IdLicenseRouteImport.update({
   id: '/id/license',
   path: '/id/license',
@@ -133,6 +192,21 @@ const IdLicenseRoute = IdLicenseRouteImport.update({
 const IdPricingRoute = IdPricingRouteImport.update({
   id: '/id/pricing',
   path: '/id/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IdPrivacyRoute = IdPrivacyRouteImport.update({
+  id: '/id/privacy',
+  path: '/id/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IdSupportRoute = IdSupportRouteImport.update({
+  id: '/id/support',
+  path: '/id/support',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IdTermsRoute = IdTermsRouteImport.update({
+  id: '/id/terms',
+  path: '/id/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ToolsIndexRoute = ToolsIndexRouteImport.update({
@@ -171,6 +245,16 @@ const IdDocsTroubleshootingRoute = IdDocsTroubleshootingRouteImport.update({
   path: '/id/docs/troubleshooting',
   getParentRoute: () => rootRouteImport,
 } as any)
+const IdGuidesIndexRoute = IdGuidesIndexRouteImport.update({
+  id: '/id/guides/',
+  path: '/id/guides/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IdGuidesSlugRoute = IdGuidesSlugRouteImport.update({
+  id: '/id/guides/$slug',
+  path: '/id/guides/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IdToolsIndexRoute = IdToolsIndexRouteImport.update({
   id: '/id/tools/',
   path: '/id/tools/',
@@ -190,11 +274,16 @@ const IdDocsToolsSlugRoute = IdDocsToolsSlugRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$tool': typeof ToolRoute
+  '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
+  '/contact': typeof ContactRoute
   '/license': typeof LicenseRoute
   '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/support': typeof SupportRoute
+  '/terms': typeof TermsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/licenses': typeof AdminLicensesRoute
   '/admin/login': typeof AdminLoginRoute
@@ -202,30 +291,44 @@ export interface FileRoutesByFullPath {
   '/docs/getting-started': typeof DocsGettingStartedRoute
   '/docs/privacy-and-processing': typeof DocsPrivacyAndProcessingRoute
   '/docs/troubleshooting': typeof DocsTroubleshootingRoute
+  '/guides/$slug': typeof GuidesSlugRoute
   '/id/$tool': typeof IdToolRoute
+  '/id/about': typeof IdAboutRoute
+  '/id/contact': typeof IdContactRoute
   '/id/license': typeof IdLicenseRoute
   '/id/pricing': typeof IdPricingRoute
+  '/id/privacy': typeof IdPrivacyRoute
+  '/id/support': typeof IdSupportRoute
+  '/id/terms': typeof IdTermsRoute
   '/tools/$category': typeof ToolsCategoryRoute
   '/docs/': typeof DocsIndexRoute
+  '/guides/': typeof GuidesIndexRoute
   '/id/': typeof IdIndexRoute
   '/tools/': typeof ToolsIndexRoute
   '/docs/tools/$slug': typeof DocsToolsSlugRoute
   '/id/docs/getting-started': typeof IdDocsGettingStartedRoute
   '/id/docs/privacy-and-processing': typeof IdDocsPrivacyAndProcessingRoute
   '/id/docs/troubleshooting': typeof IdDocsTroubleshootingRoute
+  '/id/guides/$slug': typeof IdGuidesSlugRoute
   '/id/tools/$category': typeof IdToolsCategoryRoute
   '/id/docs/': typeof IdDocsIndexRoute
+  '/id/guides/': typeof IdGuidesIndexRoute
   '/id/tools/': typeof IdToolsIndexRoute
   '/id/docs/tools/$slug': typeof IdDocsToolsSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$tool': typeof ToolRoute
+  '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
+  '/contact': typeof ContactRoute
   '/license': typeof LicenseRoute
   '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/support': typeof SupportRoute
+  '/terms': typeof TermsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/licenses': typeof AdminLicensesRoute
   '/admin/login': typeof AdminLoginRoute
@@ -233,19 +336,28 @@ export interface FileRoutesByTo {
   '/docs/getting-started': typeof DocsGettingStartedRoute
   '/docs/privacy-and-processing': typeof DocsPrivacyAndProcessingRoute
   '/docs/troubleshooting': typeof DocsTroubleshootingRoute
+  '/guides/$slug': typeof GuidesSlugRoute
   '/id/$tool': typeof IdToolRoute
+  '/id/about': typeof IdAboutRoute
+  '/id/contact': typeof IdContactRoute
   '/id/license': typeof IdLicenseRoute
   '/id/pricing': typeof IdPricingRoute
+  '/id/privacy': typeof IdPrivacyRoute
+  '/id/support': typeof IdSupportRoute
+  '/id/terms': typeof IdTermsRoute
   '/tools/$category': typeof ToolsCategoryRoute
   '/docs': typeof DocsIndexRoute
+  '/guides': typeof GuidesIndexRoute
   '/id': typeof IdIndexRoute
   '/tools': typeof ToolsIndexRoute
   '/docs/tools/$slug': typeof DocsToolsSlugRoute
   '/id/docs/getting-started': typeof IdDocsGettingStartedRoute
   '/id/docs/privacy-and-processing': typeof IdDocsPrivacyAndProcessingRoute
   '/id/docs/troubleshooting': typeof IdDocsTroubleshootingRoute
+  '/id/guides/$slug': typeof IdGuidesSlugRoute
   '/id/tools/$category': typeof IdToolsCategoryRoute
   '/id/docs': typeof IdDocsIndexRoute
+  '/id/guides': typeof IdGuidesIndexRoute
   '/id/tools': typeof IdToolsIndexRoute
   '/id/docs/tools/$slug': typeof IdDocsToolsSlugRoute
 }
@@ -253,11 +365,16 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$tool': typeof ToolRoute
+  '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
+  '/contact': typeof ContactRoute
   '/license': typeof LicenseRoute
   '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/support': typeof SupportRoute
+  '/terms': typeof TermsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/licenses': typeof AdminLicensesRoute
   '/admin/login': typeof AdminLoginRoute
@@ -265,19 +382,28 @@ export interface FileRoutesById {
   '/docs/getting-started': typeof DocsGettingStartedRoute
   '/docs/privacy-and-processing': typeof DocsPrivacyAndProcessingRoute
   '/docs/troubleshooting': typeof DocsTroubleshootingRoute
+  '/guides/$slug': typeof GuidesSlugRoute
   '/id/$tool': typeof IdToolRoute
+  '/id/about': typeof IdAboutRoute
+  '/id/contact': typeof IdContactRoute
   '/id/license': typeof IdLicenseRoute
   '/id/pricing': typeof IdPricingRoute
+  '/id/privacy': typeof IdPrivacyRoute
+  '/id/support': typeof IdSupportRoute
+  '/id/terms': typeof IdTermsRoute
   '/tools/$category': typeof ToolsCategoryRoute
   '/docs/': typeof DocsIndexRoute
+  '/guides/': typeof GuidesIndexRoute
   '/id/': typeof IdIndexRoute
   '/tools/': typeof ToolsIndexRoute
   '/docs/tools/$slug': typeof DocsToolsSlugRoute
   '/id/docs/getting-started': typeof IdDocsGettingStartedRoute
   '/id/docs/privacy-and-processing': typeof IdDocsPrivacyAndProcessingRoute
   '/id/docs/troubleshooting': typeof IdDocsTroubleshootingRoute
+  '/id/guides/$slug': typeof IdGuidesSlugRoute
   '/id/tools/$category': typeof IdToolsCategoryRoute
   '/id/docs/': typeof IdDocsIndexRoute
+  '/id/guides/': typeof IdGuidesIndexRoute
   '/id/tools/': typeof IdToolsIndexRoute
   '/id/docs/tools/$slug': typeof IdDocsToolsSlugRoute
 }
@@ -286,11 +412,16 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/$tool'
+    | '/about'
     | '/admin'
+    | '/contact'
     | '/license'
     | '/pricing'
+    | '/privacy'
     | '/robots.txt'
     | '/sitemap.xml'
+    | '/support'
+    | '/terms'
     | '/admin/audit'
     | '/admin/licenses'
     | '/admin/login'
@@ -298,30 +429,44 @@ export interface FileRouteTypes {
     | '/docs/getting-started'
     | '/docs/privacy-and-processing'
     | '/docs/troubleshooting'
+    | '/guides/$slug'
     | '/id/$tool'
+    | '/id/about'
+    | '/id/contact'
     | '/id/license'
     | '/id/pricing'
+    | '/id/privacy'
+    | '/id/support'
+    | '/id/terms'
     | '/tools/$category'
     | '/docs/'
+    | '/guides/'
     | '/id/'
     | '/tools/'
     | '/docs/tools/$slug'
     | '/id/docs/getting-started'
     | '/id/docs/privacy-and-processing'
     | '/id/docs/troubleshooting'
+    | '/id/guides/$slug'
     | '/id/tools/$category'
     | '/id/docs/'
+    | '/id/guides/'
     | '/id/tools/'
     | '/id/docs/tools/$slug'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/$tool'
+    | '/about'
     | '/admin'
+    | '/contact'
     | '/license'
     | '/pricing'
+    | '/privacy'
     | '/robots.txt'
     | '/sitemap.xml'
+    | '/support'
+    | '/terms'
     | '/admin/audit'
     | '/admin/licenses'
     | '/admin/login'
@@ -329,30 +474,44 @@ export interface FileRouteTypes {
     | '/docs/getting-started'
     | '/docs/privacy-and-processing'
     | '/docs/troubleshooting'
+    | '/guides/$slug'
     | '/id/$tool'
+    | '/id/about'
+    | '/id/contact'
     | '/id/license'
     | '/id/pricing'
+    | '/id/privacy'
+    | '/id/support'
+    | '/id/terms'
     | '/tools/$category'
     | '/docs'
+    | '/guides'
     | '/id'
     | '/tools'
     | '/docs/tools/$slug'
     | '/id/docs/getting-started'
     | '/id/docs/privacy-and-processing'
     | '/id/docs/troubleshooting'
+    | '/id/guides/$slug'
     | '/id/tools/$category'
     | '/id/docs'
+    | '/id/guides'
     | '/id/tools'
     | '/id/docs/tools/$slug'
   id:
     | '__root__'
     | '/'
     | '/$tool'
+    | '/about'
     | '/admin'
+    | '/contact'
     | '/license'
     | '/pricing'
+    | '/privacy'
     | '/robots.txt'
     | '/sitemap.xml'
+    | '/support'
+    | '/terms'
     | '/admin/audit'
     | '/admin/licenses'
     | '/admin/login'
@@ -360,19 +519,28 @@ export interface FileRouteTypes {
     | '/docs/getting-started'
     | '/docs/privacy-and-processing'
     | '/docs/troubleshooting'
+    | '/guides/$slug'
     | '/id/$tool'
+    | '/id/about'
+    | '/id/contact'
     | '/id/license'
     | '/id/pricing'
+    | '/id/privacy'
+    | '/id/support'
+    | '/id/terms'
     | '/tools/$category'
     | '/docs/'
+    | '/guides/'
     | '/id/'
     | '/tools/'
     | '/docs/tools/$slug'
     | '/id/docs/getting-started'
     | '/id/docs/privacy-and-processing'
     | '/id/docs/troubleshooting'
+    | '/id/guides/$slug'
     | '/id/tools/$category'
     | '/id/docs/'
+    | '/id/guides/'
     | '/id/tools/'
     | '/id/docs/tools/$slug'
   fileRoutesById: FileRoutesById
@@ -380,27 +548,41 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ToolRoute: typeof ToolRoute
+  AboutRoute: typeof AboutRoute
   AdminRoute: typeof AdminRouteWithChildren
+  ContactRoute: typeof ContactRoute
   LicenseRoute: typeof LicenseRoute
   PricingRoute: typeof PricingRoute
+  PrivacyRoute: typeof PrivacyRoute
   RobotsDottxtRoute: typeof RobotsDottxtRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  SupportRoute: typeof SupportRoute
+  TermsRoute: typeof TermsRoute
   DocsGettingStartedRoute: typeof DocsGettingStartedRoute
   DocsPrivacyAndProcessingRoute: typeof DocsPrivacyAndProcessingRoute
   DocsTroubleshootingRoute: typeof DocsTroubleshootingRoute
+  GuidesSlugRoute: typeof GuidesSlugRoute
   IdToolRoute: typeof IdToolRoute
+  IdAboutRoute: typeof IdAboutRoute
+  IdContactRoute: typeof IdContactRoute
   IdLicenseRoute: typeof IdLicenseRoute
   IdPricingRoute: typeof IdPricingRoute
+  IdPrivacyRoute: typeof IdPrivacyRoute
+  IdSupportRoute: typeof IdSupportRoute
+  IdTermsRoute: typeof IdTermsRoute
   ToolsCategoryRoute: typeof ToolsCategoryRoute
   DocsIndexRoute: typeof DocsIndexRoute
+  GuidesIndexRoute: typeof GuidesIndexRoute
   IdIndexRoute: typeof IdIndexRoute
   ToolsIndexRoute: typeof ToolsIndexRoute
   DocsToolsSlugRoute: typeof DocsToolsSlugRoute
   IdDocsGettingStartedRoute: typeof IdDocsGettingStartedRoute
   IdDocsPrivacyAndProcessingRoute: typeof IdDocsPrivacyAndProcessingRoute
   IdDocsTroubleshootingRoute: typeof IdDocsTroubleshootingRoute
+  IdGuidesSlugRoute: typeof IdGuidesSlugRoute
   IdToolsCategoryRoute: typeof IdToolsCategoryRoute
   IdDocsIndexRoute: typeof IdDocsIndexRoute
+  IdGuidesIndexRoute: typeof IdGuidesIndexRoute
   IdToolsIndexRoute: typeof IdToolsIndexRoute
   IdDocsToolsSlugRoute: typeof IdDocsToolsSlugRoute
 }
@@ -421,11 +603,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ToolRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin': {
       id: '/admin'
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/license': {
@@ -442,6 +638,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PricingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/robots.txt': {
       id: '/robots.txt'
       path: '/robots.txt'
@@ -454,6 +657,20 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/support': {
+      id: '/support'
+      path: '/support'
+      fullPath: '/support'
+      preLoaderRoute: typeof SupportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/audit': {
@@ -512,6 +729,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsTroubleshootingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/guides/': {
+      id: '/guides/'
+      path: '/guides'
+      fullPath: '/guides/'
+      preLoaderRoute: typeof GuidesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides/$slug': {
+      id: '/guides/$slug'
+      path: '/guides/$slug'
+      fullPath: '/guides/$slug'
+      preLoaderRoute: typeof GuidesSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/id/': {
       id: '/id/'
       path: '/id'
@@ -526,6 +757,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IdToolRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/id/about': {
+      id: '/id/about'
+      path: '/id/about'
+      fullPath: '/id/about'
+      preLoaderRoute: typeof IdAboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/id/contact': {
+      id: '/id/contact'
+      path: '/id/contact'
+      fullPath: '/id/contact'
+      preLoaderRoute: typeof IdContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/id/license': {
       id: '/id/license'
       path: '/id/license'
@@ -538,6 +783,27 @@ declare module '@tanstack/react-router' {
       path: '/id/pricing'
       fullPath: '/id/pricing'
       preLoaderRoute: typeof IdPricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/id/privacy': {
+      id: '/id/privacy'
+      path: '/id/privacy'
+      fullPath: '/id/privacy'
+      preLoaderRoute: typeof IdPrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/id/support': {
+      id: '/id/support'
+      path: '/id/support'
+      fullPath: '/id/support'
+      preLoaderRoute: typeof IdSupportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/id/terms': {
+      id: '/id/terms'
+      path: '/id/terms'
+      fullPath: '/id/terms'
+      preLoaderRoute: typeof IdTermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/tools/': {
@@ -589,6 +855,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IdDocsTroubleshootingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/id/guides/': {
+      id: '/id/guides/'
+      path: '/id/guides'
+      fullPath: '/id/guides/'
+      preLoaderRoute: typeof IdGuidesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/id/guides/$slug': {
+      id: '/id/guides/$slug'
+      path: '/id/guides/$slug'
+      fullPath: '/id/guides/$slug'
+      preLoaderRoute: typeof IdGuidesSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/id/tools/': {
       id: '/id/tools/'
       path: '/id/tools'
@@ -632,27 +912,41 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ToolRoute: ToolRoute,
+  AboutRoute: AboutRoute,
   AdminRoute: AdminRouteWithChildren,
+  ContactRoute: ContactRoute,
   LicenseRoute: LicenseRoute,
   PricingRoute: PricingRoute,
+  PrivacyRoute: PrivacyRoute,
   RobotsDottxtRoute: RobotsDottxtRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  SupportRoute: SupportRoute,
+  TermsRoute: TermsRoute,
   DocsGettingStartedRoute: DocsGettingStartedRoute,
   DocsPrivacyAndProcessingRoute: DocsPrivacyAndProcessingRoute,
   DocsTroubleshootingRoute: DocsTroubleshootingRoute,
+  GuidesSlugRoute: GuidesSlugRoute,
   IdToolRoute: IdToolRoute,
+  IdAboutRoute: IdAboutRoute,
+  IdContactRoute: IdContactRoute,
   IdLicenseRoute: IdLicenseRoute,
   IdPricingRoute: IdPricingRoute,
+  IdPrivacyRoute: IdPrivacyRoute,
+  IdSupportRoute: IdSupportRoute,
+  IdTermsRoute: IdTermsRoute,
   ToolsCategoryRoute: ToolsCategoryRoute,
   DocsIndexRoute: DocsIndexRoute,
+  GuidesIndexRoute: GuidesIndexRoute,
   IdIndexRoute: IdIndexRoute,
   ToolsIndexRoute: ToolsIndexRoute,
   DocsToolsSlugRoute: DocsToolsSlugRoute,
   IdDocsGettingStartedRoute: IdDocsGettingStartedRoute,
   IdDocsPrivacyAndProcessingRoute: IdDocsPrivacyAndProcessingRoute,
   IdDocsTroubleshootingRoute: IdDocsTroubleshootingRoute,
+  IdGuidesSlugRoute: IdGuidesSlugRoute,
   IdToolsCategoryRoute: IdToolsCategoryRoute,
   IdDocsIndexRoute: IdDocsIndexRoute,
+  IdGuidesIndexRoute: IdGuidesIndexRoute,
   IdToolsIndexRoute: IdToolsIndexRoute,
   IdDocsToolsSlugRoute: IdDocsToolsSlugRoute,
 }

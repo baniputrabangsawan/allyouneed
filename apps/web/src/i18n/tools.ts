@@ -25,32 +25,33 @@ export function useLocalizedTool(tool: ToolDefinition): ToolDefinition {
   return localizeTool(tool, useLocale())
 }
 
-const bilingualRecords = getAllTools().map((tool) => {
+const searchRecords = getAllTools().map((tool) => {
   const id = toolsId[tool.slug]
-  return {
-    tool,
-    haystack: [
-      tool.name,
-      tool.shortDescription,
-      tool.description,
-      tool.tags.join(' '),
-      tool.aliases.join(' '),
-      tool.category,
-      id?.name,
-      id?.shortDescription,
-      id?.aliases?.join(' '),
-    ].filter(Boolean).join(' '),
-  }
+  const searchText = [
+    tool.name,
+    tool.shortDescription,
+    tool.description,
+    tool.tags.join(' '),
+    tool.aliases.join(' '),
+    tool.category,
+    id?.name,
+    id?.shortDescription,
+    id?.aliases?.join(' '),
+  ].filter(Boolean).join(' ').toLowerCase()
+  return { tool, searchText }
 })
 
-const bilingualFuse = new Fuse(bilingualRecords, {
-  keys: ['haystack'],
+const bilingualFuse = new Fuse(searchRecords, {
+  keys: ['searchText'],
   threshold: 0.32,
 })
 
 export function searchToolsLocalized(query: string): ToolDefinition[] {
   const trimmed = query.trim()
   if (!trimmed) return getAllTools()
+  const tokens = trimmed.toLowerCase().split(/\s+/).filter(Boolean)
+  const exact = searchRecords.filter((record) => tokens.every((token) => record.searchText.includes(token))).map((record) => record.tool)
+  if (exact.length) return exact
   const bilingual = bilingualFuse.search(trimmed).map(({ item }) => item.tool)
   if (bilingual.length) return bilingual
   return searchTools(trimmed)

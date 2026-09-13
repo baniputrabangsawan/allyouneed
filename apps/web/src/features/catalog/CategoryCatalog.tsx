@@ -1,14 +1,16 @@
 import { useParams } from '@tanstack/react-router'
-import { ChevronRight } from 'lucide-react'
 import { AvailabilityFlipGrids } from '@/components/tool/ToolFlipGrid'
+import { PageBreadcrumbs } from '@/features/seo/breadcrumbs'
 import { partitionByAvailability } from '@/features/tools/tool-availability'
 import { getToolsByCategory, type ToolCategory } from '@/features/tools/tool-registry'
 import { LocaleLink as Link } from '@/i18n/link'
-import { useT } from '@/i18n'
+import { useLocale, useT } from '@/i18n'
+import { localizedPath } from '@/i18n/path'
 import { validCategories } from './categories'
 
 export function CategoryCatalog() {
   const copy = useT()
+  const locale = useLocale()
   const params = useParams({ strict: false }) as { category: ToolCategory }
   const category = params.category
   const categoryTools = getToolsByCategory(category)
@@ -17,7 +19,11 @@ export function CategoryCatalog() {
   return (
     <main className="catalog-page">
       <header className="catalog-header">
-        <nav className="breadcrumb" aria-label="Breadcrumb"><Link to="/">{copy.catalog.home}</Link><ChevronRight size={14}/><Link to="/tools">{copy.catalog.tools}</Link><ChevronRight size={14}/><span>{label}</span></nav>
+        <PageBreadcrumbs items={[
+          { name: copy.catalog.home, path: localizedPath(locale, '/'), to: '/' },
+          { name: copy.catalog.tools, path: localizedPath(locale, '/tools'), to: '/tools' },
+          { name: label, path: localizedPath(locale, `/tools/${category}`) },
+        ]} />
         <p className="eyebrow">{copy.catalog.browseByCategory}</p>
         <h1>{copy.home.categoryTools(label)}</h1>
         <p>{copy.catalog.availableNow(categoryTools.length)}</p>

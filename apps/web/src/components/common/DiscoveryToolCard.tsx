@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Star } from 'lucide-react'
 import { ToolCard } from '@/components/tool/ToolCard'
 import type { ToolDefinition } from '@/features/tools/tool-registry'
@@ -6,7 +7,7 @@ import { useLocalizedTool } from '@/i18n/tools'
 import { DISCOVERY_STORAGE_EVENT, useFavoriteIds } from '@/lib/storage/discovery'
 import { getFavoriteTools, saveFavoriteTools } from '@/lib/storage/tools'
 
-export function DiscoveryToolCard({ tool, leaving = false }: { tool: ToolDefinition; leaving?: boolean }) {
+export const DiscoveryToolCard = memo(function DiscoveryToolCard({ tool, leaving = false }: { tool: ToolDefinition; leaving?: boolean }) {
   const copy = useT()
   const item = useLocalizedTool(tool)
   const favorites = useFavoriteIds()

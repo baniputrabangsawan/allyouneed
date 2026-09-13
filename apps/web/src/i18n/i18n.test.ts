@@ -30,6 +30,11 @@ describe('i18n catalogs', () => {
     const hits = searchToolsLocalized('kompres gambar')
     expect(hits.some((tool) => tool.slug === 'compress-image')).toBe(true)
   })
+
+  it('matches precomputed search text before falling back to fuzzy search', () => {
+    const hits = searchToolsLocalized('unix timestamp')
+    expect(hits[0]?.slug).toBe('unix-timestamp-converter')
+  })
 })
 
 describe('locale paths', () => {
