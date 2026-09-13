@@ -65,7 +65,7 @@ function pickSmaller(original: Blob, candidate: Blob): Blob {
 export async function optimizeImageOutput(source: Blob, options: ImageOptimizeOptions): Promise<OptimizedImage> {
   const mime = options.mime
   const mode = options.mode ?? 'auto'
-  if (options.enabled === false || mime !== 'image/png') {
+  if (options.enabled !== true || mime !== 'image/png') {
     return passthrough(source, mime)
   }
   try {
@@ -99,14 +99,15 @@ export async function exportCanvasImage(
   options: { enabled?: boolean; mode?: ImageOptimizeMode; quality?: number; onProgress?: (progress: ProcessingProgress) => void } = {},
 ): Promise<OptimizedImage> {
   const mode = options.mode ?? 'auto'
-  const quality = mime === 'image/png' ? 1 : (options.quality ?? rasterEncodeQuality(mime, mode))
+  const enabled = options.enabled === true
+  const quality = mime === 'image/png' ? 1 : (options.quality ?? (enabled ? rasterEncodeQuality(mime, mode) : 1))
   const generated = await canvasToBlob(canvas, mime, quality)
   return optimizeImageOutput(generated, {
     mime,
     mode,
     width: canvas.width,
     height: canvas.height,
-    ...(options.enabled === undefined ? {} : { enabled: options.enabled }),
+    enabled,
     ...(options.onProgress ? { onProgress: options.onProgress } : {}),
   })
 }
