@@ -9,7 +9,10 @@ export type AnalyticsEvent =
   | { name: 'processing_started'; context: AnalyticsContext; sizeBucket?: string }
   | { name: 'processing_completed'; context: AnalyticsContext; durationMs?: number; sizeBucket?: string }
   | { name: 'processing_failed'; context: AnalyticsContext; errorCode?: string }
-
+  | { name: 'install_cta_view' }
+  | { name: 'install_cta_click' }
+  | { name: 'install_accepted' }
+  | { name: 'install_dismissed' }
 export interface Analytics {
   track(event: AnalyticsEvent): void
 }

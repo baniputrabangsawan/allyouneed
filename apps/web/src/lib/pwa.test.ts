@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { PWA_DARK_BACKGROUND, shouldShowLaunchSplash } from './pwa'
+import { PWA_DARK_BACKGROUND, isIosDevice, resolveInstallStatus, shouldShowLaunchSplash } from './pwa'
 
 describe('PWA launch splash', () => {
   it('only shows on installed-app display modes, not in a normal browser tab', () => {
@@ -23,6 +23,24 @@ describe('PWA launch splash', () => {
       media: () => ({ matches: true }),
       alreadyShown: true,
     })).toBe(false)
+  })
+})
+
+describe('install CTA availability', () => {
+  it('hides the CTA in a normal browser tab without an install prompt', () => {
+    expect(resolveInstallStatus({ standalone: false, hasPrompt: false, ios: false })).toBe('hidden')
+  })
+
+  it('shows the native prompt when Chromium can install, and iOS guidance otherwise', () => {
+    expect(resolveInstallStatus({ standalone: false, hasPrompt: true, ios: false })).toBe('prompt')
+    expect(resolveInstallStatus({ standalone: false, hasPrompt: false, ios: true })).toBe('ios')
+    expect(resolveInstallStatus({ standalone: true, hasPrompt: true, ios: true })).toBe('installed')
+  })
+
+  it('treats iPhone and iPadOS as iOS', () => {
+    expect(isIosDevice('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)', 'iPhone', 5)).toBe(true)
+    expect(isIosDevice('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', 'MacIntel', 5)).toBe(true)
+    expect(isIosDevice('Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Win32', 0)).toBe(false)
   })
 })
 

@@ -49,6 +49,14 @@ export const en = {
     dark: 'Dark',
     system: 'System',
   },
+  install: {
+    cta: 'Install Kits',
+    title: 'Get Kits on your device',
+    copy: 'Install Kits for faster access from your home screen.',
+    iosHint: 'Tap Share, then Add to Home Screen.',
+    aria: 'Install Kits on this device',
+    appSection: 'App',
+  },
   home: {
     eyebrow: 'Useful by default',
     titleA: 'Every tool you need.',
