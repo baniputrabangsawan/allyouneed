@@ -1,10 +1,11 @@
 import { getStoredEntitlementToken } from '../storage/entitlement'
+import { resolveApiBaseUrl } from './public-origin'
 import type { ApiErrorPayload } from './types'
 
-const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? ''
-export const API_BASE_URL = (
-  configuredApiBaseUrl || (import.meta.env.DEV ? 'http://localhost:8000' : '')
-).replace(/\/+$/, '')
+export const API_BASE_URL = resolveApiBaseUrl(
+  import.meta.env.VITE_API_BASE_URL,
+  import.meta.env.DEV ? 'dev' : 'prod',
+)
 export const DEFAULT_API_TIMEOUT_MS = 30_000
 
 export class ApiError extends Error {

@@ -2,13 +2,12 @@ from unittest.mock import MagicMock
 
 from httpx import AsyncClient
 
-from app.core.capabilities import capability_for_tool, capabilities_for_plan
+from app.core.capabilities import capabilities_for_plan, capability_for_tool
 from app.core.config import Settings
 from app.core.enums import LicensePlan
 from app.services.entitlement_service import EntitlementService
 from app.tools.registry import tool_registry
-from tests.helpers import png_bytes, upload_image
-
+from tests.helpers import activate_json, png_bytes, upload_image
 
 PRO_TOOL_CAPABILITIES = {
     "blur-face": "image.face_blur",
@@ -20,6 +19,7 @@ PRO_TOOL_CAPABILITIES = {
     "upscale-image": "image.ai.upscale",
     "ocr-pdf": "document.ocr.advanced",
 }
+
 
 
 def test_entitlement_service_defers_signer_without_keys() -> None:
@@ -81,7 +81,7 @@ async def test_premium_job_requires_activated_license(admin_api: AsyncClient) ->
     ).json()["data"]
     activated = await api.post(
         "/api/v1/licenses/activate",
-        json={"licenseKey": issued["licenseKey"], "installationId": "install-a"},
+        json=activate_json(issued["licenseKey"], "install-a"),
     )
     token = activated.json()["data"]["token"]
     headers = {"X-Entitlement-Token": token}
@@ -112,7 +112,7 @@ async def test_tampered_token_is_rejected(admin_api: AsyncClient) -> None:
     ).json()["data"]
     activated = await api.post(
         "/api/v1/licenses/activate",
-        json={"licenseKey": issued["licenseKey"], "installationId": "install-a"},
+        json=activate_json(issued["licenseKey"], "install-a"),
     )
     token = activated.json()["data"]["token"]
     tampered = token[:-4] + ("AAAA" if token[-4:] != "AAAA" else "BBBB")
@@ -131,7 +131,7 @@ async def test_revoked_license_rejects_unexpired_token(admin_api: AsyncClient) -
     ).json()["data"]
     activated = await api.post(
         "/api/v1/licenses/activate",
-        json={"licenseKey": issued["licenseKey"], "installationId": "install-a"},
+        json=activate_json(issued["licenseKey"], "install-a"),
     )
     token = activated.json()["data"]["token"]
     await api.post(

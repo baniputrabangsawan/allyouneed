@@ -6,7 +6,7 @@ import { animateEnteringCards, cardExitVars } from '@/lib/motion/cards'
 import { motion } from '@/lib/motion/config'
 import { itemSignature } from '@/lib/motion/flip-grid'
 import { Flip, ScrollTrigger, gsap, registerMotion } from '@/lib/motion/gsap'
-import { prefersReducedMotion } from '@/lib/motion/prefers-reduced-motion'
+import { isCompactMotion, prefersReducedMotion } from '@/lib/motion/prefers-reduced-motion'
 import { isRestoringNavigation } from '@/lib/motion/restore'
 import { batchRevealCards } from '@/lib/motion/scroll'
 
@@ -30,7 +30,7 @@ function useFlipItems(next: readonly ToolDefinition[]) {
     const upcoming = nextRef.current
     if (itemSignature(renderedRef.current, idOf) === signature) return
     const root = scopeRef.current
-    if (prefersReducedMotion() || !root || renderedRef.current.length === 0) {
+    if (prefersReducedMotion() || isCompactMotion() || !root || renderedRef.current.length === 0) {
       setRendered([...upcoming])
       return
     }
@@ -69,7 +69,7 @@ function useFlipItems(next: readonly ToolDefinition[]) {
     const cards = root.querySelectorAll('[data-flip-id]')
     if (!cards.length) return
     bootedRef.current = true
-    if (root.closest('.discovery-personal') || isRestoringNavigation()) return
+    if (root.closest('.discovery-personal') || isRestoringNavigation() || isCompactMotion()) return
     batchRevealCards(cards)
   }, [signature])
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import re
 import secrets
@@ -34,6 +35,44 @@ def hash_license_key(value: str) -> str:
 
 def hash_installation_id(value: str) -> str:
     return hashlib.sha256(value.strip().encode("utf-8")).hexdigest()
+
+
+def generate_device_secret() -> str:
+    return _b64url(secrets.token_bytes(32))
+
+
+def decode_device_secret(value: str) -> bytes:
+    compact = value.strip()
+    if not compact or len(compact) > 128:
+        raise ValueError("invalid device secret")
+    try:
+        raw = _b64url_decode(compact)
+    except Exception as exc:
+        raise ValueError("invalid device secret") from exc
+    if len(raw) != 32:
+        raise ValueError("invalid device secret")
+    return raw
+
+
+def hash_device_secret(value: str) -> str:
+    return hashlib.sha256(decode_device_secret(value)).hexdigest()
+
+
+def generate_transfer_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def hash_transfer_token(value: str) -> str:
+    return hashlib.sha256(value.strip().encode("utf-8")).hexdigest()
+
+
+def _b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+
+def _b64url_decode(value: str) -> bytes:
+    padding = "=" * (-len(value) % 4)
+    return base64.urlsafe_b64decode(value + padding)
 
 
 def license_key_prefix(value: str) -> str:

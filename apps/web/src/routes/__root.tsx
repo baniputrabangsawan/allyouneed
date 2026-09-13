@@ -26,6 +26,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       meta: [
         { charSet: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        { name: 'theme-color', content: '#292934' },
         { name: 'description', content: locale === 'id'
           ? 'Tools browser cepat dan privat untuk gambar, kode, QR, dan lainnya.'
           : 'Fast, private browser tools for images, code, QR codes, and more.' },

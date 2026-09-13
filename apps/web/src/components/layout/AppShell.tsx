@@ -29,8 +29,8 @@ export function AppHeader() {
   const headerRef = useRef<HTMLElement>(null)
   const innerRef = useRef<HTMLDivElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
+  const closeMenuAnim = useRef<(() => void) | null>(null)
   const pathname = useRouterState({ select: (state) => state.location.pathname })
-  const hash = useRouterState({ select: (state) => state.location.hash })
 
   useLayoutEffect(() => {
     const preference = getThemePreference()
@@ -50,7 +50,11 @@ export function AppHeader() {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setMenuOpen(false)
+        if (menuOpen) {
+          event.preventDefault()
+          closeMenuAnim.current?.()
+          return
+        }
         return
       }
       if (event.defaultPrevented) return
@@ -63,11 +67,11 @@ export function AppHeader() {
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [menuOpen])
 
   useEffect(() => {
     setMenuOpen(false)
-  }, [pathname, hash])
+  }, [pathname])
 
   useEffect(() => {
     const desktop = window.matchMedia('(min-width: 768px)')
@@ -144,7 +148,10 @@ export function AppHeader() {
               </span>
             </button>
           </div>
-          <button ref={menuButtonRef} className="icon-button mobile-menu" type="button" aria-expanded={menuOpen} aria-controls="mobile-navigation" aria-label={menuOpen ? copy.nav.closeMenu : copy.nav.openMenu} onClick={() => setMenuOpen((open) => !open)}><Menu size={20} /></button>
+          <button ref={menuButtonRef} className="icon-button mobile-menu" type="button" aria-expanded={menuOpen} aria-controls="mobile-navigation" aria-label={menuOpen ? copy.nav.closeMenu : copy.nav.openMenu} onClick={() => {
+            if (menuOpen) closeMenuAnim.current?.()
+            else setMenuOpen(true)
+          }}><Menu size={20} /></button>
         </div>
       </div>
     </header>
@@ -152,7 +159,8 @@ export function AppHeader() {
       <MobileNav
         theme={theme}
         shortcutLabel={shortcutLabel}
-        onClose={() => { setMenuOpen(false); menuButtonRef.current?.focus() }}
+        closeRef={closeMenuAnim}
+        onClose={() => { setMenuOpen(false); menuButtonRef.current?.focus({ preventScroll: true }) }}
         onSearch={() => setPaletteOpen(true)}
         onCycleTheme={cycleTheme}
       />

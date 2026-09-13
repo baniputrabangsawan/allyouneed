@@ -1,16 +1,20 @@
 import { createMiddleware, createStart } from '@tanstack/react-start'
+import { PRODUCTION_API_ORIGIN } from '@/lib/api/public-origin'
 
 const production = import.meta.env.PROD
 const connectSources = production
-  ? "'self' https://api.usekits.online"
+  ? `'self' ${PRODUCTION_API_ORIGIN} https://cloudflareinsights.com`
   : "'self' http://localhost:8000 http://127.0.0.1:8000 ws://localhost:* ws://127.0.0.1:*"
+const scriptSources = production
+  ? "'self' 'unsafe-inline' https://static.cloudflareinsights.com"
+  : "'self' 'unsafe-inline'"
 const contentSecurityPolicy = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
   "frame-ancestors 'none'",
   "form-action 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  `script-src ${scriptSources}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "media-src 'self' blob:",

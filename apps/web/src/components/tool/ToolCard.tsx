@@ -11,6 +11,7 @@ import {
   Wrench,
   type LucideIcon,
 } from 'lucide-react'
+import type { ReactNode } from 'react'
 import type { ToolDefinition } from '@/features/tools/tool-registry'
 import { LocaleLink } from '@/i18n/link'
 import { useT } from '@/i18n'
@@ -28,7 +29,7 @@ const iconMap: Record<string, LucideIcon> = {
   RefreshCw,
 }
 
-export function ToolCard({ tool }: { tool: ToolDefinition }) {
+export function ToolCard({ tool, action }: { tool: ToolDefinition; action?: ReactNode }) {
   const copy = useT()
   const item = useLocalizedTool(tool)
   const Icon = iconMap[tool.icon] ?? Wrench
@@ -41,13 +42,28 @@ export function ToolCard({ tool }: { tool: ToolDefinition }) {
         : null
   const categoryLabel = copy.category[tool.category] ?? tool.category
   const groupLabel = tool.groups[0] ? (copy.group[tool.groups[0]] ?? tool.groups[0]) : ''
-  const content = (
-    <>
+  return (
+    <div className={`tool-card${tool.available ? '' : ' disabled'}`}>
       <div className="tool-card-top">
         <span className={`tool-icon ${tool.category}`}><Icon size={21} /></span>
-        {badge}
+        {(badge || action) ? (
+          <div className="tool-card-actions">
+            {badge}
+            {action}
+          </div>
+        ) : null}
       </div>
-      <h3>{item.name}</h3>
+      <h3>
+        <LocaleLink
+          to="/tools/$category"
+          params={{ category: tool.slug }}
+          className="tool-card-link"
+          aria-disabled={tool.available ? undefined : true}
+          aria-label={tool.available ? undefined : copy.availability.comingSoonAria(item.name)}
+        >
+          {item.name}
+        </LocaleLink>
+      </h3>
       <p>{item.shortDescription}</p>
       <div className="tool-meta">
         <span>{categoryLabel}</span>
@@ -56,7 +72,6 @@ export function ToolCard({ tool }: { tool: ToolDefinition }) {
         <span>·</span>
         <span>{tool.processingMode === 'client' ? copy.availability.local : copy.availability.server}</span>
       </div>
-    </>
+    </div>
   )
-  return <LocaleLink to="/tools/$category" params={{ category: tool.slug }} className={`tool-card${tool.available ? '' : ' disabled'}`} aria-disabled={tool.available ? undefined : true} aria-label={tool.available ? undefined : copy.availability.comingSoonAria(item.name)}>{content}</LocaleLink>
 }

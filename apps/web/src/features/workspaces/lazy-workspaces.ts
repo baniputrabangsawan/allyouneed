@@ -1,5 +1,6 @@
 import { lazy, type ComponentType, type LazyExoticComponent } from 'react'
 import type { ToolDefinition, ToolImplementation } from '@/features/tools/tool-registry'
+import { recoverFromChunkLoadError } from '@/lib/chunk-reload'
 
 type WorkspaceComponent = ComponentType<{ tool: ToolDefinition }>
 type LazyWorkspace = LazyExoticComponent<WorkspaceComponent>
@@ -9,8 +10,13 @@ function workspace(
   exportName: string,
 ): LazyWorkspace {
   return lazy(async () => {
-    const module = await load()
-    return { default: module[exportName] as WorkspaceComponent }
+    try {
+      const module = await load()
+      return { default: module[exportName] as WorkspaceComponent }
+    } catch (error) {
+      recoverFromChunkLoadError(error)
+      throw error
+    }
   })
 }
 

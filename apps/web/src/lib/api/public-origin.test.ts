@@ -1,11 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { assertProductionApiBaseUrl, isLocalApiHost } from './public-origin'
+import { assertProductionApiBaseUrl, isLocalApiHost, PRODUCTION_API_ORIGIN, resolveApiBaseUrl } from './public-origin'
 
 describe('production API origin guard', () => {
   it('treats loopback hosts as local', () => {
     expect(isLocalApiHost('localhost')).toBe(true)
     expect(isLocalApiHost('127.0.0.1')).toBe(true)
     expect(isLocalApiHost('api.example.com')).toBe(false)
+  })
+
+  it('uses the public API origin when production env is empty', () => {
+    expect(resolveApiBaseUrl(undefined, 'prod')).toBe(PRODUCTION_API_ORIGIN)
+    expect(resolveApiBaseUrl('  ', 'prod')).toBe(PRODUCTION_API_ORIGIN)
+    expect(resolveApiBaseUrl(undefined, 'dev')).toBe('http://localhost:8000')
+    expect(resolveApiBaseUrl('https://api.example.com/', 'prod')).toBe('https://api.example.com')
   })
 
   it('allows empty or HTTPS public origins on build', () => {

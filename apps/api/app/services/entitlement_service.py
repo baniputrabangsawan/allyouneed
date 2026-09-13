@@ -13,7 +13,7 @@ from app.core.enums import LicenseStatus
 from app.core.exceptions import ApiError
 from app.core.license_crypto import hash_installation_id
 from app.db.models import License
-from app.schemas.licenses import EntitlementPayload, LicenseStatusView
+from app.schemas.licenses import EntitlementPayload, LicenseStatusView, TransferTokenView
 from app.security.entitlement import EntitlementSigner
 from app.services.license_cache import LicenseStatusCache, get_license_status_cache
 from app.services.license_service import LicenseService
@@ -34,12 +34,33 @@ class EntitlementService:
         self._licenses = LicenseService(session, clock=clock, cache=self._cache)
         self._signer = signer
 
-    async def activate(self, license_key: str, installation_id: str) -> EntitlementPayload:
-        license, installation_hash = await self._licenses.activate(license_key, installation_id)
+    async def activate(
+        self, license_key: str, installation_id: str, device_secret: str
+    ) -> EntitlementPayload:
+        license, installation_hash = await self._licenses.activate(
+            license_key, installation_id, device_secret
+        )
+        return self._payload(license, installation_hash)
+
+    async def restore(self, installation_id: str, device_secret: str) -> EntitlementPayload:
+        license, installation_hash = await self._licenses.restore(installation_id, device_secret)
         return self._payload(license, installation_hash)
 
     async def refresh(self, token: str) -> EntitlementPayload:
         license, installation_hash = await self._live_license(token)
+        return self._payload(license, installation_hash)
+
+    async def issue_transfer(self, token: str) -> TransferTokenView:
+        license, installation_hash = await self._live_license(token)
+        transfer, raw_token = await self._licenses.issue_transfer(license, installation_hash)
+        return TransferTokenView(token=raw_token, expires_at=transfer.expires_at)
+
+    async def redeem_transfer(
+        self, token: str, installation_id: str, device_secret: str
+    ) -> EntitlementPayload:
+        license, installation_hash = await self._licenses.redeem_transfer(
+            token, installation_id, device_secret
+        )
         return self._payload(license, installation_hash)
 
     async def deactivate(self, token: str) -> LicenseStatusView:
