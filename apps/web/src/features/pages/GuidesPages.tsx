@@ -7,6 +7,7 @@ import { categoryLabel, categorySeoPath } from '@/features/seo/tool-seo'
 import { getToolBySlug, type ToolCategory } from '@/features/tools/tool-registry'
 import { LocaleLink } from '@/i18n/link'
 import { useLocale, useT } from '@/i18n'
+import { InstallKitsCTA } from '@/components/common/InstallKitsCTA'
 import { localizeTool } from '@/i18n/tools'
 
 const guideFilters = ['all', 'image', 'pdf', 'audio', 'video', 'qr'] as const
@@ -100,6 +101,7 @@ export function GuidesHome() {
       <CTASection title={copy.pages.exploreTools} copy={copy.pages.exploreToolsCopy}>
         <LocaleLink className="button primary" to="/tools">{copy.nav.tools}</LocaleLink>
         <LocaleLink className="button" to="/docs">{copy.footer.docs}</LocaleLink>
+        <InstallKitsCTA />
       </CTASection>
     </ContentPage>
   )

@@ -41,6 +41,14 @@ export const id: Messages = {
     dark: 'Gelap',
     system: 'Sistem',
   },
+  install: {
+    cta: 'Pasang Kits',
+    title: 'Dapatkan Kits di perangkat Anda',
+    copy: 'Pasang Kits agar lebih cepat dibuka dari layar utama.',
+    iosHint: 'Ketuk Share, lalu Add to Home Screen.',
+    aria: 'Pasang Kits di perangkat ini',
+    appSection: 'Aplikasi',
+  },
   home: {
     eyebrow: 'Langsung berguna',
     titleA: 'Semua tool yang Anda butuhkan.',

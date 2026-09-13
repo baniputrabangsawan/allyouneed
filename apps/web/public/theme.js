@@ -52,7 +52,7 @@
       if (!document.getElementById('kits-splash-css')) {
         var css = document.createElement('style')
         css.id = 'kits-splash-css'
-        css.textContent = 'html.kits-splash,html.kits-splash body{background:#111114!important}html.kits-splash .kits-splash-screen,html.kits-splash .kits-splash-screen[hidden]{position:fixed;inset:0;z-index:10000;display:grid!important;place-items:center;padding:24px;background:#111114;color:#f3f3f5}html.kits-splash-out .kits-splash-screen{opacity:0;pointer-events:none;transition:opacity .28s ease}'
+        css.textContent = 'html.kits-splash,html.kits-splash body{background:#111114!important;color-scheme:dark}html.kits-splash .kits-splash-screen,html.kits-splash .kits-splash-screen[hidden]{position:fixed;inset:0;z-index:10000;display:grid!important;place-items:center;padding:24px;background:#111114;color:#f3f3f5}html.kits-splash .kits-splash-inner{display:grid;justify-items:center;text-align:center}html.kits-splash .kits-splash-icon{width:112px;height:112px;border-radius:28px}html.kits-splash-out .kits-splash-screen{opacity:0;pointer-events:none;transition:opacity .22s cubic-bezier(.4,0,1,1)}'
         document.head.appendChild(css)
       }
       try { globalThis.sessionStorage.setItem('kits:splash-shown', '1') } catch { /* private mode */ }
