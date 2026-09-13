@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { PageHero } from '@/features/pages/marketing'
 import { Breadcrumbs, type BreadcrumbItem } from '@/features/seo/breadcrumbs'
 
 export function ContentPage({
@@ -6,25 +7,23 @@ export function ContentPage({
   title,
   lead,
   crumbs,
+  hero,
   children,
 }: {
   eyebrow: string
   title: string
   lead: string
   crumbs: readonly BreadcrumbItem[]
+  hero?: ReactNode
   children: ReactNode
 }) {
   return (
-    <main className="content-page">
-      <div className="tool-container">
-        <Breadcrumbs items={crumbs} />
-        <header className="content-header">
-          <p className="eyebrow">{eyebrow}</p>
-          <h1>{title}</h1>
-          <p>{lead}</p>
-        </header>
-        <div className="content-body">{children}</div>
-      </div>
+    <main className="marketing-page">
+      <Breadcrumbs items={crumbs} />
+      <PageHero eyebrow={eyebrow} title={title} lead={lead}>
+        {hero}
+      </PageHero>
+      <div className="marketing-body">{children}</div>
     </main>
   )
 }

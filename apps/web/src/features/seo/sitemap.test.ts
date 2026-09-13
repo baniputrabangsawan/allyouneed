@@ -9,11 +9,15 @@ describe('production sitemap', () => {
   it('lists canonical public pages once and only on the production origin', () => {
     const paths = publicSitemapPaths()
 
+    expect(new Set(paths).size).toBe(paths.length)
     expect(paths).toContain('/')
-    expect(paths).toContain('/docs/getting-started')
     expect(paths).toContain('/about')
     expect(paths).toContain('/guides')
-    expect(paths).toContain('/guides/how-to-compress-images-online')
+    expect(paths).toContain('/support')
+    expect(paths).toContain('/id/about')
+    expect(paths).toContain('/id/guides')
+    expect(paths).toContain('/id/support')
+    expect(paths).toContain('/docs/getting-started')
     expect(paths).not.toContain('/admin')
     expect(paths).not.toContain('/api')
     expect(paths.every((path) => path.startsWith('/') && !path.includes('?'))).toBe(true)

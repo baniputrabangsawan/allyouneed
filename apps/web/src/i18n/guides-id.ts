@@ -213,18 +213,6 @@ export const toolGuidesId: Record<string, ToolGuide> = {
     ],
     keywords: ['qr', 'kode qr'],
   },
-  'qr-generator': {
-    slug: 'qr-generator',
-    overview: 'Pembuat QR adalah workspace QR browser yang sama dengan Pembuat Kode QR: teks masuk, PNG dan SVG keluar.',
-    steps: [
-      'Buka Pembuat QR.',
-      'Masukkan teks.',
-      'Atur warna, ukuran, margin, dan koreksi error jika perlu.',
-      'Hasilkan, lalu unduh PNG atau SVG.',
-    ],
-    output: 'Gambar QR PNG dan SVG yang dihasilkan secara lokal.',
-    keywords: ['qr', 'buat'],
-  },
   'audio-converter': {
     slug: 'audio-converter',
     overview: 'Konverter Audio mentranskode audio di server dengan FFmpeg. File diunggah, diproses sebagai job, lalu diunduh.',

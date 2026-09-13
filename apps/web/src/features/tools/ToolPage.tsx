@@ -1,5 +1,5 @@
 import { useParams } from '@tanstack/react-router'
-import { ShieldCheck } from 'lucide-react'
+import { ChevronRight, ShieldCheck } from 'lucide-react'
 import { Suspense, useEffect, useSyncExternalStore } from 'react'
 import { ToolCard } from '@/components/tool/ToolCard'
 import { LocaleLink as Link } from '@/i18n/link'
@@ -8,10 +8,9 @@ import { ComingSoonToolState } from '@/features/tools/ComingSoonToolState'
 import { publicToolAudienceState } from '@/features/tools/tool-availability'
 import { getRelatedTools, getToolBySlug, type ToolDefinition } from '@/features/tools/tool-registry'
 import { getLazyWorkspace } from '@/features/workspaces/lazy-workspaces'
-import { PageBreadcrumbs } from '@/features/seo/breadcrumbs'
-import { categoryLabel, categorySeoPath, getToolSeo, toolJsonLd, toolSeoPath } from '@/features/seo/tool-seo'
-import { guidesForTool, guideCopy } from '@/content/guides/catalog'
-import { useLocale, useT } from '@/i18n'
+import { categoryLabel, categorySeoPath, getToolSeo, toolJsonLd } from '@/features/seo/tool-seo'
+import { getToolPageCopy } from '@/features/tools/tool-content'
+import { useLocale, type Locale } from '@/i18n'
 import { localizeTool } from '@/i18n/tools'
 import { addRecentTool } from '@/lib/storage/tools'
 
@@ -19,7 +18,6 @@ export function ToolRoute() {
   const params = useParams({ strict: false }) as { tool?: string; category?: string }
   const slug = params.tool ?? params.category ?? ''
   const locale = useLocale()
-  const copy = useT()
   const tool = getToolBySlug(slug)
   useEffect(() => { if (tool) addRecentTool(tool.id) }, [tool])
   if (!tool) return null
@@ -29,11 +27,13 @@ export function ToolRoute() {
   return (
     <main className="tool-page">
       <div className="tool-container">
-        <PageBreadcrumbs items={[
-          { name: copy.catalog.home, path: locale === 'id' ? '/id' : '/', to: '/' },
-          { name: categoryLabel(tool.category, locale), path: categorySeoPath(locale, tool.category), to: '/tools/$category', params: { category: tool.category } },
-          { name: item.name, path: toolSeoPath(locale, tool.slug) },
-        ]} />
+        <nav className="breadcrumb" aria-label="Breadcrumb">
+          <Link to="/" search={{ q: '', category: 'all', group: 'all' }}>Home</Link>
+          <ChevronRight size={14} />
+          <a href={categorySeoPath(locale, tool.category)}>{categoryLabel(tool.category, locale)}</a>
+          <ChevronRight size={14} />
+          <span>{item.name}</span>
+        </nav>
         <header className="tool-heading">
           <div>
             <p className="eyebrow">{tool.category} tool{tool.requiresPro ? ' · Pro' : ''}</p>
@@ -83,12 +83,9 @@ function WorkspaceLoading() {
 
 function InfoSections({ tool }: { tool: ToolDefinition }) {
   const locale = useLocale()
-  const copy = useT()
   const seo = getToolSeo(tool, locale)
   const item = localizeTool(tool, locale)
   const related = getRelatedTools(tool)
-  const guides = guidesForTool(tool.slug)
-  const formats = [...new Set([...(tool.acceptedFormats ?? []), ...(tool.outputFormats ?? [])])]
   return (
     <>
       {toolJsonLd(tool, locale).map((data, index) => <script key={index} type="application/ld+json">{JSON.stringify(data)}</script>)}
@@ -113,7 +110,7 @@ function InfoSections({ tool }: { tool: ToolDefinition }) {
           <p className="eyebrow">{locale === 'id' ? 'Format' : 'Formats'}</p>
           <h2>{locale === 'id' ? 'Format yang didukung' : 'Supported formats'}</h2>
         </div>
-        <p>{formats.length ? formats.map(formatLabel).join(', ') : (locale === 'id' ? 'Format bergantung pada input tool ini.' : 'Formats depend on the input used with this tool.')}</p>
+        <SupportedFormats tool={tool} locale={locale} />
       </section>
       <section className="privacy-banner">
         <ShieldCheck size={28} />
@@ -131,21 +128,6 @@ function InfoSections({ tool }: { tool: ToolDefinition }) {
         </div>
         <div className="tool-faq">{seo.faq.map((faq) => <article key={faq.question}><h3>{faq.question}</h3><p>{faq.answer}</p></article>)}</div>
       </section>
-      {guides.length > 0 && (
-        <section className="tool-info">
-          <div>
-            <p className="eyebrow">{copy.pages.relatedGuides}</p>
-            <h2>{copy.pages.relatedGuides}</h2>
-          </div>
-          <ul className="content-links">
-            {guides.map((article) => (
-              <li key={article.slug}>
-                <Link to="/guides/$slug" params={{ slug: article.slug }}>{guideCopy(article, locale).title}</Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
       {related.length > 0 && (
         <section className="related">
           <div className="section-heading">
@@ -161,6 +143,14 @@ function InfoSections({ tool }: { tool: ToolDefinition }) {
   )
 }
 
-function formatLabel(format: string) {
-  return format.replace(/^image\//, '').replace(/^audio\//, '').replace(/^video\//, '').replace(/^application\//, '').replace(/^text\//, '').replace(/^x-/, '').toUpperCase()
+function SupportedFormats({ tool, locale }: { tool: ToolDefinition; locale: Locale }) {
+  const page = getToolPageCopy(tool.slug, locale)
+  const input = page?.inputFormats ?? []
+  const output = page?.outputFormats ?? []
+  return (
+    <div>
+      <p>{locale === 'id' ? 'Input' : 'Input'}: {input.join(', ')}</p>
+      <p>{locale === 'id' ? 'Keluaran' : 'Output'}: {output.join(', ')}</p>
+    </div>
+  )
 }

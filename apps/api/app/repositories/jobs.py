@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.core.clock import aware, now
 from app.core.config import get_settings
 from app.core.enums import JobStatus
+from app.core.job_payload import input_keys
 from app.core.state_machine import TERMINAL, ensure_transition
 from app.db.models import JobInput, JobOutput, ProcessingJob
 from app.db.session import get_session_factory
@@ -234,7 +235,7 @@ def _status_time_values(values: dict[str, Any], status: str, stamp: Any) -> None
 async def _write_inputs(session: AsyncSession, job_id: str, input_data: dict[str, Any]) -> None:
     await session.execute(delete(JobInput).where(JobInput.job_id == job_id))
     stamp = now()
-    for position, key in enumerate(_input_keys(input_data)):
+    for position, key in enumerate(input_keys(input_data)):
         session.add(
             JobInput(
                 id=str(uuid4()),
@@ -290,15 +291,6 @@ def _to_job(row: ProcessingJob) -> Job:
         tool_id=row.tool_id,
         request_id=row.request_id,
     )
-
-
-def _input_keys(input_data: dict[str, Any]) -> list[str]:
-    if isinstance(input_data.get("fileKey"), str):
-        return [input_data["fileKey"]]
-    files = input_data.get("files")
-    if isinstance(files, list) and all(isinstance(item, str) for item in files):
-        return list(files)
-    return []
 
 
 def _storage_key_from_download(result: dict[str, Any]) -> str:

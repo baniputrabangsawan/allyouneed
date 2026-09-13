@@ -35,6 +35,7 @@ async def test_resize_image_end_to_end(api: AsyncClient) -> None:
     result = await api.get(f"/api/v1/jobs/{job['jobId']}/result")
     downloaded = await api.get(result.json()["data"]["result"]["downloadUrl"])
     assert downloaded.status_code == 200
+    assert downloaded.headers["content-disposition"].startswith("attachment; filename=")
     with Image.open(BytesIO(downloaded.content)) as image:
         assert image.size == (8, 6)
 

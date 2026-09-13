@@ -8,7 +8,7 @@ import { LocaleLink } from '@/i18n/link'
 import { stripLocalePrefix, useT } from '@/i18n'
 import { useGoHomeTop } from '@/i18n/navigate'
 import { MobileNav } from '@/components/layout/MobileNav'
-import { navItemActive, primaryPageNav } from '@/components/layout/primary-nav'
+import { isPrimaryNavActive, primaryNavigation } from '@/components/layout/primary-nav'
 import {
   getThemePreference,
   saveThemePreference,
@@ -124,16 +124,21 @@ export function AppHeader() {
       <div ref={innerRef} className="header-inner bg-background/70 backdrop-blur-xl border border-border/50 shadow-sm rounded-2xl md:rounded-full px-6 md:px-10">
         <LocaleLink to="/" className="brand" onClick={(event) => { closeMenu(); goHomeTop(event) }}><span className="brand-mark"><Grid2X2 size={18} /></span>{copy.brand}</LocaleLink>
         <nav aria-label="Primary">
-          {primaryPageNav.map((item) => (
-            <LocaleLink
-              key={item.key}
-              className={navItemActive(path, item.key) ? 'active' : undefined}
-              to={item.to}
-              onClick={item.key === 'home' ? (event) => { closeMenu(); goHomeTop(event) } : closeMenu}
-            >
-              {copy.nav[item.key]}
-            </LocaleLink>
-          ))}
+          {primaryNavigation.map((item) => {
+            const active = isPrimaryNavActive(item.to, path)
+            return (
+              <LocaleLink
+                key={item.key}
+                className={active ? 'active' : undefined}
+                activeProps={{ className: '' }}
+                aria-current={active ? 'page' : undefined}
+                to={item.to}
+                onClick={item.key === 'home' ? (event) => { closeMenu(); goHomeTop(event) } : closeMenu}
+              >
+                {copy.nav[item.key]}
+              </LocaleLink>
+            )
+          })}
         </nav>
         <div className="header-actions">
           <button className="search-shortcut" type="button" onClick={() => setPaletteOpen(true)} aria-label={copy.nav.searchAria} aria-keyshortcuts="Control+K Meta+K">

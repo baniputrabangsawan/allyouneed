@@ -1,18 +1,15 @@
 import { getLocalStorage, type StorageLike } from './preferences'
+import {
+  LICENSE_PLANS,
+  LICENSE_STATUSES,
+  type Entitlement,
+} from '@/features/licensing/types'
 
 export const ENTITLEMENT_TOKEN_KEY = 'utility:entitlement-token'
 export const ENTITLEMENT_CACHE_KEY = 'utility:entitlement-cache'
 export const ENTITLEMENT_STORAGE_EVENT = 'utility:entitlement-storage'
 
-export type LicensePlan = 'pro_1_month' | 'pro_6_months' | 'pro_12_months'
-export type LicenseStatus = 'active' | 'expired' | 'suspended' | 'revoked'
-
-export interface EntitlementCache {
-  plan: LicensePlan
-  status: LicenseStatus
-  expiresAt: string | null
-  capabilities: string[]
-}
+export type EntitlementCache = Entitlement
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -36,20 +33,12 @@ export const getStoredEntitlementCache = (
     if (!raw) return undefined
     const parsed: unknown = JSON.parse(raw)
     if (!isRecord(parsed)) return undefined
-    if (parsed.plan !== 'pro_1_month' && parsed.plan !== 'pro_6_months' && parsed.plan !== 'pro_12_months') {
-      return undefined
-    }
-    if (
-      parsed.status !== 'active' &&
-      parsed.status !== 'expired' &&
-      parsed.status !== 'suspended' &&
-      parsed.status !== 'revoked'
-    ) {
-      return undefined
-    }
+    const plan = LICENSE_PLANS.find((candidate) => parsed.plan === candidate)
+    const status = LICENSE_STATUSES.find((candidate) => parsed.status === candidate)
+    if (!plan || !status) return undefined
     return {
-      plan: parsed.plan,
-      status: parsed.status,
+      plan,
+      status,
       expiresAt: typeof parsed.expiresAt === 'string' ? parsed.expiresAt : null,
       capabilities: Array.isArray(parsed.capabilities)
         ? parsed.capabilities.filter((item): item is string => typeof item === 'string')

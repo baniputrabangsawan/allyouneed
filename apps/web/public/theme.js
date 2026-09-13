@@ -1,6 +1,8 @@
 (function () {
   var html = globalThis.document.documentElement
   var dark = false
+  var DARK_BG = '#111114'
+  var LIGHT_BG = '#f5f5fa'
   try {
     var theme = globalThis.localStorage.getItem('utility:theme')
     if (theme !== 'light' && theme !== 'dark' && theme !== 'system') theme = 'system'
@@ -10,6 +12,14 @@
   } catch {
     /* private mode */
   }
+  var background = dark ? DARK_BG : LIGHT_BG
+  html.style.background = background
+  try {
+    var themeColor = document.querySelector('meta[name="theme-color"]')
+    if (themeColor) themeColor.setAttribute('content', background)
+  } catch {
+    /* ignore */
+  }
   try {
     globalThis.history.scrollRestoration = 'manual'
     var nav = globalThis.performance && globalThis.performance.getEntriesByType('navigation')[0]
@@ -18,7 +28,34 @@
     if (keep || globalThis.location.hash || (nav && (nav.type === 'reload' || nav.type === 'back_forward'))) {
       html.setAttribute('data-kits-restore', '1')
       html.style.visibility = 'hidden'
-      html.style.background = dark ? '#111114' : '#f5f5fa'
+      html.style.background = background
+    }
+  } catch {
+    /* ignore */
+  }
+  try {
+    var standalone = false
+    try {
+      standalone = globalThis.matchMedia('(display-mode: standalone)').matches
+        || globalThis.matchMedia('(display-mode: fullscreen)').matches
+        || globalThis.matchMedia('(display-mode: window-controls-overlay)').matches
+        || globalThis.navigator.standalone === true
+    } catch {
+      standalone = false
+    }
+    var navEntry = globalThis.performance && globalThis.performance.getEntriesByType('navigation')[0]
+    var alreadyShown = false
+    try { alreadyShown = !!globalThis.sessionStorage.getItem('kits:splash-shown') } catch { /* private mode */ }
+    if (standalone && !alreadyShown && !(navEntry && navEntry.type === 'back_forward')) {
+      html.classList.add('kits-splash')
+      html.style.background = DARK_BG
+      if (!document.getElementById('kits-splash-css')) {
+        var css = document.createElement('style')
+        css.id = 'kits-splash-css'
+        css.textContent = 'html.kits-splash,html.kits-splash body{background:#111114!important}html.kits-splash .kits-splash-screen,html.kits-splash .kits-splash-screen[hidden]{position:fixed;inset:0;z-index:10000;display:grid!important;place-items:center;padding:24px;background:#111114;color:#f3f3f5}html.kits-splash-out .kits-splash-screen{opacity:0;pointer-events:none;transition:opacity .28s ease}'
+        document.head.appendChild(css)
+      }
+      try { globalThis.sessionStorage.setItem('kits:splash-shown', '1') } catch { /* private mode */ }
     }
   } catch {
     /* ignore */

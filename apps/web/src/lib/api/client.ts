@@ -91,6 +91,16 @@ const urlFor = (baseUrl: string, path: string) => {
   return `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`
 }
 
+const shouldAttachConfiguredHeaders = (baseUrl: string, path: string): boolean => {
+  if (!/^https?:\/\//i.test(path) && !path.startsWith('blob:')) return true
+  if (!baseUrl) return false
+  try {
+    return new URL(path).origin === new URL(baseUrl).origin
+  } catch {
+    return false
+  }
+}
+
 export const resolveApiUrl = (path: string) => urlFor(API_BASE_URL, path)
 
 export const createApiClient = (config: ApiClientConfig = {}): ApiClient => {
@@ -112,7 +122,9 @@ export const createApiClient = (config: ApiClientConfig = {}): ApiClient => {
     if (signal?.aborted) abort()
     else signal?.addEventListener('abort', abort, { once: true })
 
-    const headers = new Headers(extraHeaders?.())
+    const headers = new Headers(
+      shouldAttachConfiguredHeaders(baseUrl, path) ? extraHeaders?.() : undefined,
+    )
     new Headers(requestInit.headers).forEach((value, key) => headers.set(key, value))
     if (json !== undefined && !headers.has('content-type')) headers.set('content-type', 'application/json')
 

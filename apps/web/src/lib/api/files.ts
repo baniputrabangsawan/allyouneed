@@ -32,18 +32,26 @@ function putWithProgress(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
+    const abort = () => xhr.abort()
+    const cleanup = () => signal?.removeEventListener('abort', abort)
     xhr.open('PUT', url)
     headers.forEach((value, key) => xhr.setRequestHeader(key, value))
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable && event.total > 0) onProgress(Math.round((event.loaded / event.total) * 100))
     }
     xhr.onload = () => {
+      cleanup()
       if (xhr.status >= 200 && xhr.status < 300) resolve()
       else reject(new ApiError(`Upload failed (${xhr.status}).`, { status: xhr.status, code: 'UPLOAD_FAILED' }))
     }
-    xhr.onerror = () => reject(new ApiError('Upload failed.', { status: 0, code: 'UPLOAD_FAILED' }))
-    xhr.onabort = () => reject(new DOMException('Upload aborted.', 'AbortError'))
-    const abort = () => xhr.abort()
+    xhr.onerror = () => {
+      cleanup()
+      reject(new ApiError('Upload failed.', { status: 0, code: 'UPLOAD_FAILED' }))
+    }
+    xhr.onabort = () => {
+      cleanup()
+      reject(new DOMException('Upload aborted.', 'AbortError'))
+    }
     if (signal?.aborted) {
       reject(new DOMException('Upload aborted.', 'AbortError'))
       return

@@ -35,7 +35,7 @@ export function resultMediaKind(tool: { category: string; slug: string }): Media
   if (tool.slug === 'generate-thumbnail' || tool.slug === 'video-screenshot' || tool.slug === 'video-metadata-viewer') {
     return null
   }
-  if (tool.slug === 'extract-audio' || tool.slug === 'extract-audio-from-video') return 'audio'
+  if (tool.slug === 'extract-audio-from-video') return 'audio'
   if (tool.slug === 'speech-to-text') return null
   if (tool.category === 'audio') return 'audio'
   if (tool.category === 'video') return 'video'

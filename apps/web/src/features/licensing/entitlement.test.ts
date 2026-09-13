@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { resolveEntitlementState } from './entitlement'
+import { canUseTool, resolveEntitlementState } from './entitlement'
+import { getToolBySlug } from '@/features/tools/tool-registry'
 
 describe('resolveEntitlementState', () => {
   it('stays loading until the client has restored storage', () => {
@@ -22,5 +23,30 @@ describe('resolveEntitlementState', () => {
 
   it('is free after verification settles without an active license', () => {
     expect(resolveEntitlementState({ hydrated: true, hasToken: true, active: false, settled: true })).toBe('free')
+  })
+})
+
+describe('canUseTool', () => {
+  const freeTool = getToolBySlug('word-counter')!
+  const proTool = getToolBySlug('speech-to-text')!
+
+  it('allows free tools without an entitlement', () => {
+    expect(canUseTool(freeTool, undefined)).toBe(true)
+  })
+
+  it('requires an active entitlement with the tool capability', () => {
+    expect(canUseTool(proTool, undefined)).toBe(false)
+    expect(canUseTool(proTool, {
+      plan: 'pro_1_month',
+      status: 'active',
+      expiresAt: null,
+      capabilities: ['audio.speech_to_text'],
+    })).toBe(true)
+    expect(canUseTool(proTool, {
+      plan: 'pro_1_month',
+      status: 'active',
+      expiresAt: null,
+      capabilities: ['audio.text_to_speech'],
+    })).toBe(false)
   })
 })

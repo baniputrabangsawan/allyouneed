@@ -130,9 +130,7 @@ def require_subtitle_file(path: Path) -> None:
         text is not None and looks_like_subtitle_text(text)
     )
     if not recognized:
-        raise ProcessingError(
-            UNSUPPORTED_SUBTITLE_MESSAGE, code="UNSUPPORTED_SUBTITLE_FORMAT"
-        )
+        raise ProcessingError(UNSUPPORTED_SUBTITLE_MESSAGE, code="UNSUPPORTED_SUBTITLE_FORMAT")
     if text is None or not subtitle_cues_valid(text):
         raise ProcessingError(INVALID_SUBTITLE_MESSAGE, code="INVALID_SUBTITLE_FILE")
 

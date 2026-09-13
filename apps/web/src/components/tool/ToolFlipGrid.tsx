@@ -1,4 +1,4 @@
-import { memo, useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { DiscoveryToolCard } from '@/components/common/DiscoveryToolCard'
 import type { ToolDefinition } from '@/features/tools/tool-registry'
 import { useT } from '@/i18n'
@@ -82,7 +82,7 @@ function useFlipItems(next: readonly ToolDefinition[], animate = true) {
   return { scopeRef, rendered: animate ? rendered : next }
 }
 
-export const ToolFlipGrid = memo(function ToolFlipGrid({ items, animate = true }: { items: readonly ToolDefinition[]; animate?: boolean }) {
+export function ToolFlipGrid({ items, animate = true }: { items: readonly ToolDefinition[]; animate?: boolean }) {
   const { scopeRef, rendered } = useFlipItems(items, animate)
   return (
     <div ref={scopeRef} className="tool-grid tool-flip-scope">
@@ -91,9 +91,9 @@ export const ToolFlipGrid = memo(function ToolFlipGrid({ items, animate = true }
       ))}
     </div>
   )
-})
+}
 
-export const AvailabilityFlipGrids = memo(function AvailabilityFlipGrids({
+export function AvailabilityFlipGrids({
   available,
   comingSoon,
   animate = true,
@@ -130,4 +130,4 @@ export const AvailabilityFlipGrids = memo(function AvailabilityFlipGrids({
       )}
     </div>
   )
-})
+}

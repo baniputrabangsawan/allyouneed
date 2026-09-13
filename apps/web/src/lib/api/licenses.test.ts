@@ -1,18 +1,24 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { activateLicense } from './licenses'
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { activateLicense } from "./licenses";
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => vi.unstubAllGlobals());
 
-describe('license API', () => {
-  it('maps activation network failures to license server copy', async () => {
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockRejectedValue(new TypeError('Failed to fetch')))
+describe("license API", () => {
+  it("maps activation network failures to license server copy", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockRejectedValue(new TypeError("Failed to fetch")),
+    );
 
     await expect(
-      activateLicense('UTL-PRO-AAAA-BBBB-CCCC', '11111111-1111-4111-8111-111111111111'),
+      activateLicense("UTL-PRO-AAAA-BBBB-CCCC", {
+        installationId: "11111111-1111-4111-8111-111111111111",
+        deviceSecret: "a".repeat(43),
+      }),
     ).rejects.toMatchObject({
       status: 0,
-      code: 'LICENSE_API_UNREACHABLE',
-      message: 'Could not reach the license server.',
-    })
-  })
-})
+      code: "LICENSE_API_UNREACHABLE",
+      message: "Could not reach the license server.",
+    });
+  });
+});

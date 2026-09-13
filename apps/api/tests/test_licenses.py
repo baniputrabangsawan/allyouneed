@@ -12,7 +12,6 @@ from app.services.license_service import LicenseService
 from tests.helpers import DEVICE_SECRET, activate_json
 
 
-
 def test_license_key_format() -> None:
     key = generate_license_key()
     assert is_license_key_format(key)

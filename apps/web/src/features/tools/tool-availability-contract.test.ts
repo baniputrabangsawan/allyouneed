@@ -16,9 +16,9 @@ const remoteProcessors = new Set([
   'rotate-pdf', 'delete-pdf-pages', 'reorder-pdf-pages', 'extract-pdf-pages', 'watermark-pdf',
   'page-number-pdf', 'protect-pdf', 'unlock-pdf', 'pdf-metadata-viewer', 'pdf-to-text',
   'change-audio-speed', 'change-volume', 'audio-converter', 'audio-compressor', 'audio-cutter',
-  'audio-trimmer', 'audio-merger', 'remove-silence', 'noise-reduction', 'extract-audio-from-video', 'video-compressor',
-  'video-converter', 'video-to-gif', 'gif-to-video', 'video-cutter', 'video-trimmer', 'video-merger',
-  'resize-video', 'crop-video', 'rotate-video', 'remove-audio', 'extract-audio', 'add-audio',
+  'audio-merger', 'remove-silence', 'noise-reduction', 'extract-audio-from-video', 'video-compressor',
+  'video-converter', 'video-to-gif', 'gif-to-video', 'video-cutter', 'video-merger',
+  'resize-video', 'crop-video', 'rotate-video', 'remove-audio', 'add-audio',
   'change-video-speed', 'add-watermark', 'add-subtitle', 'blur-face', 'html-to-image', 'basic-background-removal',
   'speech-to-text', 'text-to-speech', 'remove-background',
 ])

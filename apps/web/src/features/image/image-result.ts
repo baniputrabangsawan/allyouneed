@@ -6,7 +6,7 @@ const IMAGE_MIME = /^image\//i
 const NON_IMAGE_OUTPUT = new Set([
   'image-to-base64',
   'color-picker',
-  'palette-generator',
+  'color-palette-generator',
   'image-metadata-viewer',
 ])
 

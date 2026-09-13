@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useEntitlement } from '@/features/licensing/entitlement'
-import { navItemActive, primaryPageNav, toolCategoryNav } from '@/components/layout/primary-nav'
+import { isPrimaryNavActive, primaryNavigation } from '@/components/layout/primary-nav'
 import { localeLabels, locales, type Locale } from '@/i18n/config'
 import { LocaleLink } from '@/i18n/link'
 import { stripLocalePrefix, switchLocaleLocation, useLocale, useT } from '@/i18n'
@@ -175,12 +175,15 @@ export function MobileNav({ theme, shortcutLabel, onClose, onSearch, onCycleThem
 
         <div className="mobile-sheet-body">
           <p className="mobile-sheet-label">{copy.nav.sectionNav}</p>
-          {primaryPageNav.map((item) => {
+          {primaryNavigation.map((item) => {
             const Icon = pageIcons[item.key]
+            const active = isPrimaryNavActive(item.to, path)
             return (
               <LocaleLink
                 key={item.key}
-                className={`mobile-sheet-row${navItemActive(path, item.key) ? ' active' : ''}`}
+                className={`mobile-sheet-row${active ? ' active' : ''}`}
+                activeProps={{ className: '' }}
+                aria-current={active ? 'page' : undefined}
                 to={item.to}
                 onClick={item.key === 'home' ? (event) => { close(); goHomeTop(event) } : close}
               >
@@ -189,20 +192,6 @@ export function MobileNav({ theme, shortcutLabel, onClose, onSearch, onCycleThem
               </LocaleLink>
             )
           })}
-
-          <p className="mobile-sheet-label">{copy.nav.sectionCategories}</p>
-          {toolCategoryNav.map((item) => (
-            <LocaleLink
-              key={item.category}
-              className={`mobile-sheet-row${path === `/tools/${item.category}` ? ' active' : ''}`}
-              to="/tools/$category"
-              params={{ category: item.category }}
-              onClick={close}
-            >
-              <LayoutGrid size={18} aria-hidden="true" />
-              <span>{copy.footer[item.key]}</span>
-            </LocaleLink>
-          ))}
 
           <p className="mobile-sheet-label">{copy.nav.sectionPro}</p>
           {licensePending ? (

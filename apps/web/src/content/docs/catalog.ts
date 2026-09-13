@@ -4,6 +4,7 @@ import {
   type ToolCategory,
   type ToolDefinition,
 } from '@/features/tools/tool-registry'
+import { getToolPageCopy } from '@/features/tools/tool-content'
 import type { Locale } from '@/i18n/config'
 import { getMessages } from '@/i18n'
 import { toolGuidesId } from '@/i18n/guides-id'
@@ -48,6 +49,8 @@ export function formatMimeList(values: readonly string[] | undefined) {
 }
 
 function fallbackSteps(tool: ToolDefinition, locale: Locale): string[] {
+  const page = getToolPageCopy(tool.slug, locale)
+  if (page?.howTo.length) return page.howTo
   const copy = getMessages(locale)
   const name = locale === 'id' ? (toolsId[tool.slug]?.name ?? tool.name) : tool.name
   if (tool.implementation === 'qr-code') {
@@ -72,7 +75,8 @@ export function resolveToolGuide(tool: ToolDefinition, locale: Locale = 'en'): T
   if (locale === 'id' && idGuide) return idGuide
   if (locale === 'en' && enGuide) return enGuide
   const copy = getMessages(locale)
-  const overview = locale === 'id' ? (toolsId[tool.slug]?.shortDescription ?? tool.description) : tool.description
+  const page = getToolPageCopy(tool.slug, locale)
+  const overview = page?.description ?? (locale === 'id' ? (toolsId[tool.slug]?.shortDescription ?? tool.description) : tool.description)
   return {
     slug: tool.slug,
     overview,
