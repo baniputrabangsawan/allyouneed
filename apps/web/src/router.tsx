@@ -3,6 +3,9 @@ import { QueryClient } from '@tanstack/react-query'
 import { routeTree } from './routeTree.gen'
 import { peekKeepScroll } from '@/lib/motion/restore'
 import { peekGoHomeTop } from '@/lib/navigation/home-top'
+import { installChunkLoadRecovery } from '@/lib/chunk-reload'
+
+installChunkLoadRecovery()
 
 function shouldRestoreScroll({ location }: { location: { hash?: string } }) {
   if (typeof window !== 'undefined' && (peekKeepScroll() || peekGoHomeTop())) return false
