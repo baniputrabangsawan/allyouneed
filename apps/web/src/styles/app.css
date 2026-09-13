@@ -1273,4 +1273,47 @@ html.kits-splash:not(.kits-splash-out) .kits-splash-dots span:nth-child(3){anima
   .marketing-body{gap:40px}
   .guide-grid,.feature-grid,.support-topics,.process-grid{grid-template-columns:1fr}
   .guide-card,.feature-card,.support-topic-card,.page-cta{padding:24px 18px}
+  .color-workspace-top{grid-template-columns:1fr}
+  .color-swatch-preview{height:104px}
+  .color-workspace .button-row .button{width:auto;flex:1 1 140px}
+}
+@media(max-width:359px){
+  .color-swatch-grid{grid-template-columns:repeat(auto-fit,minmax(96px,1fr))}
+}
+
+@media(min-width:1101px){
+  .icon-button.mobile-menu{display:none}
+}
+.content-page .content-header{margin:28px 0 36px;max-width:760px}
+.content-page .content-header h1{margin:0;font-size:clamp(36px,5vw,64px);letter-spacing:-.05em;text-wrap:balance}
+.content-page .content-header>p:last-child{margin:16px 0 0;color:var(--muted);font-size:17px;line-height:1.65;text-wrap:pretty}
+.content-body{max-width:760px;display:grid;gap:28px;padding-bottom:64px}
+.content-body h2{margin:0;font-size:24px;letter-spacing:-.03em}
+.content-body p{margin:0;color:var(--muted);font-size:16px;line-height:1.7;text-wrap:pretty}
+.content-links{margin:0;padding:0;list-style:none;display:grid;gap:8px}
+.content-links a{color:var(--foreground);font-weight:650}
+.content-links a:hover{text-decoration:underline}
+.guide-index{margin:0;padding:0;list-style:none;display:grid;gap:10px}
+.guide-index a{
+  display:grid;gap:4px;padding:16px 18px;border:1px solid var(--border);border-radius:14px;background:var(--surface);
+}
+.guide-index a:hover{border-color:color-mix(in srgb,var(--foreground) 22%,var(--border))}
+.guide-index strong{font-size:16px;letter-spacing:-.02em}
+.guide-index span{color:var(--muted);font-size:14px;line-height:1.5}
+@media(max-width:1100px){
+  .header-inner{justify-content:space-between}
+  .header-inner nav,.search-shortcut,.header-desktop-controls{display:none}
+  .header-actions{display:flex;align-items:center;margin-left:auto;flex:none;gap:8px}
+  .header-actions .license-chip{flex:none}
+  .icon-button.mobile-menu{
+    display:grid;
+    place-items:center;
+    flex:none;
+    width:44px;
+    height:44px;
+    min-width:44px;
+    min-height:44px;
+    position:relative;
+    z-index:21;
+  }
 }
