@@ -4,7 +4,7 @@ import {
   AudioConverterWorkspace,
   browserMediaWorkspaceSlugs, colorWorkspaceSlugs, cryptoWorkspaceSlugs, cssWorkspaceSlugs,
   dateTimeWorkspaceSlugs, encodingWorkspaceSlugs, genericTextWorkspaceSlugs, getSpecialWorkspace,
-  getWorkspaceComponent, HtmlWorkspace, JavaScriptWorkspace, MergePngWorkspace, QrisParserWorkspace, QrWorkspace, randomWorkspaceSlugs, RemoteFileWorkspace, SpeechToTextWorkspace, TextToSpeechWorkspace, WordCounterWorkspace,
+  getWorkspaceComponent, HtmlWorkspace, JavaScriptWorkspace, JsonLdWorkspace, MergePngWorkspace, MetaTagWorkspace, OpenGraphWorkspace, QrisParserWorkspace, QrWorkspace, randomWorkspaceSlugs, RemoteFileWorkspace, RobotsTxtWorkspace, SpeechToTextWorkspace, TextToSpeechWorkspace, WordCounterWorkspace,
   workspaceComponents, YamlWorkspace,
 } from './index'
 
@@ -34,6 +34,13 @@ describe('workspace component mapping', () => {
     expect(getSpecialWorkspace(get('javascript-formatter')!)).toBe(JavaScriptWorkspace)
     expect(getWorkspaceComponent(get('html-formatter')!)).toBeTypeOf('function')
     expect(getSpecialWorkspace(get('html-formatter')!)).toBe(HtmlWorkspace)
+    expect(getSpecialWorkspace(get('meta-tag-generator')!)).toBe(MetaTagWorkspace)
+    expect(getWorkspaceComponent(get('meta-tag-generator')!)).toBe(MetaTagWorkspace)
+    expect(getWorkspaceComponent(get('robots-txt-generator')!)).toBe(RobotsTxtWorkspace)
+    expect(getSpecialWorkspace(get('json-ld-generator')!)).toBe(JsonLdWorkspace)
+    expect(getWorkspaceComponent(get('json-ld-generator')!)).toBe(JsonLdWorkspace)
+    expect(getSpecialWorkspace(get('open-graph-generator')!)).toBe(OpenGraphWorkspace)
+    expect(getWorkspaceComponent(get('open-graph-generator')!)).toBe(OpenGraphWorkspace)
     expect(getWorkspaceComponent(get('html-to-image')!)).toBeTypeOf('function')
     expect(getWorkspaceComponent(get('yaml-to-json')!)).toBe(YamlWorkspace)
     expect(getWorkspaceComponent(get('json-to-yaml')!)).toBe(YamlWorkspace)

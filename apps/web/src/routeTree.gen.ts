@@ -13,14 +13,22 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ToolRouteImport } from './routes/$tool'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AuthDotmdRouteImport } from './routes/auth[.]md'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as LicenseRouteImport } from './routes/license'
+import { Route as OpenapiDotjsonRouteImport } from './routes/openapi[.]json'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as DotwellKnownAiCatalogDotjsonRouteImport } from './routes/[.]well-known.ai-catalog[.]json'
+import { Route as DotwellKnownApiCatalogRouteImport } from './routes/[.]well-known.api-catalog'
+import { Route as DotwellKnownJwksDotjsonRouteImport } from './routes/[.]well-known.jwks[.]json'
+import { Route as DotwellKnownOauthAuthorizationServerRouteImport } from './routes/[.]well-known.oauth-authorization-server'
+import { Route as DotwellKnownOauthProtectedResourceRouteImport } from './routes/[.]well-known.oauth-protected-resource'
+import { Route as DotwellKnownOpenidConfigurationRouteImport } from './routes/[.]well-known.openid-configuration'
 import { Route as AdminAuditRouteImport } from './routes/admin.audit'
 import { Route as AdminLicensesRouteImport } from './routes/admin.licenses'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
@@ -42,6 +50,8 @@ import { Route as IdSupportRouteImport } from './routes/id.support'
 import { Route as IdTermsRouteImport } from './routes/id.terms'
 import { Route as ToolsIndexRouteImport } from './routes/tools.index'
 import { Route as ToolsCategoryRouteImport } from './routes/tools.$category'
+import { Route as DotwellKnownAgentSkillsIndexDotjsonRouteImport } from './routes/[.]well-known.agent-skills.index[.]json'
+import { Route as DotwellKnownMcpServerCardDotjsonRouteImport } from './routes/[.]well-known.mcp.server-card[.]json'
 import { Route as DocsToolsSlugRouteImport } from './routes/docs.tools.$slug'
 import { Route as IdDocsIndexRouteImport } from './routes/id.docs.index'
 import { Route as IdDocsGettingStartedRouteImport } from './routes/id.docs.getting-started'
@@ -51,6 +61,7 @@ import { Route as IdGuidesIndexRouteImport } from './routes/id.guides.index'
 import { Route as IdGuidesSlugRouteImport } from './routes/id.guides.$slug'
 import { Route as IdToolsIndexRouteImport } from './routes/id.tools.index'
 import { Route as IdToolsCategoryRouteImport } from './routes/id.tools.$category'
+import { Route as DotwellKnownAgentSkillsUseKitsSKILLDotmdRouteImport } from './routes/[.]well-known.agent-skills.use-kits.SKILL[.]md'
 import { Route as IdDocsToolsSlugRouteImport } from './routes/id.docs.tools.$slug'
 
 const IndexRoute = IndexRouteImport.update({
@@ -73,6 +84,11 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthDotmdRoute = AuthDotmdRouteImport.update({
+  id: '/auth.md',
+  path: '/auth.md',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ContactRoute = ContactRouteImport.update({
   id: '/contact',
   path: '/contact',
@@ -81,6 +97,11 @@ const ContactRoute = ContactRouteImport.update({
 const LicenseRoute = LicenseRouteImport.update({
   id: '/license',
   path: '/license',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OpenapiDotjsonRoute = OpenapiDotjsonRouteImport.update({
+  id: '/openapi.json',
+  path: '/openapi.json',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PricingRoute = PricingRouteImport.update({
@@ -113,6 +134,40 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DotwellKnownAiCatalogDotjsonRoute =
+  DotwellKnownAiCatalogDotjsonRouteImport.update({
+    id: '/.well-known/ai-catalog.json',
+    path: '/.well-known/ai-catalog.json',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DotwellKnownApiCatalogRoute = DotwellKnownApiCatalogRouteImport.update({
+  id: '/.well-known/api-catalog',
+  path: '/.well-known/api-catalog',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DotwellKnownJwksDotjsonRoute = DotwellKnownJwksDotjsonRouteImport.update({
+  id: '/.well-known/jwks.json',
+  path: '/.well-known/jwks.json',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DotwellKnownOauthAuthorizationServerRoute =
+  DotwellKnownOauthAuthorizationServerRouteImport.update({
+    id: '/.well-known/oauth-authorization-server',
+    path: '/.well-known/oauth-authorization-server',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DotwellKnownOauthProtectedResourceRoute =
+  DotwellKnownOauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DotwellKnownOpenidConfigurationRoute =
+  DotwellKnownOpenidConfigurationRouteImport.update({
+    id: '/.well-known/openid-configuration',
+    path: '/.well-known/openid-configuration',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AdminAuditRoute = AdminAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
@@ -219,6 +274,18 @@ const ToolsCategoryRoute = ToolsCategoryRouteImport.update({
   path: '/tools/$category',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DotwellKnownAgentSkillsIndexDotjsonRoute =
+  DotwellKnownAgentSkillsIndexDotjsonRouteImport.update({
+    id: '/.well-known/agent-skills/index.json',
+    path: '/.well-known/agent-skills/index.json',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DotwellKnownMcpServerCardDotjsonRoute =
+  DotwellKnownMcpServerCardDotjsonRouteImport.update({
+    id: '/.well-known/mcp/server-card.json',
+    path: '/.well-known/mcp/server-card.json',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const DocsToolsSlugRoute = DocsToolsSlugRouteImport.update({
   id: '/docs/tools/$slug',
   path: '/docs/tools/$slug',
@@ -265,6 +332,12 @@ const IdToolsCategoryRoute = IdToolsCategoryRouteImport.update({
   path: '/id/tools/$category',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DotwellKnownAgentSkillsUseKitsSKILLDotmdRoute =
+  DotwellKnownAgentSkillsUseKitsSKILLDotmdRouteImport.update({
+    id: '/.well-known/agent-skills/use-kits/SKILL.md',
+    path: '/.well-known/agent-skills/use-kits/SKILL.md',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const IdDocsToolsSlugRoute = IdDocsToolsSlugRouteImport.update({
   id: '/id/docs/tools/$slug',
   path: '/id/docs/tools/$slug',
@@ -276,14 +349,22 @@ export interface FileRoutesByFullPath {
   '/$tool': typeof ToolRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
+  '/auth.md': typeof AuthDotmdRoute
   '/contact': typeof ContactRoute
   '/license': typeof LicenseRoute
+  '/openapi.json': typeof OpenapiDotjsonRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
+  '/.well-known/ai-catalog.json': typeof DotwellKnownAiCatalogDotjsonRoute
+  '/.well-known/api-catalog': typeof DotwellKnownApiCatalogRoute
+  '/.well-known/jwks.json': typeof DotwellKnownJwksDotjsonRoute
+  '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
+  '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
+  '/.well-known/openid-configuration': typeof DotwellKnownOpenidConfigurationRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/licenses': typeof AdminLicensesRoute
   '/admin/login': typeof AdminLoginRoute
@@ -305,6 +386,8 @@ export interface FileRoutesByFullPath {
   '/guides/': typeof GuidesIndexRoute
   '/id/': typeof IdIndexRoute
   '/tools/': typeof ToolsIndexRoute
+  '/.well-known/agent-skills/index.json': typeof DotwellKnownAgentSkillsIndexDotjsonRoute
+  '/.well-known/mcp/server-card.json': typeof DotwellKnownMcpServerCardDotjsonRoute
   '/docs/tools/$slug': typeof DocsToolsSlugRoute
   '/id/docs/getting-started': typeof IdDocsGettingStartedRoute
   '/id/docs/privacy-and-processing': typeof IdDocsPrivacyAndProcessingRoute
@@ -314,6 +397,7 @@ export interface FileRoutesByFullPath {
   '/id/docs/': typeof IdDocsIndexRoute
   '/id/guides/': typeof IdGuidesIndexRoute
   '/id/tools/': typeof IdToolsIndexRoute
+  '/.well-known/agent-skills/use-kits/SKILL.md': typeof DotwellKnownAgentSkillsUseKitsSKILLDotmdRoute
   '/id/docs/tools/$slug': typeof IdDocsToolsSlugRoute
 }
 export interface FileRoutesByTo {
@@ -321,14 +405,22 @@ export interface FileRoutesByTo {
   '/$tool': typeof ToolRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
+  '/auth.md': typeof AuthDotmdRoute
   '/contact': typeof ContactRoute
   '/license': typeof LicenseRoute
+  '/openapi.json': typeof OpenapiDotjsonRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
+  '/.well-known/ai-catalog.json': typeof DotwellKnownAiCatalogDotjsonRoute
+  '/.well-known/api-catalog': typeof DotwellKnownApiCatalogRoute
+  '/.well-known/jwks.json': typeof DotwellKnownJwksDotjsonRoute
+  '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
+  '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
+  '/.well-known/openid-configuration': typeof DotwellKnownOpenidConfigurationRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/licenses': typeof AdminLicensesRoute
   '/admin/login': typeof AdminLoginRoute
@@ -350,6 +442,8 @@ export interface FileRoutesByTo {
   '/guides': typeof GuidesIndexRoute
   '/id': typeof IdIndexRoute
   '/tools': typeof ToolsIndexRoute
+  '/.well-known/agent-skills/index.json': typeof DotwellKnownAgentSkillsIndexDotjsonRoute
+  '/.well-known/mcp/server-card.json': typeof DotwellKnownMcpServerCardDotjsonRoute
   '/docs/tools/$slug': typeof DocsToolsSlugRoute
   '/id/docs/getting-started': typeof IdDocsGettingStartedRoute
   '/id/docs/privacy-and-processing': typeof IdDocsPrivacyAndProcessingRoute
@@ -359,6 +453,7 @@ export interface FileRoutesByTo {
   '/id/docs': typeof IdDocsIndexRoute
   '/id/guides': typeof IdGuidesIndexRoute
   '/id/tools': typeof IdToolsIndexRoute
+  '/.well-known/agent-skills/use-kits/SKILL.md': typeof DotwellKnownAgentSkillsUseKitsSKILLDotmdRoute
   '/id/docs/tools/$slug': typeof IdDocsToolsSlugRoute
 }
 export interface FileRoutesById {
@@ -367,14 +462,22 @@ export interface FileRoutesById {
   '/$tool': typeof ToolRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRouteWithChildren
+  '/auth.md': typeof AuthDotmdRoute
   '/contact': typeof ContactRoute
   '/license': typeof LicenseRoute
+  '/openapi.json': typeof OpenapiDotjsonRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/support': typeof SupportRoute
   '/terms': typeof TermsRoute
+  '/.well-known/ai-catalog.json': typeof DotwellKnownAiCatalogDotjsonRoute
+  '/.well-known/api-catalog': typeof DotwellKnownApiCatalogRoute
+  '/.well-known/jwks.json': typeof DotwellKnownJwksDotjsonRoute
+  '/.well-known/oauth-authorization-server': typeof DotwellKnownOauthAuthorizationServerRoute
+  '/.well-known/oauth-protected-resource': typeof DotwellKnownOauthProtectedResourceRoute
+  '/.well-known/openid-configuration': typeof DotwellKnownOpenidConfigurationRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/licenses': typeof AdminLicensesRoute
   '/admin/login': typeof AdminLoginRoute
@@ -396,6 +499,8 @@ export interface FileRoutesById {
   '/guides/': typeof GuidesIndexRoute
   '/id/': typeof IdIndexRoute
   '/tools/': typeof ToolsIndexRoute
+  '/.well-known/agent-skills/index.json': typeof DotwellKnownAgentSkillsIndexDotjsonRoute
+  '/.well-known/mcp/server-card.json': typeof DotwellKnownMcpServerCardDotjsonRoute
   '/docs/tools/$slug': typeof DocsToolsSlugRoute
   '/id/docs/getting-started': typeof IdDocsGettingStartedRoute
   '/id/docs/privacy-and-processing': typeof IdDocsPrivacyAndProcessingRoute
@@ -405,6 +510,7 @@ export interface FileRoutesById {
   '/id/docs/': typeof IdDocsIndexRoute
   '/id/guides/': typeof IdGuidesIndexRoute
   '/id/tools/': typeof IdToolsIndexRoute
+  '/.well-known/agent-skills/use-kits/SKILL.md': typeof DotwellKnownAgentSkillsUseKitsSKILLDotmdRoute
   '/id/docs/tools/$slug': typeof IdDocsToolsSlugRoute
 }
 export interface FileRouteTypes {
@@ -414,14 +520,22 @@ export interface FileRouteTypes {
     | '/$tool'
     | '/about'
     | '/admin'
+    | '/auth.md'
     | '/contact'
     | '/license'
+    | '/openapi.json'
     | '/pricing'
     | '/privacy'
     | '/robots.txt'
     | '/sitemap.xml'
     | '/support'
     | '/terms'
+    | '/.well-known/ai-catalog.json'
+    | '/.well-known/api-catalog'
+    | '/.well-known/jwks.json'
+    | '/.well-known/oauth-authorization-server'
+    | '/.well-known/oauth-protected-resource'
+    | '/.well-known/openid-configuration'
     | '/admin/audit'
     | '/admin/licenses'
     | '/admin/login'
@@ -443,6 +557,8 @@ export interface FileRouteTypes {
     | '/guides/'
     | '/id/'
     | '/tools/'
+    | '/.well-known/agent-skills/index.json'
+    | '/.well-known/mcp/server-card.json'
     | '/docs/tools/$slug'
     | '/id/docs/getting-started'
     | '/id/docs/privacy-and-processing'
@@ -452,6 +568,7 @@ export interface FileRouteTypes {
     | '/id/docs/'
     | '/id/guides/'
     | '/id/tools/'
+    | '/.well-known/agent-skills/use-kits/SKILL.md'
     | '/id/docs/tools/$slug'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -459,14 +576,22 @@ export interface FileRouteTypes {
     | '/$tool'
     | '/about'
     | '/admin'
+    | '/auth.md'
     | '/contact'
     | '/license'
+    | '/openapi.json'
     | '/pricing'
     | '/privacy'
     | '/robots.txt'
     | '/sitemap.xml'
     | '/support'
     | '/terms'
+    | '/.well-known/ai-catalog.json'
+    | '/.well-known/api-catalog'
+    | '/.well-known/jwks.json'
+    | '/.well-known/oauth-authorization-server'
+    | '/.well-known/oauth-protected-resource'
+    | '/.well-known/openid-configuration'
     | '/admin/audit'
     | '/admin/licenses'
     | '/admin/login'
@@ -488,6 +613,8 @@ export interface FileRouteTypes {
     | '/guides'
     | '/id'
     | '/tools'
+    | '/.well-known/agent-skills/index.json'
+    | '/.well-known/mcp/server-card.json'
     | '/docs/tools/$slug'
     | '/id/docs/getting-started'
     | '/id/docs/privacy-and-processing'
@@ -497,6 +624,7 @@ export interface FileRouteTypes {
     | '/id/docs'
     | '/id/guides'
     | '/id/tools'
+    | '/.well-known/agent-skills/use-kits/SKILL.md'
     | '/id/docs/tools/$slug'
   id:
     | '__root__'
@@ -504,14 +632,22 @@ export interface FileRouteTypes {
     | '/$tool'
     | '/about'
     | '/admin'
+    | '/auth.md'
     | '/contact'
     | '/license'
+    | '/openapi.json'
     | '/pricing'
     | '/privacy'
     | '/robots.txt'
     | '/sitemap.xml'
     | '/support'
     | '/terms'
+    | '/.well-known/ai-catalog.json'
+    | '/.well-known/api-catalog'
+    | '/.well-known/jwks.json'
+    | '/.well-known/oauth-authorization-server'
+    | '/.well-known/oauth-protected-resource'
+    | '/.well-known/openid-configuration'
     | '/admin/audit'
     | '/admin/licenses'
     | '/admin/login'
@@ -533,6 +669,8 @@ export interface FileRouteTypes {
     | '/guides/'
     | '/id/'
     | '/tools/'
+    | '/.well-known/agent-skills/index.json'
+    | '/.well-known/mcp/server-card.json'
     | '/docs/tools/$slug'
     | '/id/docs/getting-started'
     | '/id/docs/privacy-and-processing'
@@ -542,6 +680,7 @@ export interface FileRouteTypes {
     | '/id/docs/'
     | '/id/guides/'
     | '/id/tools/'
+    | '/.well-known/agent-skills/use-kits/SKILL.md'
     | '/id/docs/tools/$slug'
   fileRoutesById: FileRoutesById
 }
@@ -550,14 +689,22 @@ export interface RootRouteChildren {
   ToolRoute: typeof ToolRoute
   AboutRoute: typeof AboutRoute
   AdminRoute: typeof AdminRouteWithChildren
+  AuthDotmdRoute: typeof AuthDotmdRoute
   ContactRoute: typeof ContactRoute
   LicenseRoute: typeof LicenseRoute
+  OpenapiDotjsonRoute: typeof OpenapiDotjsonRoute
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   RobotsDottxtRoute: typeof RobotsDottxtRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SupportRoute: typeof SupportRoute
   TermsRoute: typeof TermsRoute
+  DotwellKnownAiCatalogDotjsonRoute: typeof DotwellKnownAiCatalogDotjsonRoute
+  DotwellKnownApiCatalogRoute: typeof DotwellKnownApiCatalogRoute
+  DotwellKnownJwksDotjsonRoute: typeof DotwellKnownJwksDotjsonRoute
+  DotwellKnownOauthAuthorizationServerRoute: typeof DotwellKnownOauthAuthorizationServerRoute
+  DotwellKnownOauthProtectedResourceRoute: typeof DotwellKnownOauthProtectedResourceRoute
+  DotwellKnownOpenidConfigurationRoute: typeof DotwellKnownOpenidConfigurationRoute
   DocsGettingStartedRoute: typeof DocsGettingStartedRoute
   DocsPrivacyAndProcessingRoute: typeof DocsPrivacyAndProcessingRoute
   DocsTroubleshootingRoute: typeof DocsTroubleshootingRoute
@@ -575,6 +722,8 @@ export interface RootRouteChildren {
   GuidesIndexRoute: typeof GuidesIndexRoute
   IdIndexRoute: typeof IdIndexRoute
   ToolsIndexRoute: typeof ToolsIndexRoute
+  DotwellKnownAgentSkillsIndexDotjsonRoute: typeof DotwellKnownAgentSkillsIndexDotjsonRoute
+  DotwellKnownMcpServerCardDotjsonRoute: typeof DotwellKnownMcpServerCardDotjsonRoute
   DocsToolsSlugRoute: typeof DocsToolsSlugRoute
   IdDocsGettingStartedRoute: typeof IdDocsGettingStartedRoute
   IdDocsPrivacyAndProcessingRoute: typeof IdDocsPrivacyAndProcessingRoute
@@ -584,6 +733,7 @@ export interface RootRouteChildren {
   IdDocsIndexRoute: typeof IdDocsIndexRoute
   IdGuidesIndexRoute: typeof IdGuidesIndexRoute
   IdToolsIndexRoute: typeof IdToolsIndexRoute
+  DotwellKnownAgentSkillsUseKitsSKILLDotmdRoute: typeof DotwellKnownAgentSkillsUseKitsSKILLDotmdRoute
   IdDocsToolsSlugRoute: typeof IdDocsToolsSlugRoute
 }
 
@@ -617,6 +767,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth.md': {
+      id: '/auth.md'
+      path: '/auth.md'
+      fullPath: '/auth.md'
+      preLoaderRoute: typeof AuthDotmdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/contact': {
       id: '/contact'
       path: '/contact'
@@ -629,6 +786,13 @@ declare module '@tanstack/react-router' {
       path: '/license'
       fullPath: '/license'
       preLoaderRoute: typeof LicenseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/openapi.json': {
+      id: '/openapi.json'
+      path: '/openapi.json'
+      fullPath: '/openapi.json'
+      preLoaderRoute: typeof OpenapiDotjsonRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pricing': {
@@ -671,6 +835,48 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/ai-catalog.json': {
+      id: '/.well-known/ai-catalog.json'
+      path: '/.well-known/ai-catalog.json'
+      fullPath: '/.well-known/ai-catalog.json'
+      preLoaderRoute: typeof DotwellKnownAiCatalogDotjsonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/api-catalog': {
+      id: '/.well-known/api-catalog'
+      path: '/.well-known/api-catalog'
+      fullPath: '/.well-known/api-catalog'
+      preLoaderRoute: typeof DotwellKnownApiCatalogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/jwks.json': {
+      id: '/.well-known/jwks.json'
+      path: '/.well-known/jwks.json'
+      fullPath: '/.well-known/jwks.json'
+      preLoaderRoute: typeof DotwellKnownJwksDotjsonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-authorization-server': {
+      id: '/.well-known/oauth-authorization-server'
+      path: '/.well-known/oauth-authorization-server'
+      fullPath: '/.well-known/oauth-authorization-server'
+      preLoaderRoute: typeof DotwellKnownOauthAuthorizationServerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof DotwellKnownOauthProtectedResourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/openid-configuration': {
+      id: '/.well-known/openid-configuration'
+      path: '/.well-known/openid-configuration'
+      fullPath: '/.well-known/openid-configuration'
+      preLoaderRoute: typeof DotwellKnownOpenidConfigurationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/audit': {
@@ -820,6 +1026,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ToolsCategoryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/.well-known/agent-skills/index.json': {
+      id: '/.well-known/agent-skills/index.json'
+      path: '/.well-known/agent-skills/index.json'
+      fullPath: '/.well-known/agent-skills/index.json'
+      preLoaderRoute: typeof DotwellKnownAgentSkillsIndexDotjsonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/mcp/server-card.json': {
+      id: '/.well-known/mcp/server-card.json'
+      path: '/.well-known/mcp/server-card.json'
+      fullPath: '/.well-known/mcp/server-card.json'
+      preLoaderRoute: typeof DotwellKnownMcpServerCardDotjsonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/docs/tools/$slug': {
       id: '/docs/tools/$slug'
       path: '/docs/tools/$slug'
@@ -883,6 +1103,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IdToolsCategoryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/.well-known/agent-skills/use-kits/SKILL.md': {
+      id: '/.well-known/agent-skills/use-kits/SKILL.md'
+      path: '/.well-known/agent-skills/use-kits/SKILL.md'
+      fullPath: '/.well-known/agent-skills/use-kits/SKILL.md'
+      preLoaderRoute: typeof DotwellKnownAgentSkillsUseKitsSKILLDotmdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/id/docs/tools/$slug': {
       id: '/id/docs/tools/$slug'
       path: '/id/docs/tools/$slug'
@@ -914,14 +1141,24 @@ const rootRouteChildren: RootRouteChildren = {
   ToolRoute: ToolRoute,
   AboutRoute: AboutRoute,
   AdminRoute: AdminRouteWithChildren,
+  AuthDotmdRoute: AuthDotmdRoute,
   ContactRoute: ContactRoute,
   LicenseRoute: LicenseRoute,
+  OpenapiDotjsonRoute: OpenapiDotjsonRoute,
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   RobotsDottxtRoute: RobotsDottxtRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SupportRoute: SupportRoute,
   TermsRoute: TermsRoute,
+  DotwellKnownAiCatalogDotjsonRoute: DotwellKnownAiCatalogDotjsonRoute,
+  DotwellKnownApiCatalogRoute: DotwellKnownApiCatalogRoute,
+  DotwellKnownJwksDotjsonRoute: DotwellKnownJwksDotjsonRoute,
+  DotwellKnownOauthAuthorizationServerRoute:
+    DotwellKnownOauthAuthorizationServerRoute,
+  DotwellKnownOauthProtectedResourceRoute:
+    DotwellKnownOauthProtectedResourceRoute,
+  DotwellKnownOpenidConfigurationRoute: DotwellKnownOpenidConfigurationRoute,
   DocsGettingStartedRoute: DocsGettingStartedRoute,
   DocsPrivacyAndProcessingRoute: DocsPrivacyAndProcessingRoute,
   DocsTroubleshootingRoute: DocsTroubleshootingRoute,
@@ -939,6 +1176,9 @@ const rootRouteChildren: RootRouteChildren = {
   GuidesIndexRoute: GuidesIndexRoute,
   IdIndexRoute: IdIndexRoute,
   ToolsIndexRoute: ToolsIndexRoute,
+  DotwellKnownAgentSkillsIndexDotjsonRoute:
+    DotwellKnownAgentSkillsIndexDotjsonRoute,
+  DotwellKnownMcpServerCardDotjsonRoute: DotwellKnownMcpServerCardDotjsonRoute,
   DocsToolsSlugRoute: DocsToolsSlugRoute,
   IdDocsGettingStartedRoute: IdDocsGettingStartedRoute,
   IdDocsPrivacyAndProcessingRoute: IdDocsPrivacyAndProcessingRoute,
@@ -948,6 +1188,8 @@ const rootRouteChildren: RootRouteChildren = {
   IdDocsIndexRoute: IdDocsIndexRoute,
   IdGuidesIndexRoute: IdGuidesIndexRoute,
   IdToolsIndexRoute: IdToolsIndexRoute,
+  DotwellKnownAgentSkillsUseKitsSKILLDotmdRoute:
+    DotwellKnownAgentSkillsUseKitsSKILLDotmdRoute,
   IdDocsToolsSlugRoute: IdDocsToolsSlugRoute,
 }
 export const routeTree = rootRouteImport

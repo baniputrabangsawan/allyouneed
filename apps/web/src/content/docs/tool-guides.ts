@@ -188,6 +188,32 @@ export const toolGuides: Record<string, ToolGuide> = {
     ],
     keywords: ['json', 'pretty print', 'format', 'beautify'],
   },
+  'open-graph-generator': {
+    slug: 'open-graph-generator',
+    overview: 'Open Graph Generator builds og: and twitter: meta tags in the browser and shows approximate social-style previews. Nothing is uploaded. The cards are not pixel-identical to Facebook or X.',
+    steps: [
+      'Open Open Graph Generator.',
+      'Enter page title, description, URL, and site name.',
+      'Add a public https image URL if you have a share image.',
+      'Choose website or article, then summary or summary_large_image.',
+      'Copy the generated tags into your document head.',
+    ],
+    optionDocs: [
+      { name: 'Page Title', description: 'Used for og:title and twitter:title.' },
+      { name: 'Description', description: 'Used for og:description and twitter:description.' },
+      { name: 'URL', description: 'Must be http or https. Invalid values are omitted from the HTML and flagged.' },
+      { name: 'Image URL', description: 'Must be a public http or https URL. Relative, data, and credentialed URLs are rejected.' },
+      { name: 'Content Type', description: 'og:type, either website or article.' },
+      { name: 'Twitter/X card', description: 'summary_large_image or summary. Changes the X-style preview layout.' },
+    ],
+    output: 'Escaped HTML meta tags plus approximate Open Graph and X card previews.',
+    example: 'A product page with title, description, canonical URL, and a 1200×630 PNG can produce both og:image and twitter:image tags.',
+    troubleshooting: [
+      { problem: 'The image URL is invalid', solution: 'Use a full http or https URL. Relative paths and data URLs are rejected.' },
+      { problem: 'The preview image is blank', solution: 'The URL must be publicly fetchable by the browser. Mixed-content http images on https pages may also fail.' },
+    ],
+    keywords: ['open graph', 'og tags', 'twitter card', 'social preview', 'seo'],
+  },
   'qr-code-generator': {
     slug: 'qr-code-generator',
     overview: 'QR Code Generator builds a QR image from text in the browser. You can set colors, size, margin, and error correction, then download PNG or SVG.',

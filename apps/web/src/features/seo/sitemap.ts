@@ -73,6 +73,7 @@ export function generateRobotsTxt() {
     'Disallow: /uploads/',
     '',
     'Sitemap: https://usekits.online/sitemap.xml',
+    'Agentmap: https://usekits.online/.well-known/ai-catalog.json',
     '',
   ].join('\n')
 }

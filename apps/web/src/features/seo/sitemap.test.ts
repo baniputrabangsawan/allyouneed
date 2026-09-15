@@ -65,6 +65,7 @@ describe('production robots.txt', () => {
 
     expect(robots).toContain('User-agent: *\nAllow: /')
     expect(robots).toContain(`Sitemap: ${origin}/sitemap.xml`)
+    expect(robots).toContain(`Agentmap: ${origin}/.well-known/ai-catalog.json`)
     expect(robots).not.toContain('Disallow: /tools')
   })
 })

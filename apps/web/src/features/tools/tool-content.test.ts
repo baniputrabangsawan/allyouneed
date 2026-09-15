@@ -66,6 +66,9 @@ describe('legacy tool redirects', () => {
     expect(getToolBySlug('markdown-to-html')?.aliases.join(' ')).toMatch(/preview/)
     expect(getToolBySlug('color-picker')?.aliases.join(' ')).toMatch(/hex/)
     expect(getToolBySlug('color-palette-generator')?.aliases.join(' ')).toMatch(/palette generator/)
+    expect(getToolBySlug('meta-tag-generator')?.aliases.join(' ')).toMatch(/seo meta generator/)
+    expect(getToolBySlug('json-ld-generator')?.aliases.join(' ')).toMatch(/structured data/)
+    expect(getToolBySlug('open-graph-generator')?.aliases.join(' ')).toMatch(/twitter card/)
   })
 })
 

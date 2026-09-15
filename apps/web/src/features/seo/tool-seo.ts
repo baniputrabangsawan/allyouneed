@@ -79,6 +79,106 @@ const priorityCopy: Record<string, Partial<Record<Locale, Partial<ToolSeoCopy>>>
     en: { title: 'Word Counter Online Free | Kits', description: 'Count words and characters online with Kits. Paste text to measure length quickly in your browser.', h1: 'Word Counter Online' },
     id: { title: 'Penghitung Kata Online | Kits', description: 'Hitung jumlah kata dan karakter online dengan Kits. Tempel teks dan lihat panjang tulisan secara cepat.', h1: 'Penghitung Kata Online' },
   },
+  'meta-tag-generator': {
+    en: {
+      title: 'Meta Tag Generator Online Free | Kits',
+      description: 'Generate HTML meta tags online with Kits. Build title, description, canonical, and robots tags in your browser, then copy the markup.',
+      h1: 'Meta Tag Generator Online',
+      intro: 'Create title, description, canonical URL, and robots meta tags without leaving the browser. Values are escaped as you type so the HTML stays valid.',
+      benefits: ['Copy ready-to-paste head tags.', 'Soft length hints for title and description.', 'No upload and no account.'],
+    },
+    id: {
+      title: 'Generator Meta Tag Online | Kits',
+      description: 'Buat HTML meta tag online dengan Kits. Susun title, description, canonical, dan robots di browser, lalu salin markupnya.',
+      h1: 'Generator Meta Tag Online',
+      intro: 'Buat title, description, URL kanonis, dan robots meta tag tanpa keluar dari browser. Nilai di-escape saat mengetik agar HTML tetap valid.',
+      benefits: ['Salin tag head yang siap tempel.', 'Petunjuk panjang untuk judul dan description.', 'Tanpa unggahan dan tanpa akun.'],
+    },
+  },
+  'open-graph-generator': {
+    en: {
+      title: 'Open Graph Generator Online Free | Kits',
+      description: 'Generate Open Graph and Twitter card tags online with Kits. Preview approximate social cards in your browser, then copy the HTML.',
+      h1: 'Open Graph Generator Online',
+      intro: 'Create og:title, og:description, og:url, og:image, and Twitter card tags without leaving the browser. The social-style previews are approximate, not pixel-identical to Facebook or X.',
+      benefits: ['Copy ready-to-paste Open Graph tags.', 'See approximate Facebook-style and X-style cards.', 'Invalid image URLs are flagged in place.'],
+      faq: [
+        { question: 'Is Open Graph Generator free?', answer: 'This tool is available without a Pro license.' },
+        { question: 'Where is processing handled?', answer: 'Processing runs in your browser. Tags are generated locally and nothing is uploaded.' },
+        { question: 'Does the preview match Facebook or X exactly?', answer: 'No. The cards resemble those layouts so you can check title, description, and image, but they are not pixel-identical to third-party platforms.' },
+        { question: 'Which image URLs work?', answer: 'Use a public http or https image URL. Relative paths, data URLs, and credentialed URLs are rejected.' },
+      ],
+    },
+    id: {
+      title: 'Generator Open Graph Online | Kits',
+      description: 'Buat tag Open Graph dan Twitter card online dengan Kits. Pratinjau kartu sosial kira-kira di browser, lalu salin HTML.',
+      h1: 'Generator Open Graph Online',
+      intro: 'Buat tag og:title, og:description, og:url, og:image, dan Twitter card tanpa keluar dari browser. Pratinjau bergaya sosial adalah perkiraan, bukan identik piksel dengan Facebook atau X.',
+      benefits: ['Salin tag Open Graph yang siap tempel.', 'Lihat kartu kira-kira gaya Facebook dan X.', 'URL gambar invalid ditandai di tempat.'],
+      faq: [
+        { question: 'Apakah Generator Open Graph gratis?', answer: 'Tool ini dapat digunakan tanpa lisensi Pro.' },
+        { question: 'Di mana file diproses?', answer: 'Pemrosesan berjalan di browser Anda. Tag dibuat secara lokal dan tidak ada yang diunggah.' },
+        { question: 'Apakah pratinjau sama persis dengan Facebook atau X?', answer: 'Tidak. Kartu menyerupai tata letak itu agar judul, description, dan gambar bisa dicek, tetapi tidak identik piksel dengan platform pihak ketiga.' },
+        { question: 'URL gambar mana yang didukung?', answer: 'Gunakan URL gambar http atau https publik. Path relatif, data URL, dan URL ber-kredensial ditolak.' },
+      ],
+    },
+  },
+  'json-ld-generator': {
+    en: {
+      title: 'JSON-LD Generator Online Free | Kits',
+      description: 'Generate schema.org JSON-LD online with Kits. Build WebSite, Organization, Article, FAQ, and other types in your browser, then copy valid JSON or a script tag.',
+      h1: 'JSON-LD Generator Online',
+      intro: 'JSON-LD is a JSON format for schema.org structured data. Fill the fields for one type, omit blanks, and copy markup that matches what you entered. Kits does not invent ratings or reviews, and structured data does not guarantee rich results.',
+      benefits: [
+        'Live JSON preview from the fields you fill in.',
+        'Copy JSON-LD or a ready script tag.',
+        'Invalid URLs and empty optional fields are omitted.',
+        'No fabricated ratings or reviews.',
+      ],
+      faq: [
+        { question: 'Is JSON-LD Generator free?', answer: 'This tool is available without a Pro license.' },
+        { question: 'Where is processing handled?', answer: 'Processing runs in your browser. Nothing is uploaded.' },
+        { question: 'What is JSON-LD?', answer: 'JSON-LD (JSON for Linking Data) is a way to embed schema.org structured data in a page, usually inside a script type="application/ld+json" tag, so crawlers can read entities like Organization or Article.' },
+        { question: 'Will this make rich results appear?', answer: 'No. Valid structured data can help search engines understand a page. Eligibility for rich results still depends on the content, the type, and search-engine policies. This generator does not add fake ratings or reviews.' },
+        { question: 'Which schema types are supported?', answer: 'WebSite, Organization, Person, Article, BreadcrumbList, FAQPage, Product, and SoftwareApplication. Only fields for the selected type are shown.' },
+      ],
+    },
+    id: {
+      title: 'Generator JSON-LD Online | Kits',
+      description: 'Buat schema.org JSON-LD online dengan Kits. Susun WebSite, Organization, Article, FAQ, dan tipe lain di browser, lalu salin JSON valid atau tag script.',
+      h1: 'Generator JSON-LD Online',
+      intro: 'JSON-LD adalah format JSON untuk structured data schema.org. Isi field satu tipe, kosongkan yang tidak dipakai, dan salin markup sesuai input. Kits tidak mengarang rating atau ulasan, dan structured data tidak menjamin rich result.',
+      benefits: [
+        'Pratinjau JSON langsung dari field yang diisi.',
+        'Salin JSON-LD atau tag script siap pakai.',
+        'URL invalid dan field opsional kosong dihilangkan.',
+        'Tanpa rating atau ulasan rekaan.',
+      ],
+      faq: [
+        { question: 'Apakah Generator JSON-LD gratis?', answer: 'Tool ini dapat digunakan tanpa lisensi Pro.' },
+        { question: 'Di mana file diproses?', answer: 'Pemrosesan berjalan di browser Anda. Tidak ada yang diunggah.' },
+        { question: 'Apa itu JSON-LD?', answer: 'JSON-LD (JSON for Linking Data) adalah cara menanamkan structured data schema.org di halaman, biasanya di dalam tag script type="application/ld+json", agar crawler dapat membaca entitas seperti Organization atau Article.' },
+        { question: 'Apakah ini membuat rich result muncul?', answer: 'Tidak. Structured data yang valid dapat membantu mesin telusur memahami halaman. Kelayakan rich result tetap bergantung pada konten, tipe, dan kebijakan mesin telusur. Generator ini tidak menambahkan rating atau ulasan palsu.' },
+        { question: 'Tipe schema apa yang didukung?', answer: 'WebSite, Organization, Person, Article, BreadcrumbList, FAQPage, Product, dan SoftwareApplication. Hanya field untuk tipe terpilih yang ditampilkan.' },
+      ],
+    },
+  },
+  'robots-txt-generator': {
+    en: {
+      title: 'Robots.txt Generator Online Free | Kits',
+      description: 'Generate robots.txt rules online with Kits. Build user-agent groups, Allow and Disallow rules, crawl-delay, and Sitemap entries in your browser.',
+      h1: 'Robots.txt Generator Online',
+      intro: 'Create a robots.txt file without memorizing crawler syntax. Add bot groups and rules in the builder, or switch to Advanced mode when you want direct control.',
+      benefits: ['Build multiple user-agent groups.', 'Copy or download a ready robots.txt file.', 'Get warned before blocking all crawlers.'],
+    },
+    id: {
+      title: 'Generator Robots.txt Online | Kits',
+      description: 'Buat aturan robots.txt online dengan Kits. Susun user-agent, Allow, Disallow, crawl-delay, dan Sitemap di browser.',
+      h1: 'Generator Robots.txt Online',
+      intro: 'Buat file robots.txt tanpa menghafal sintaks crawler. Tambahkan grup bot dan aturan di builder, atau gunakan Advanced mode untuk kontrol langsung.',
+      benefits: ['Buat beberapa grup user-agent.', 'Salin atau unduh file robots.txt siap pakai.', 'Dapatkan peringatan sebelum memblokir semua crawler.'],
+    },
+  },
 }
 
 

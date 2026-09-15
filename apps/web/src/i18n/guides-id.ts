@@ -188,6 +188,32 @@ export const toolGuidesId: Record<string, ToolGuide> = {
     ],
     keywords: ['json', 'format', 'rapikan'],
   },
+  'open-graph-generator': {
+    slug: 'open-graph-generator',
+    overview: 'Pembuat Open Graph membuat meta tag og: dan twitter: di browser plus pratinjau bergaya sosial. Tidak ada yang diunggah. Kartu tidak identik piksel dengan Facebook atau X.',
+    steps: [
+      'Buka Pembuat Open Graph.',
+      'Masukkan judul halaman, description, URL, dan nama situs.',
+      'Tambahkan URL gambar https publik jika ada gambar berbagi.',
+      'Pilih website atau article, lalu summary atau summary_large_image.',
+      'Salin tag yang dihasilkan ke head dokumen.',
+    ],
+    optionDocs: [
+      { name: 'Judul Halaman', description: 'Dipakai untuk og:title dan twitter:title.' },
+      { name: 'Description', description: 'Dipakai untuk og:description dan twitter:description.' },
+      { name: 'URL', description: 'Harus http atau https. Nilai invalid dihilangkan dari HTML dan ditandai.' },
+      { name: 'URL Gambar', description: 'Harus URL http atau https publik. Path relatif, data URL, dan URL ber-kredensial ditolak.' },
+      { name: 'Jenis Konten', description: 'og:type, website atau article.' },
+      { name: 'Kartu Twitter/X', description: 'summary_large_image atau summary. Mengubah tata letak pratinjau X.' },
+    ],
+    output: 'HTML meta tag yang di-escape plus pratinjau kartu Open Graph dan X kira-kira.',
+    example: 'Halaman produk dengan judul, description, URL kanonis, dan PNG 1200×630 bisa menghasilkan og:image dan twitter:image.',
+    troubleshooting: [
+      { problem: 'URL gambar invalid', solution: 'Pakai URL http atau https penuh. Path relatif dan data URL ditolak.' },
+      { problem: 'Gambar pratinjau kosong', solution: 'URL harus bisa diambil publik oleh browser. Gambar http di halaman https juga bisa gagal.' },
+    ],
+    keywords: ['open graph', 'og tags', 'twitter card', 'pratinjau sosial', 'seo'],
+  },
   'qr-code-generator': {
     slug: 'qr-code-generator',
     overview: 'Pembuat Kode QR membuat gambar QR dari teks di browser. Anda bisa mengatur warna, ukuran, margin, dan koreksi error, lalu unduh PNG atau SVG.',
