@@ -1,4 +1,5 @@
 export const PRODUCTION_API_ORIGIN = "https://api.usekits.online";
+export const PRODUCTION_WEB_ORIGIN = "https://usekits.online";
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::1"]);
 
@@ -12,8 +13,8 @@ export function resolveApiBaseUrl(
   mode: "dev" | "prod",
 ): string {
   const value = (raw ?? "").trim().replace(/\/+$/, "");
-  if (value) return value;
-  return mode === "dev" ? "http://localhost:8000" : PRODUCTION_API_ORIGIN;
+  if (mode === "prod") return validateProductionApiBaseUrl(value);
+  return value || "http://localhost:8000";
 }
 
 export function resolveApiOrigin(
@@ -36,8 +37,13 @@ export function assertProductionApiBaseUrl(
   command: string,
 ): void {
   if (command !== "build") return;
-  const value = (raw ?? "").trim();
-  if (!value) return;
+  validateProductionApiBaseUrl((raw ?? "").trim());
+}
+
+function validateProductionApiBaseUrl(value: string): string {
+  if (!value) {
+    throw new Error("VITE_API_BASE_URL must be configured for production builds.");
+  }
   let url: URL;
   try {
     url = new URL(value);
@@ -52,4 +58,8 @@ export function assertProductionApiBaseUrl(
   if (url.protocol !== "https:") {
     throw new Error("VITE_API_BASE_URL must use HTTPS in a production build.");
   }
+  if (url.origin === PRODUCTION_WEB_ORIGIN) {
+    throw new Error("VITE_API_BASE_URL must point to the FastAPI origin, not the frontend origin.");
+  }
+  return url.origin;
 }

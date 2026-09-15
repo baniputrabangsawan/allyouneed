@@ -13,6 +13,8 @@ const errorCopy: Record<string, string> = {
   LICENSE_API_UNREACHABLE: "Could not reach the license server.",
   API_UNREACHABLE: "Could not reach the license server.",
   TIMEOUT: "Could not reach the license server.",
+  SERVICE_UNAVAILABLE: "The license server is temporarily unavailable.",
+  API_ERROR: "The license server returned an error.",
   INVALID_LICENSE: "This license key is invalid.",
   LICENSE_EXPIRED: "This license has expired.",
   LICENSE_SUSPENDED: "This license is suspended.",

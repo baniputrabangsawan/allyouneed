@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApiClient } from './client'
+import { PRODUCTION_API_ORIGIN } from './public-origin'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -19,6 +20,15 @@ describe('API client', () => {
       credentials: 'include',
       method: 'POST',
     }))
+  })
+
+  it('builds production API requests on the backend origin', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response('{"data":{"ok":true}}'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await createApiClient({ baseUrl: PRODUCTION_API_ORIGIN }).post('/api/v1/licenses/activate', {})
+
+    expect(fetchMock).toHaveBeenCalledWith(`${PRODUCTION_API_ORIGIN}/api/v1/licenses/activate`, expect.any(Object))
   })
 
   it('throws a typed error for unsuccessful responses', async () => {

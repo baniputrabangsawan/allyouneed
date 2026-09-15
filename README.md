@@ -132,6 +132,7 @@ In the Cloudflare Worker **Settings → Build**:
 2. **Build command:** `pnpm build`
 3. **Deploy command:** `npx wrangler deploy` (production) / default `npx wrangler versions upload` (preview)
 4. **Install command** (if asked): `pnpm install`
+5. **Production variable:** set `VITE_API_BASE_URL=https://api.usekits.online` in the Cloudflare Worker build environment, then rebuild and redeploy. Vite injects `VITE_*` values at build time; restarting FastAPI does not update an already-built frontend bundle.
 
 Do not set Root directory to `apps/web` unless you also change the deploy command to `pnpm exec wrangler versions upload` so it uses `apps/web/wrangler.jsonc`.
 
@@ -229,6 +230,8 @@ Copy `.env.example`. Important variables:
 | `MAX_UPLOAD_MB` | API | Upload size cap |
 
 Leave AI/R2 keys empty for a local UI-only pass.
+
+For production, set `VITE_API_BASE_URL=https://api.usekits.online` on the Cloudflare frontend build and set API `CORS_ORIGINS=["https://usekits.online"]`. Do not put secrets in `VITE_*`; those values are public browser config.
 
 ## Product map
 

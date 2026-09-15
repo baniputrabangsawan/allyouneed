@@ -3,6 +3,7 @@ import {
   assertProductionApiBaseUrl,
   isLocalApiHost,
   PRODUCTION_API_ORIGIN,
+  PRODUCTION_WEB_ORIGIN,
   resolveApiBaseUrl,
   resolveApiOrigin,
 } from "./public-origin";
@@ -14,13 +15,11 @@ describe("production API origin guard", () => {
     expect(isLocalApiHost("api.example.com")).toBe(false);
   });
 
-  it("uses the public API origin when production env is empty", () => {
-    expect(resolveApiBaseUrl(undefined, "prod")).toBe(PRODUCTION_API_ORIGIN);
-    expect(resolveApiBaseUrl("  ", "prod")).toBe(PRODUCTION_API_ORIGIN);
+  it("requires an explicit API origin in production", () => {
+    expect(() => resolveApiBaseUrl(undefined, "prod")).toThrow(/configured/);
+    expect(() => resolveApiBaseUrl("  ", "prod")).toThrow(/configured/);
     expect(resolveApiBaseUrl(undefined, "dev")).toBe("http://localhost:8000");
-    expect(resolveApiBaseUrl("https://api.example.com/", "prod")).toBe(
-      "https://api.example.com",
-    );
+    expect(resolveApiBaseUrl(`${PRODUCTION_API_ORIGIN}/`, "prod")).toBe(PRODUCTION_API_ORIGIN);
   });
 
   it("normalizes the configured API URL to a safe CSP origin", () => {
@@ -32,10 +31,10 @@ describe("production API origin guard", () => {
     );
   });
 
-  it("allows empty or HTTPS public origins on build", () => {
-    expect(() => assertProductionApiBaseUrl(undefined, "build")).not.toThrow();
+  it("allows only an explicit HTTPS public API origin on build", () => {
+    expect(() => assertProductionApiBaseUrl(undefined, "build")).toThrow(/configured/);
     expect(() =>
-      assertProductionApiBaseUrl("https://api.example.com", "build"),
+      assertProductionApiBaseUrl(PRODUCTION_API_ORIGIN, "build"),
     ).not.toThrow();
     expect(() =>
       assertProductionApiBaseUrl("http://localhost:8000", "serve"),
@@ -52,5 +51,8 @@ describe("production API origin guard", () => {
     expect(() =>
       assertProductionApiBaseUrl("http://api.example.com", "build"),
     ).toThrow(/HTTPS/);
+    expect(() =>
+      assertProductionApiBaseUrl(PRODUCTION_WEB_ORIGIN, "build"),
+    ).toThrow(/frontend origin/);
   });
 });

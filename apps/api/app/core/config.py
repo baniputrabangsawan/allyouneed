@@ -17,7 +17,11 @@ class Settings(BaseSettings):
     app_env: str = "development"
     app_name: str = "utility-api"
     cors_origins: list[str] = Field(
-        default_factory=lambda: ["http://localhost:3000", "http://127.0.0.1:3000"]
+        default_factory=lambda: [
+            "https://usekits.online",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ]
     )
     database_url: str = ""
     license_database_url: str = DEFAULT_LICENSE_DATABASE_URL
