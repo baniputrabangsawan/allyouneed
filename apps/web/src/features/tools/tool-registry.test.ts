@@ -40,9 +40,22 @@ describe('tool registry', () => {
   })
 
   it('includes every documented section and conversion grouping', () => {
-    expect(tools.length).toBe(153)
+    expect(tools.length).toBe(158)
     expect(getToolBySlug('social-media-image-resizer')).toBeDefined()
     expect(getToolBySlug('certificate-generator')).toBeDefined()
+    expect(getToolBySlug('meta-tag-generator')?.available).toBe(true)
+    expect(getToolBySlug('meta-tag-generator')?.processingMode).toBe('client')
+    expect(getToolBySlug('meta-tag-generator')?.requiresPro).toBe(false)
+    expect(getToolBySlug('open-graph-generator')?.available).toBe(true)
+    expect(getToolBySlug('open-graph-generator')?.processingMode).toBe('client')
+    expect(getToolBySlug('open-graph-generator')?.requiresPro).toBe(false)
+    expect(getToolBySlug('open-graph-generator')?.category).toBe('developer')
+    expect(getToolBySlug('json-ld-generator')?.available).toBe(true)
+    expect(getToolBySlug('json-ld-generator')?.processingMode).toBe('client')
+    expect(getToolBySlug('json-ld-generator')?.requiresPro).toBe(false)
+    expect(getToolBySlug('json-ld-generator')?.category).toBe('developer')
+    expect(getToolBySlug('robots-txt-generator')).toMatchObject({ available: true, category: 'developer', processingMode: 'client', requiresPro: false })
+    expect(getToolBySlug('sitemap-generator')?.available).toBe(false)
     expect(getToolsByGroup('convert').length).toBeGreaterThan(0)
   })
 

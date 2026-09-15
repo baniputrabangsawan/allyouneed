@@ -1,4 +1,5 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, stripSearchParams } from '@tanstack/react-router'
+import { htmlOrMarkdown } from '@/features/agents/headers'
 import { Home } from '@/features/home/HomePage'
 import { homeSearchSchema } from '@/features/home/home-search'
 import { absoluteUrl, seoImage } from '@/features/seo/site'
@@ -8,7 +9,15 @@ import { loadDiscovery } from '@/lib/storage/recent-ssr'
 
 export const Route = createFileRoute('/id/')({
   validateSearch: homeSearchSchema,
+  search: {
+    middlewares: [stripSearchParams({ q: '', category: 'all', group: 'all' })],
+  },
   loader: () => loadDiscovery(),
+  server: {
+    handlers: {
+      GET: htmlOrMarkdown,
+    },
+  },
   head: () => {
     const copy = getMessages('id')
     return {

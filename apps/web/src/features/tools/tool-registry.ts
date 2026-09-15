@@ -77,7 +77,7 @@ const implementedSlugs = new Set([
   'case-converter', 'remove-duplicate-lines', 'remove-extra-spaces',
   'sort-lines', 'text-cleaner', 'text-formatter', 'lorem-ipsum-generator', 'slug-generator',
   'text-compare', 'text-diff', 'markdown-to-html', 'html-to-markdown',
-  'json-formatter', 'json-validator', 'json-minifier', 'xml-formatter', 'html-formatter', 'javascript-formatter', 'yaml-to-json', 'json-to-yaml', 'base64-encode', 'base64-decode',
+  'json-formatter', 'json-validator', 'json-minifier', 'xml-formatter', 'html-formatter', 'meta-tag-generator', 'robots-txt-generator', 'open-graph-generator', 'json-ld-generator', 'javascript-formatter', 'yaml-to-json', 'json-to-yaml', 'base64-encode', 'base64-decode',
   'url-encode', 'url-decode', 'jwt-decoder', 'image-to-base64', 'base64-to-image', 'hash-generator',
   'sha-256', 'sha-512', 'unix-timestamp-converter', 'password-generator',
   'pin-generator', 'random-number-generator', 'uuid-generator', 'gradient-generator',
@@ -309,6 +309,23 @@ export const tools: readonly ToolDefinition[] = [
   t('YAML to JSON', 'developer', ['convert'], 'yaml'),
   t('JSON to YAML', 'developer', ['convert'], 'yaml'),
   t('HTML Formatter', 'developer', ['edit'], 'text'),
+  t('Meta Tag Generator', 'developer', ['create'], 'text', {
+    aliases: ['seo meta generator', 'meta tags', 'meta description generator', 'html meta tags'],
+    tags: ['developer', 'seo', 'meta', 'html'],
+  }),
+  t('Robots.txt Generator', 'developer', ['create'], 'text', {
+    aliases: ['robots generator', 'robots txt', 'seo robots'],
+    tags: ['developer', 'seo', 'robots', 'crawl'],
+  }),
+  t('Sitemap Generator', 'developer', ['create'], 'text', { tags: ['developer', 'seo', 'sitemap', 'xml'] }),
+  t('Open Graph Generator', 'developer', ['create'], 'text', {
+    aliases: ['og tags', 'og image preview', 'twitter card generator', 'social meta tags', 'open graph tags'],
+    tags: ['developer', 'seo', 'open-graph', 'twitter', 'html'],
+  }),
+  t('JSON-LD Generator', 'developer', ['create'], 'json', {
+    aliases: ['schema generator', 'structured data generator', 'schema.org generator', 'jsonld generator'],
+    tags: ['developer', 'seo', 'json-ld', 'schema'],
+  }),
   t('CSS Formatter', 'developer', ['edit'], 'text'),
   t('JavaScript Formatter', 'developer', ['edit'], 'text'),
   t('Base64 Encode', 'developer', ['convert'], 'encoding', { aliases: ['base64 encoder'] }),

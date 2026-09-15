@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
+    "@posthog/react": "^1.10.6",
     "@tanstack/react-query": "^5.87.1",
     "@tanstack/react-router": "^1.170.34",
     "@tanstack/react-start": "^1.168.51",
@@ -23,6 +24,7 @@
     "lucide-react": "^0.544.0",
     "nitro": "3.0.260903-beta",
     "pako": "^3.0.1",
+    "posthog-js": "^1.430.3",
     "prettier": "^3.9.6",
     "qrcode": "^1.5.4",
     "react": "^19.1.1",

@@ -12,12 +12,16 @@ import { EncodingWorkspace } from './EncodingWorkspace'
 import { GenericTextWorkspace } from './GenericTextWorkspace'
 import { HtmlWorkspace } from './HtmlWorkspace'
 import { JavaScriptWorkspace } from './JavaScriptWorkspace'
+import { JsonLdWorkspace } from './JsonLdWorkspace'
 import { JsonWorkspace } from './JsonWorkspace'
+import { MetaTagWorkspace } from './MetaTagWorkspace'
+import { OpenGraphWorkspace } from './OpenGraphWorkspace'
 import { QrisParserWorkspace } from './QrisParserWorkspace'
 import { QrWorkspace } from './QrWorkspace'
 import { RandomWorkspace } from './RandomWorkspace'
 import { AudioConverterWorkspace } from './AudioConverterWorkspace'
 import { RemoteFileWorkspace } from './RemoteFileWorkspace'
+import { RobotsTxtWorkspace } from './RobotsTxtWorkspace'
 import { SpeechToTextWorkspace } from './SpeechToTextWorkspace'
 import { TextToSpeechWorkspace } from './TextToSpeechWorkspace'
 import { WordCounterWorkspace } from './WordCounterWorkspace'
@@ -35,12 +39,16 @@ export { EncodingWorkspace } from './EncodingWorkspace'
 export { GenericTextWorkspace } from './GenericTextWorkspace'
 export { HtmlWorkspace } from './HtmlWorkspace'
 export { JavaScriptWorkspace } from './JavaScriptWorkspace'
+export { JsonLdWorkspace } from './JsonLdWorkspace'
 export { JsonWorkspace } from './JsonWorkspace'
+export { MetaTagWorkspace } from './MetaTagWorkspace'
+export { OpenGraphWorkspace } from './OpenGraphWorkspace'
 export { QrisParserWorkspace } from './QrisParserWorkspace'
 export { QrWorkspace } from './QrWorkspace'
 export { RandomWorkspace } from './RandomWorkspace'
 export { AudioConverterWorkspace } from './AudioConverterWorkspace'
 export { RemoteFileWorkspace } from './RemoteFileWorkspace'
+export { RobotsTxtWorkspace } from './RobotsTxtWorkspace'
 export { SpeechToTextWorkspace } from './SpeechToTextWorkspace'
 export { TextToSpeechWorkspace } from './TextToSpeechWorkspace'
 export { WordCounterWorkspace } from './WordCounterWorkspace'
@@ -72,6 +80,10 @@ export function getSpecialWorkspace(tool: ToolDefinition): WorkspaceComponent | 
   if (tool.slug === 'qris-payload-parser') return QrisParserWorkspace
   if (tool.slug === 'javascript-formatter') return JavaScriptWorkspace
   if (tool.slug === 'html-formatter') return HtmlWorkspace
+  if (tool.slug === 'meta-tag-generator') return MetaTagWorkspace
+  if (tool.slug === 'robots-txt-generator') return RobotsTxtWorkspace
+  if (tool.slug === 'json-ld-generator') return JsonLdWorkspace
+  if (tool.slug === 'open-graph-generator') return OpenGraphWorkspace
   if (tool.slug === 'html-to-image') return HtmlToImageWorkspace
   if (tool.slug === 'basic-background-removal') return BasicBackgroundWorkspace
   if (tool.slug === 'audio-converter') return AudioConverterWorkspace

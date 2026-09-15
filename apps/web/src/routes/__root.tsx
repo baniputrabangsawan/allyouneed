@@ -3,6 +3,7 @@ import { HeadContent, Outlet, Scripts, createRootRouteWithContext, useRouterStat
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query'
 import { AppHeader } from '@/components/layout/AppShell'
 import { AppFooter } from '@/components/layout/AppFooter'
+import { WebMcp } from '@/features/agents/WebMcp'
 import { getPopularTools } from '@/features/tools/tool-registry'
 import { documentLang } from '@/i18n/seo'
 import { LocaleLink } from '@/i18n/link'
@@ -44,6 +45,12 @@ export const Route = createRootRouteWithContext<RouterContext>()({
         { rel: 'icon', type: 'image/png', sizes: '96x96', href: '/favicon-96x96.png?v=2' },
         { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png?v=2' },
         { rel: 'manifest', href: '/site.webmanifest' },
+        { rel: 'api-catalog', href: '/.well-known/api-catalog' },
+        { rel: 'service-desc', type: 'application/json', href: '/openapi.json' },
+        { rel: 'service-doc', type: 'text/html', href: '/docs' },
+        { rel: 'describedby', type: 'application/json', href: '/.well-known/ai-catalog.json' },
+        { rel: 'ai-catalog', href: '/.well-known/ai-catalog.json' },
+        { rel: 'alternate', type: 'text/markdown', href: pathname },
       ],
     }
   },
@@ -128,7 +135,7 @@ function Root() {
     }
   }, [])
   const admin = pathname === '/admin' || pathname.startsWith('/admin/')
-  return <Document lang={documentLang(locale)}><QueryClientProvider client={queryClient}><a className="skip-link" href="#main-content">{copy.nav.skip}</a>{!admin && <AppHeader />}<div id="main-content" tabIndex={-1}><Outlet /></div>{!admin && <AppFooter />}</QueryClientProvider></Document>
+  return <Document lang={documentLang(locale)}><QueryClientProvider client={queryClient}><WebMcp /><a className="skip-link" href="#main-content">{copy.nav.skip}</a>{!admin && <AppHeader />}<div id="main-content" tabIndex={-1}><Outlet /></div>{!admin && <AppFooter />}</QueryClientProvider></Document>
 }
 
 function Document({ children, lang }: Readonly<{ children: ReactNode; lang: string }>) {
@@ -148,6 +155,7 @@ function Document({ children, lang }: Readonly<{ children: ReactNode; lang: stri
         </div>
         {children}
         <script src="/restore-scroll.js" />
+        <script src="/webmcp.js" />
         <Scripts />
       </body>
     </html>

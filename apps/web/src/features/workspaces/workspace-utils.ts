@@ -21,7 +21,7 @@ export const decodeJwtPayload = (value: string): string => {
   return JSON.stringify(JSON.parse(decodeBase64Text(parts[1])) as unknown, null, 2)
 }
 
-const escapeHtml = (value: string): string => value
+export const escapeHtml = (value: string): string => value
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 
