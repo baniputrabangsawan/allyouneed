@@ -18,6 +18,7 @@ const categoryDescKey = {
   video: 'catVideo',
   qr: 'catQr',
   developer: 'catDeveloper',
+  calculator: 'catCalculator',
   text: 'catText',
   generator: 'catGenerator',
   converter: 'catConverter',

@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { getAllTools, type ToolDefinition } from '@/features/tools/tool-registry'
 import { toolsId } from '@/i18n/tools-id'
 
-export const homeCategories = ['all', 'image', 'qr', 'developer', 'generator', 'text', 'pdf', 'audio', 'video', 'converter'] as const
+export const homeCategories = ['all', 'image', 'qr', 'developer', 'calculator', 'generator', 'text', 'pdf', 'audio', 'video', 'converter'] as const
 export const homeGroups = ['all', 'optimize', 'create', 'edit', 'convert', 'security'] as const
 export type CategoryFilter = typeof homeCategories[number]
 export type GroupFilter = typeof homeGroups[number]

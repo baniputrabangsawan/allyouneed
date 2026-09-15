@@ -3,7 +3,7 @@ import type { ToolCapability } from '@/features/licensing/types'
 import { AUDIO_ACCEPT, VIDEO_ACCEPT } from '@/lib/media/formats'
 import { getToolPageCopy } from './tool-content'
 
-export type ToolCategory = 'image' | 'qr' | 'pdf' | 'audio' | 'video' | 'text' | 'developer' | 'generator' | 'converter'
+export type ToolCategory = 'image' | 'qr' | 'pdf' | 'audio' | 'video' | 'text' | 'developer' | 'generator' | 'converter' | 'calculator'
 export type ProcessingMode = 'client' | 'remote' | 'hybrid'
 export type ToolGroup = 'optimize' | 'create' | 'edit' | 'convert' | 'security'
 export type ToolImplementation =
@@ -50,11 +50,11 @@ export interface ToolDefinition {
 
 type ToolOptions = Partial<Pick<ToolDefinition,
   'acceptedFormats' | 'outputFormats' | 'ai' | 'popular' | 'popularOrder' | 'new' | 'processingMode' | 'requiredCapability' | 'shortDescription' | 'description'
->> & { aliases?: string[]; tags?: string[] }
+>> & { aliases?: string[]; tags?: string[]; slug?: string; icon?: string }
 
 const icons: Record<ToolCategory, string> = {
   image: 'Image', qr: 'QrCode', pdf: 'FileText', audio: 'AudioLines', video: 'Video',
-  text: 'TextCursorInput', developer: 'Braces', generator: 'WandSparkles', converter: 'RefreshCw',
+  text: 'TextCursorInput', developer: 'Braces', generator: 'WandSparkles', converter: 'RefreshCw', calculator: 'Calculator',
 }
 
 const slugify = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
@@ -77,12 +77,12 @@ const implementedSlugs = new Set([
   'case-converter', 'remove-duplicate-lines', 'remove-extra-spaces',
   'sort-lines', 'text-cleaner', 'text-formatter', 'lorem-ipsum-generator', 'slug-generator',
   'text-compare', 'text-diff', 'markdown-to-html', 'html-to-markdown',
-  'json-formatter', 'json-validator', 'json-minifier', 'xml-formatter', 'html-formatter', 'meta-tag-generator', 'robots-txt-generator', 'open-graph-generator', 'json-ld-generator', 'javascript-formatter', 'yaml-to-json', 'json-to-yaml', 'base64-encode', 'base64-decode',
+  'json-formatter', 'json-validator', 'json-minifier', 'json-diff', 'xml-formatter', 'html-formatter', 'csv-json-converter', 'meta-tag-generator', 'robots-txt-generator', 'sitemap-generator', 'open-graph-generator', 'json-ld-generator', 'javascript-formatter', 'yaml-to-json', 'json-to-yaml', 'base64-encode', 'base64-decode',
   'url-encode', 'url-decode', 'jwt-decoder', 'image-to-base64', 'base64-to-image', 'hash-generator',
-  'sha-256', 'sha-512', 'unix-timestamp-converter', 'password-generator',
+  'sha-256', 'sha-512', 'regex-tester', 'unix-timestamp-converter', 'password-generator',
   'pin-generator', 'random-number-generator', 'uuid-generator', 'gradient-generator',
-  'css-shadow-generator', 'border-radius-generator', 'color-palette-generator',
-  'color-picker',
+  'css-shadow-generator', 'border-radius-generator', 'css-clamp-calculator', 'color-palette-generator',
+  'color-picker', 'color-contrast-checker', 'standard-calculator', 'scientific-calculator', 'currency-converter', 'finance-calculator', 'unit-converter', 'percentage-calculator', 'date-time-calculator', 'programmer-calculator', 'statistics-calculator', 'fractions-calculator', 'screen-calculator', 'color-calculator',
 ])
 const defineTool = (
   name: string,
@@ -91,7 +91,7 @@ const defineTool = (
   implementation: ToolImplementation,
   options: ToolOptions = {},
 ): ToolDefinition => {
-  const slug = slugify(name)
+  const slug = options.slug ?? slugify(name)
   const page = getToolPageCopy(slug, 'en')
   const shortDescription = options.shortDescription ?? page?.shortDescription ?? `${name} quickly with a focused, easy-to-use tool.`
   const description = options.description ?? page?.description ?? `${name} online with clear controls and privacy-conscious processing.`
@@ -107,7 +107,7 @@ const defineTool = (
     groups,
     tags: options.tags ?? [category, ...slug.split('-')],
     aliases: options.aliases ?? [],
-    icon: icons[category],
+    icon: options.icon ?? icons[category],
     processingMode,
     ...(options.acceptedFormats ? { acceptedFormats: options.acceptedFormats } : {}),
     ...(options.outputFormats ? { outputFormats: options.outputFormats } : {}),
@@ -182,6 +182,12 @@ export const tools: readonly ToolDefinition[] = [
   t('Image Metadata Viewer', 'image', ['edit'], 'dependency-required'),
   t('Remove Metadata', 'image', ['security'], 'image-canvas'),
   t('Color Picker', 'image', ['create'], 'color', { aliases: ['hex rgb hsl converter', 'hex to rgb', 'colour picker'] }),
+  t('Color Contrast Checker', 'developer', ['edit'], 'color', {
+    aliases: ['wcag contrast', 'contrast checker', 'colour contrast checker'],
+    tags: ['developer', 'design', 'color', 'contrast', 'wcag', 'accessibility'],
+    shortDescription: 'Check WCAG contrast between a text color and a background.',
+    description: 'Compare one foreground color with one background. Kits reports the WCAG 2 contrast ratio and AA/AAA pass or fail for normal and large text. This does not certify a whole page.',
+  }),
   t('Favicon Generator', 'image', ['create'], 'image-canvas', { acceptedFormats: ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'], outputFormats: ['image/png', 'image/x-icon', 'application/zip'], popular: true, popularOrder: 17 }),
   t('Profile Picture Maker', 'image', ['create'], 'image-canvas'),
   t('Passport Photo Maker', 'image', ['create'], 'image-canvas'),
@@ -304,11 +310,21 @@ export const tools: readonly ToolDefinition[] = [
   t('JSON Formatter', 'developer', ['edit'], 'json', { aliases: ['beautify json'] }),
   t('JSON Validator', 'developer', ['edit'], 'json'),
   t('JSON Minifier', 'developer', ['optimize'], 'json'),
+  t('JSON Diff', 'developer', ['edit'], 'json', {
+    aliases: ['compare json', 'json compare', 'diff json'],
+    tags: ['developer', 'json', 'diff', 'compare', 'data'],
+    shortDescription: 'Compare two JSON documents in the browser.',
+    description: 'Validate and recursively compare JSON A and JSON B. Added, removed, changed, and unchanged paths stay in this browser — nothing is uploaded.',
+  }),
   t('XML Formatter', 'developer', ['edit'], 'xml'),
   t('XML to JSON', 'developer', ['convert'], 'text'),
   t('YAML to JSON', 'developer', ['convert'], 'yaml'),
   t('JSON to YAML', 'developer', ['convert'], 'yaml'),
   t('HTML Formatter', 'developer', ['edit'], 'text'),
+  t('CSV JSON Converter', 'developer', ['convert'], 'text', {
+    aliases: ['csv to json', 'json to csv', 'csv converter'],
+    tags: ['developer', 'data', 'csv', 'json'],
+  }),
   t('Meta Tag Generator', 'developer', ['create'], 'text', {
     aliases: ['seo meta generator', 'meta tags', 'meta description generator', 'html meta tags'],
     tags: ['developer', 'seo', 'meta', 'html'],
@@ -317,7 +333,10 @@ export const tools: readonly ToolDefinition[] = [
     aliases: ['robots generator', 'robots txt', 'seo robots'],
     tags: ['developer', 'seo', 'robots', 'crawl'],
   }),
-  t('Sitemap Generator', 'developer', ['create'], 'text', { tags: ['developer', 'seo', 'sitemap', 'xml'] }),
+  t('Sitemap Generator', 'developer', ['create'], 'text', {
+    aliases: ['sitemap xml', 'xml sitemap', 'seo sitemap', 'sitemap.xml generator'],
+    tags: ['developer', 'seo', 'sitemap', 'xml'],
+  }),
   t('Open Graph Generator', 'developer', ['create'], 'text', {
     aliases: ['og tags', 'og image preview', 'twitter card generator', 'social meta tags', 'open graph tags'],
     tags: ['developer', 'seo', 'open-graph', 'twitter', 'html'],
@@ -325,6 +344,10 @@ export const tools: readonly ToolDefinition[] = [
   t('JSON-LD Generator', 'developer', ['create'], 'json', {
     aliases: ['schema generator', 'structured data generator', 'schema.org generator', 'jsonld generator'],
     tags: ['developer', 'seo', 'json-ld', 'schema'],
+  }),
+  t('CSS Clamp Calculator', 'developer', ['create'], 'css', {
+    aliases: ['clamp calculator', 'fluid type calculator', 'css clamp', 'clamp() calculator'],
+    tags: ['developer', 'css', 'clamp', 'responsive', 'typography'],
   }),
   t('CSS Formatter', 'developer', ['edit'], 'text'),
   t('JavaScript Formatter', 'developer', ['edit'], 'text'),
@@ -336,9 +359,25 @@ export const tools: readonly ToolDefinition[] = [
   t('Hash Generator', 'developer', ['create', 'security'], 'crypto'),
   t('SHA-256', 'developer', ['create', 'security'], 'crypto'),
   t('SHA-512', 'developer', ['create', 'security'], 'crypto'),
-  t('Regex Tester', 'developer', ['edit'], 'text'),
+  t('Regex Tester', 'developer', ['edit'], 'text', {
+    aliases: ['regexp tester', 'regular expression tester', 'regex'],
+    tags: ['developer', 'regex', 'regexp', 'pattern'],
+  }),
   t('Cron Expression Generator', 'developer', ['create'], 'text'),
   t('Unix Timestamp Converter', 'developer', ['convert'], 'date-time'),
+
+  t('Scientific Calculator', 'calculator', ['create'], 'text', { icon: 'Sigma', aliases: ['trigonometry calculator', 'log calculator', 'scientific math'], tags: ['calculator', 'scientific', 'math', 'sin', 'cos', 'log'], shortDescription: 'Scientific functions, trigonometry, logarithms, roots, powers, constants, and advanced expressions.', description: 'Calculate scientific expressions with trigonometry, hyperbolic functions, logs, roots, powers, constants, factorials, and DEG/RAD angle modes.' }),
+  t('Currency Converter', 'calculator', ['convert'], 'text', { icon: 'CircleDollarSign', aliases: ['exchange rate', 'usd idr', 'forex converter'], tags: ['calculator', 'currency', 'money', 'exchange', 'usd', 'idr'], shortDescription: 'Convert between world currencies with timestamped exchange-rate data.', description: 'Convert currency amounts with exchange rates fetched on demand, local caching, stale labels, and copyable results.' }),
+  t('Finance Calculator', 'calculator', ['create'], 'text', { icon: 'TrendingUp', aliases: ['loan calculator', 'emi calculator', 'compound interest', 'roi calculator'], tags: ['calculator', 'finance', 'loan', 'interest', 'investment', 'margin'], shortDescription: 'Calculate loans, compound interest, investment growth, margin, markup, tax, and ROI.', description: 'Run common finance calculations for loan payments, interest, recurring contributions, profit margin, markup, tax, discounts, and investment projections.' }),
+  t('Unit Converter', 'calculator', ['convert'], 'text', { icon: 'Ruler', aliases: ['measurement converter', 'cm to m', 'kg to lb', 'temperature converter'], tags: ['calculator', 'unit', 'converter', 'length', 'mass', 'temperature'], shortDescription: 'Convert length, mass, temperature, volume, speed, data, pressure, energy, and more.', description: 'Enter one value and convert it to all relevant units through canonical base values to avoid conversion drift.' }),
+  t('Percentage Calculator', 'calculator', ['create'], 'text', { icon: 'Percent', aliases: ['discount calculator', 'percent change', 'percentage increase'], tags: ['calculator', 'percentage', 'discount', 'tax', 'ratio'], shortDescription: 'Calculate percentages, discounts, increases, decreases, additions, and ratios.', description: 'Solve common percentage questions including percent of a number, percent change, add percentage, discounts, and ratios.' }),
+  t('Date & Time Calculator', 'calculator', ['create'], 'text', { slug: 'date-time-calculator', icon: 'CalendarClock', aliases: ['date difference', 'age calculator', 'duration calculator'], tags: ['calculator', 'date', 'time', 'age', 'duration'], shortDescription: 'Calculate date differences, age, time duration, and add or subtract days.', description: 'Compare dates, calculate age, add days to today, and find clock durations in one focused date and time calculator.' }),
+  t('Programmer Calculator', 'calculator', ['create'], 'text', { icon: 'Code2', aliases: ['binary calculator', 'hex calculator', 'bitwise calculator'], tags: ['calculator', 'programmer', 'binary', 'hex', 'bitwise'], shortDescription: 'Convert binary, octal, decimal, and hexadecimal, plus bitwise operations.', description: 'Work with number bases and unsigned bitwise operations including AND, OR, XOR, NOT, and shifts.' }),
+  t('Statistics Calculator', 'calculator', ['create'], 'text', { icon: 'ChartColumn', aliases: ['mean median mode', 'standard deviation', 'variance calculator'], tags: ['calculator', 'statistics', 'mean', 'median', 'variance'], shortDescription: 'Calculate count, sum, min, max, range, mean, median, mode, variance, and standard deviation.', description: 'Paste a list of numbers and calculate descriptive statistics with sample or population variance and standard deviation.' }),
+  t('Fractions Calculator', 'calculator', ['create'], 'text', { slug: 'fractions-calculator', icon: 'Divide', aliases: ['fraction calculator', 'simplify fraction', 'mixed number'], tags: ['calculator', 'fraction', 'fractions', 'math'], shortDescription: 'Add, subtract, multiply, divide, simplify, and convert fractions.', description: 'Calculate fraction operations, simplify the result, show mixed-number output, and convert to decimal.' }),
+  t('Screen Calculator', 'calculator', ['create'], 'text', { icon: 'Monitor', aliases: ['aspect ratio calculator', 'ppi calculator', 'dpi calculator', 'resolution calculator'], tags: ['calculator', 'screen', 'aspect ratio', 'ppi', 'resolution'], shortDescription: 'Calculate aspect ratio, pixel count, megapixels, PPI, DPI, and display dimensions.', description: 'Enter screen width, height, and diagonal size to calculate aspect ratio, pixel count, megapixels, and PPI/DPI.' }),
+  t('Color Calculator', 'calculator', ['convert'], 'text', { icon: 'Palette', aliases: ['hex rgb hsl', 'color converter', 'hsv converter'], tags: ['calculator', 'color', 'hex', 'rgb', 'hsl', 'hsv'], shortDescription: 'Convert HEX, RGB, HSL, and HSV color values.', description: 'Convert a HEX color into RGB, HSL, and HSV values with copyable rows.' }),
+  t('Standard Calculator', 'calculator', ['create'], 'text', { icon: 'Calculator', aliases: ['basic calculator', 'arithmetic calculator'], tags: ['calculator', 'standard', 'math', 'arithmetic'], shortDescription: 'Calculate basic arithmetic with parentheses, decimals, percent, history, and keyboard input.', description: 'Run standard arithmetic expressions with safe parsing, parentheses, decimals, percent, history, and copyable results.' }),
 
   t('Password Generator', 'generator', ['create', 'security'], 'random'),
   t('PIN Generator', 'generator', ['create', 'security'], 'random'),

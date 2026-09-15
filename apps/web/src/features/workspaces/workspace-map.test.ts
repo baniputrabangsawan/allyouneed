@@ -4,7 +4,7 @@ import {
   AudioConverterWorkspace,
   browserMediaWorkspaceSlugs, colorWorkspaceSlugs, cryptoWorkspaceSlugs, cssWorkspaceSlugs,
   dateTimeWorkspaceSlugs, encodingWorkspaceSlugs, genericTextWorkspaceSlugs, getSpecialWorkspace,
-  getWorkspaceComponent, HtmlWorkspace, JavaScriptWorkspace, JsonLdWorkspace, MergePngWorkspace, MetaTagWorkspace, OpenGraphWorkspace, QrisParserWorkspace, QrWorkspace, randomWorkspaceSlugs, RemoteFileWorkspace, RobotsTxtWorkspace, SpeechToTextWorkspace, TextToSpeechWorkspace, WordCounterWorkspace,
+  CsvJsonWorkspace, ColorContrastWorkspace, CssClampWorkspace, getWorkspaceComponent, HtmlWorkspace, JavaScriptWorkspace, JsonDiffWorkspace, JsonLdWorkspace, MergePngWorkspace, MetaTagWorkspace, OpenGraphWorkspace, QrisParserWorkspace, QrWorkspace, randomWorkspaceSlugs, RegexTesterWorkspace, RemoteFileWorkspace, RobotsTxtWorkspace, SitemapWorkspace, SpeechToTextWorkspace, TextToSpeechWorkspace, WordCounterWorkspace,
   workspaceComponents, YamlWorkspace,
 } from './index'
 
@@ -34,9 +34,20 @@ describe('workspace component mapping', () => {
     expect(getSpecialWorkspace(get('javascript-formatter')!)).toBe(JavaScriptWorkspace)
     expect(getWorkspaceComponent(get('html-formatter')!)).toBeTypeOf('function')
     expect(getSpecialWorkspace(get('html-formatter')!)).toBe(HtmlWorkspace)
+    expect(getWorkspaceComponent(get('csv-json-converter')!)).toBe(CsvJsonWorkspace)
+    expect(getSpecialWorkspace(get('json-diff')!)).toBe(JsonDiffWorkspace)
+    expect(getWorkspaceComponent(get('json-diff')!)).toBe(JsonDiffWorkspace)
+    expect(getSpecialWorkspace(get('color-contrast-checker')!)).toBe(ColorContrastWorkspace)
+    expect(getWorkspaceComponent(get('color-contrast-checker')!)).toBe(ColorContrastWorkspace)
+    expect(getSpecialWorkspace(get('css-clamp-calculator')!)).toBe(CssClampWorkspace)
+    expect(getWorkspaceComponent(get('css-clamp-calculator')!)).toBe(CssClampWorkspace)
+    expect(getSpecialWorkspace(get('regex-tester')!)).toBe(RegexTesterWorkspace)
+    expect(getWorkspaceComponent(get('regex-tester')!)).toBe(RegexTesterWorkspace)
     expect(getSpecialWorkspace(get('meta-tag-generator')!)).toBe(MetaTagWorkspace)
     expect(getWorkspaceComponent(get('meta-tag-generator')!)).toBe(MetaTagWorkspace)
     expect(getWorkspaceComponent(get('robots-txt-generator')!)).toBe(RobotsTxtWorkspace)
+    expect(getSpecialWorkspace(get('sitemap-generator')!)).toBe(SitemapWorkspace)
+    expect(getWorkspaceComponent(get('sitemap-generator')!)).toBe(SitemapWorkspace)
     expect(getSpecialWorkspace(get('json-ld-generator')!)).toBe(JsonLdWorkspace)
     expect(getWorkspaceComponent(get('json-ld-generator')!)).toBe(JsonLdWorkspace)
     expect(getSpecialWorkspace(get('open-graph-generator')!)).toBe(OpenGraphWorkspace)
