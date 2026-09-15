@@ -151,4 +151,67 @@ export const contrastForeground = (hex: string): '#111111' | '#FFFFFF' => {
   return contrastWithWhite >= contrastWithBlack ? '#FFFFFF' : '#111111'
 }
 
+export const WCAG_AA_NORMAL = 4.5
+export const WCAG_AA_LARGE = 3
+export const WCAG_AAA_NORMAL = 7
+export const WCAG_AAA_LARGE = 4.5
+
+const RGB_FUNCTION = /^rgba?\(\s*(\d{1,3})\s*[, ]\s*(\d{1,3})\s*[, ]\s*(\d{1,3})(?:\s*[,/]\s*[\d.]+%?)?\s*\)$/iu
+const RGB_CSV = /^(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})$/u
+
+export function parseColor(input: string): Rgb {
+  const trimmed = input.trim()
+  if (trimmed.length === 0) throw new Error('Enter a HEX or RGB color.')
+  const rgbMatch = trimmed.match(RGB_FUNCTION) ?? trimmed.match(RGB_CSV)
+  if (rgbMatch) {
+    const r = Number(rgbMatch[1])
+    const g = Number(rgbMatch[2])
+    const b = Number(rgbMatch[3])
+    if (r > 255 || g > 255 || b > 255) throw new Error('RGB channels must be 0–255.')
+    return { r, g, b }
+  }
+  return hexToRgb(trimmed)
+}
+
+export function contrastRatio(foreground: Rgb, background: Rgb): number {
+  const first = relativeLuminance(foreground)
+  const second = relativeLuminance(background)
+  const lighter = Math.max(first, second)
+  const darker = Math.min(first, second)
+  return (lighter + 0.05) / (darker + 0.05)
+}
+
+export interface ContrastCheck {
+  ratio: number
+  foreground: Rgb
+  background: Rgb
+  foregroundHex: string
+  backgroundHex: string
+  aaNormal: boolean
+  aaLarge: boolean
+  aaaNormal: boolean
+  aaaLarge: boolean
+}
+
+export function evaluateContrast(foregroundInput: string, backgroundInput: string): ContrastCheck {
+  const foreground = parseColor(foregroundInput)
+  const background = parseColor(backgroundInput)
+  const ratio = contrastRatio(foreground, background)
+  return {
+    ratio,
+    foreground,
+    background,
+    foregroundHex: rgbToHex(foreground),
+    backgroundHex: rgbToHex(background),
+    aaNormal: ratio >= WCAG_AA_NORMAL,
+    aaLarge: ratio >= WCAG_AA_LARGE,
+    aaaNormal: ratio >= WCAG_AAA_NORMAL,
+    aaaLarge: ratio >= WCAG_AAA_LARGE,
+  }
+}
+
+export function formatContrastRatio(ratio: number): string {
+  return `${ratio.toFixed(2)} : 1`
+}
+
 export const formatBytes = (bytes: number): string => bytes < 1024 ? `${bytes} B` : bytes < 1024 ** 2 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / 1024 ** 2).toFixed(1)} MB`

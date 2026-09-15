@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  contrastForeground, decodeBase64Text, decodeJwtPayload, encodeBase64Text, hexToRgb, hslToRgb, htmlToMarkdown,
-  markdownToSafeHtml, rgbToHex, rgbToHsl, secureRandomInt, secureString, transformText,
+  contrastForeground, contrastRatio, decodeBase64Text, decodeJwtPayload, encodeBase64Text, evaluateContrast, formatContrastRatio, hexToRgb, hslToRgb, htmlToMarkdown,
+  markdownToSafeHtml, parseColor, rgbToHex, rgbToHsl, secureRandomInt, secureString, transformText,
 } from './workspace-utils'
 
 describe('workspace text utilities', () => {
@@ -52,6 +52,35 @@ describe('workspace color and randomness utilities', () => {
     expect(contrastForeground('#000000')).toBe('#FFFFFF')
     expect(contrastForeground('#BFA41D')).toBe('#111111')
     expect(contrastForeground('#1E3A5F')).toBe('#FFFFFF')
+  })
+
+  it('parses HEX and RGB and computes WCAG 2 contrast ratios', () => {
+    expect(parseColor('#000')).toEqual({ r: 0, g: 0, b: 0 })
+    expect(parseColor('rgb(255, 255, 255)')).toEqual({ r: 255, g: 255, b: 255 })
+    expect(parseColor('rgb(0 0 0)')).toEqual({ r: 0, g: 0, b: 0 })
+    expect(parseColor('118, 118, 118')).toEqual({ r: 118, g: 118, b: 118 })
+    expect(contrastRatio({ r: 0, g: 0, b: 0 }, { r: 255, g: 255, b: 255 })).toBe(21)
+    expect(contrastRatio({ r: 255, g: 255, b: 255 }, { r: 255, g: 255, b: 255 })).toBe(1)
+    expect(formatContrastRatio(21)).toBe('21.00 : 1')
+
+    const blackOnWhite = evaluateContrast('#000000', '#FFFFFF')
+    expect(blackOnWhite.ratio).toBe(21)
+    expect(blackOnWhite).toMatchObject({ aaNormal: true, aaLarge: true, aaaNormal: true, aaaLarge: true })
+
+    const grayAa = evaluateContrast('#767676', '#FFFFFF')
+    expect(grayAa.ratio).toBeCloseTo(4.54, 2)
+    expect(grayAa).toMatchObject({ aaNormal: true, aaLarge: true, aaaNormal: false, aaaLarge: true })
+
+    const grayFailAa = evaluateContrast('#777777', '#FFFFFF')
+    expect(grayFailAa.ratio).toBeCloseTo(4.48, 2)
+    expect(grayFailAa).toMatchObject({ aaNormal: false, aaLarge: true, aaaNormal: false, aaaLarge: false })
+
+    const aaaGray = evaluateContrast('#595959', '#FFFFFF')
+    expect(aaaGray.ratio).toBeCloseTo(7.00, 2)
+    expect(aaaGray).toMatchObject({ aaNormal: true, aaLarge: true, aaaNormal: true, aaaLarge: true })
+
+    expect(evaluateContrast('rgb(0,0,0)', '#fff').ratio).toBe(21)
+    expect(() => parseColor('rgb(256, 0, 0)')).toThrow('0–255')
   })
 
   it('keeps secure generated values inside requested boundaries', () => {

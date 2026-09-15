@@ -10,6 +10,29 @@ export interface ToolPageCopy {
   outputFormats: string[]
 }
 
+function simpleCalcCopy(enDescription: string, idDescription: string, input: string, output: string): Record<Locale, ToolPageCopy> {
+  return {
+    en: {
+      shortDescription: enDescription,
+      description: `${enDescription} Processing runs in this browser.`,
+      intro: enDescription,
+      howTo: ['Enter the calculator inputs.', 'Review the live result.', 'Copy the result if needed.'],
+      benefits: ['Focused calculator page with no mode switching.', 'Works locally in this browser.'],
+      inputFormats: [input],
+      outputFormats: [output],
+    },
+    id: {
+      shortDescription: idDescription,
+      description: `${idDescription} Pemrosesan berjalan di browser ini.`,
+      intro: idDescription,
+      howTo: ['Masukkan input kalkulator.', 'Tinjau hasil langsung.', 'Salin hasil jika perlu.'],
+      benefits: ['Halaman kalkulator fokus tanpa memilih mode.', 'Berjalan lokal di browser ini.'],
+      inputFormats: [input],
+      outputFormats: [output],
+    },
+  }
+}
+
 export const toolPageContent: Record<string, Record<Locale, ToolPageCopy>> = {
   "compress-image": {
     en: {
@@ -1931,6 +1954,26 @@ export const toolPageContent: Record<string, Record<Locale, ToolPageCopy>> = {
     outputFormats: ["JSON"],
   },
   },
+  "json-diff": {
+    en: {
+    shortDescription: "Compare two JSON documents path by path.",
+    description: "Paste JSON A and JSON B. The browser validates both, then reports added, removed, changed, and unchanged paths such as user.name and items[2].price.",
+    intro: "Paste JSON A and JSON B. The browser validates both, then reports added, removed, changed, and unchanged paths such as user.name and items[2].price.",
+    howTo: ["Paste JSON into A and B.", "Use Format Both if the JSON is minified.", "Read added, removed, changed, and unchanged paths. Swap A/B or copy the diff."],
+    benefits: ["Recursive object and array comparison.", "Status labels are not color-only.", "Processed in this browser."],
+    inputFormats: ["JSON"],
+    outputFormats: ["Diff"],
+  },
+    id: {
+    shortDescription: "Bandingkan dua JSON per path.",
+    description: "Tempel JSON A dan JSON B. Browser memvalidasi keduanya, lalu menampilkan path yang ditambah, dihapus, diubah, dan tidak berubah seperti user.name dan items[2].price.",
+    intro: "Tempel JSON A dan JSON B. Browser memvalidasi keduanya, lalu menampilkan path yang ditambah, dihapus, diubah, dan tidak berubah seperti user.name dan items[2].price.",
+    howTo: ["Tempel JSON ke A dan B.", "Gunakan Format Both jika JSON diminify.", "Baca path added, removed, changed, dan unchanged. Tukar A/B atau salin diff."],
+    benefits: ["Perbandingan objek dan array rekursif.", "Label status tidak hanya warna.", "Diproses di browser."],
+    inputFormats: ["JSON"],
+    outputFormats: ["Diff"],
+  },
+  },
   "xml-formatter": {
     en: {
     shortDescription: "Pretty-print XML in this browser.",
@@ -2007,6 +2050,106 @@ export const toolPageContent: Record<string, Record<Locale, ToolPageCopy>> = {
     ],
     inputFormats: ["Judul halaman", "Meta description", "URL kanonis"],
     outputFormats: ["HTML meta tag"],
+  },
+  },
+  "csv-json-converter": {
+    en: {
+    shortDescription: "Convert CSV to JSON or JSON object arrays to CSV in the browser.",
+    description: "Paste CSV or upload a .csv file, then generate JSON. Paste a JSON array of objects to generate escaped CSV without corrupting commas or newlines.",
+    intro: "Switch between CSV to JSON and JSON to CSV. Delimiters, headers, quotes, escaped quotes, and multiline CSV values are handled locally in your browser.",
+    howTo: ["Choose CSV to JSON or JSON to CSV.", "Paste input or upload a .csv file for CSV mode.", "Choose delimiter and header options.", "Convert, preview, copy, or download the result."],
+    benefits: ["Handles quoted commas and multiline values.", "Supports comma, semicolon, tab, and auto delimiter detection.", "Processed in this browser."],
+    inputFormats: ["CSV", "JSON array of objects"],
+    outputFormats: ["JSON", "CSV"],
+  },
+    id: {
+    shortDescription: "Ubah CSV ke JSON atau array objek JSON ke CSV di browser.",
+    description: "Tempel CSV atau unggah file .csv, lalu buat JSON. Tempel array objek JSON untuk membuat CSV yang aman untuk koma dan baris baru.",
+    intro: "Beralih antara CSV ke JSON dan JSON ke CSV. Delimiter, header, quote, escaped quote, dan nilai multiline diproses lokal di browser.",
+    howTo: ["Pilih CSV ke JSON atau JSON ke CSV.", "Tempel input atau unggah file .csv untuk mode CSV.", "Pilih delimiter dan opsi header.", "Konversi, pratinjau, salin, atau unduh hasil."],
+    benefits: ["Menangani koma dalam quote dan nilai multiline.", "Mendukung koma, titik koma, tab, dan deteksi delimiter otomatis.", "Diproses di browser."],
+    inputFormats: ["CSV", "Array objek JSON"],
+    outputFormats: ["JSON", "CSV"],
+  },
+  },
+  "css-clamp-calculator": {
+    en: {
+    shortDescription: "Generate CSS clamp() for fluid type and spacing.",
+    description: "Build a clamp() from min/max viewport and min/max values in px or rem. Kits calculates the fluid preferred value in this browser and never emits invalid CSS.",
+    intro: "Set viewport bounds and values, then copy a clamp() for font-size, padding, margin, gap, or a custom property. Root font size is used when converting rem.",
+    howTo: [
+      "Choose Font Size, Padding, Margin, Gap, or Custom.",
+      "Set min and max viewport widths in pixels.",
+      "Set min and max values in px or rem.",
+      "Copy the generated CSS.",
+    ],
+    benefits: [
+      "Correct fluid preferred value between two viewports.",
+      "px or rem with a custom root font size.",
+      "Invalid inputs never produce CSS.",
+      "Processed in this browser.",
+    ],
+    inputFormats: ["Viewport px", "Value px or rem"],
+    outputFormats: ["CSS clamp()"],
+  },
+    id: {
+    shortDescription: "Hasilkan clamp() CSS untuk tipe dan spasi fluida.",
+    description: "Buat clamp() dari viewport min/max dan nilai min/max dalam px atau rem. Kits menghitung nilai preferred fluida di browser dan tidak mengeluarkan CSS invalid.",
+    intro: "Atur batas viewport dan nilai, lalu salin clamp() untuk font-size, padding, margin, gap, atau properti kustom. Ukuran font root dipakai saat konversi rem.",
+    howTo: [
+      "Pilih Ukuran Font, Padding, Margin, Gap, atau Kustom.",
+      "Atur lebar viewport min dan max dalam piksel.",
+      "Atur nilai min dan max dalam px atau rem.",
+      "Salin CSS yang dihasilkan.",
+    ],
+    benefits: [
+      "Nilai preferred fluida yang benar antara dua viewport.",
+      "px atau rem dengan ukuran font root kustom.",
+      "Input invalid tidak menghasilkan CSS.",
+      "Diproses di browser.",
+    ],
+    inputFormats: ["Viewport px", "Nilai px atau rem"],
+    outputFormats: ["CSS clamp()"],
+  },
+  },
+  "sitemap-generator": {
+    en: {
+    shortDescription: "Build a sitemap.xml from a list of URLs in the browser.",
+    description: "Paste or add http(s) URLs, drop exact duplicates, and generate a sitemap.xml with optional lastmod, changefreq, and priority. Invalid URLs are listed, not written into broken XML. Submitting a sitemap does not guarantee indexing.",
+    intro: "Add page URLs one per line or with the row editor. Kits writes a protocol-0.9 urlset locally. Invalid or duplicate URLs stay out of the XML.",
+    howTo: [
+      "Paste URLs one per line, or add them with Add URL.",
+      "Optionally set lastmod, changefreq, and priority per URL.",
+      "Remove exact duplicates if the same URL appears twice.",
+      "Copy the XML or download sitemap.xml.",
+    ],
+    benefits: [
+      "Valid http and https URLs only.",
+      "Exact duplicates are skipped instead of written twice.",
+      "Invalid URLs are flagged and omitted from the XML.",
+      "Processed in this browser.",
+    ],
+    inputFormats: ["HTTP URLs", "HTTPS URLs"],
+    outputFormats: ["sitemap.xml"],
+  },
+    id: {
+    shortDescription: "Buat sitemap.xml dari daftar URL di browser.",
+    description: "Tempel atau tambah URL http(s), buang duplikat persis, dan hasilkan sitemap.xml dengan lastmod, changefreq, dan priority opsional. URL invalid ditandai, tidak ditulis ke XML rusak. Mengirim sitemap tidak menjamin pengindeksan.",
+    intro: "Tambah URL halaman satu per baris atau lewat editor baris. Kits menulis urlset protokol 0.9 secara lokal. URL invalid atau duplikat tidak masuk XML.",
+    howTo: [
+      "Tempel URL satu per baris, atau tambah dengan Tambah URL.",
+      "Opsional atur lastmod, changefreq, dan priority per URL.",
+      "Hapus duplikat persis jika URL yang sama muncul dua kali.",
+      "Salin XML atau unduh sitemap.xml.",
+    ],
+    benefits: [
+      "Hanya URL http dan https yang valid.",
+      "Duplikat persis dilewati, tidak ditulis dua kali.",
+      "URL invalid ditandai dan dihilangkan dari XML.",
+      "Diproses di browser.",
+    ],
+    inputFormats: ["URL HTTP", "URL HTTPS"],
+    outputFormats: ["sitemap.xml"],
   },
   },
   "robots-txt-generator": {
@@ -2369,6 +2512,26 @@ export const toolPageContent: Record<string, Record<Locale, ToolPageCopy>> = {
     outputFormats: ["SHA-512 hex"],
   },
   },
+  "regex-tester": {
+    en: {
+    shortDescription: "Test a JavaScript regular expression against text.",
+    description: "Type a pattern, flags, and test text. Matches update live with count, capture groups, and start index. Invalid patterns show Invalid regular expression.",
+    intro: "Type a pattern, flags, and test text. Matches update live with count, capture groups, and start index. Invalid patterns show Invalid regular expression.",
+    howTo: ["Enter a JavaScript regular expression and optional flags g i m s u y.", "Paste test text. Matches highlight as you type.", "Copy the /pattern/flags literal or load a sample. Samples are generic patterns, not validation guarantees."],
+    benefits: ["Live match count, full match, groups, and index.", "Processed in this browser."],
+    inputFormats: ["Regular expression", "Plain text"],
+    outputFormats: ["Matches"],
+  },
+    id: {
+    shortDescription: "Uji ekspresi reguler JavaScript terhadap teks.",
+    description: "Ketik pola, flag, dan teks uji. Kecocokan diperbarui langsung dengan jumlah, grup tangkapan, dan indeks awal. Pola invalid menampilkan Invalid regular expression.",
+    intro: "Ketik pola, flag, dan teks uji. Kecocokan diperbarui langsung dengan jumlah, grup tangkapan, dan indeks awal. Pola invalid menampilkan Invalid regular expression.",
+    howTo: ["Masukkan ekspresi reguler JavaScript dan flag opsional g i m s u y.", "Tempel teks uji. Kecocokan disorot saat mengetik.", "Salin literal /pola/flag atau muat sampel. Sampel adalah pola generik, bukan jaminan validasi."],
+    benefits: ["Jumlah kecocokan, match penuh, grup, dan indeks langsung.", "Diproses di browser."],
+    inputFormats: ["Ekspresi reguler", "Teks biasa"],
+    outputFormats: ["Kecocokan"],
+  },
+  },
   "unix-timestamp-converter": {
     en: {
     shortDescription: "Convert Unix time to a readable date and back.",
@@ -2389,6 +2552,18 @@ export const toolPageContent: Record<string, Record<Locale, ToolPageCopy>> = {
     outputFormats: ["Date / timestamp"],
   },
   },
+  "standard-calculator": simpleCalcCopy("Basic arithmetic with parentheses, decimals, percent, history, and copyable results.", "Kalkulator aritmetika dasar dengan tanda kurung, desimal, persen, riwayat, dan hasil yang bisa disalin.", "math expressions", "calculated result"),
+  "scientific-calculator": simpleCalcCopy("Scientific expressions with trig functions, logarithms, roots, powers, constants, factorials, and DEG/RAD modes.", "Ekspresi ilmiah dengan trigonometri, logaritma, akar, pangkat, konstanta, faktorial, dan mode DEG/RAD.", "scientific expressions", "scientific result"),
+  "currency-converter": simpleCalcCopy("Currency conversion with exchange rates fetched on demand, cached timestamps, stale labels, and pinned currencies.", "Konversi mata uang dengan kurs yang diambil saat diminta, timestamp cache, label stale, dan mata uang pin.", "amount and currency codes", "currency equivalents"),
+  "finance-calculator": simpleCalcCopy("Finance calculations for loans, compound interest, recurring contributions, margin, markup, and custom tax or VAT.", "Perhitungan finansial untuk pinjaman, bunga majemuk, kontribusi berkala, margin, markup, dan pajak atau PPN kustom.", "finance values", "finance results"),
+  "unit-converter": simpleCalcCopy("Multi-result unit conversion for length, mass, area, volume, temperature, speed, data, pressure, energy, and more.", "Konversi unit multi-hasil untuk panjang, massa, luas, volume, suhu, kecepatan, data, tekanan, energi, dan lainnya.", "numbers and units", "unit equivalents"),
+  "percentage-calculator": simpleCalcCopy("Percentage modes for percent of a number, percent change, add percentage, discounts, and ratios.", "Mode persentase untuk persen dari angka, perubahan persen, tambah persen, diskon, dan rasio.", "numbers and percentages", "percentage results"),
+  "date-time-calculator": simpleCalcCopy("Date and time calculations for date differences, age, adding days, and clock durations.", "Perhitungan tanggal dan waktu untuk selisih tanggal, umur, tambah hari, dan durasi jam.", "dates and times", "date and time results"),
+  "programmer-calculator": simpleCalcCopy("Programmer calculations for binary, octal, decimal, hexadecimal, and unsigned bitwise operations.", "Perhitungan programmer untuk biner, oktal, desimal, heksadesimal, dan operasi bitwise unsigned.", "integers", "number bases and bitwise results"),
+  "statistics-calculator": simpleCalcCopy("Descriptive statistics from pasted numbers: count, sum, min, max, range, mean, median, mode, variance, and standard deviation.", "Statistik deskriptif dari daftar angka: count, sum, min, max, range, mean, median, modus, variance, dan standard deviation.", "number lists", "statistics"),
+  "fractions-calculator": simpleCalcCopy("Fraction arithmetic for add, subtract, multiply, divide, simplify, mixed number, and decimal output.", "Aritmetika pecahan untuk tambah, kurang, kali, bagi, sederhanakan, bentuk campuran, dan desimal.", "fractions", "simplified fractions"),
+  "screen-calculator": simpleCalcCopy("Screen calculations for aspect ratio, pixel count, megapixels, and PPI or DPI from width, height, and diagonal.", "Perhitungan layar untuk rasio aspek, jumlah piksel, megapiksel, dan PPI atau DPI dari lebar, tinggi, dan diagonal.", "screen dimensions", "screen metrics"),
+  "color-calculator": simpleCalcCopy("Color value conversion from HEX to RGB, HSL, and HSV with copyable rows.", "Konversi nilai warna dari HEX ke RGB, HSL, dan HSV dengan baris yang bisa disalin.", "HEX colors", "color values"),
   "password-generator": {
     en: {
     shortDescription: "Generate a random password from a cryptographically strong RNG.",
@@ -2568,7 +2743,27 @@ export const toolPageContent: Record<string, Record<Locale, ToolPageCopy>> = {
     inputFormats: ["HEX"],
     outputFormats: ["HEX", "RGB", "HSL"],
   },
-  }
+  },
+  "color-contrast-checker": {
+    en: {
+    shortDescription: "Measure WCAG 2 contrast for one foreground and one background color.",
+    description: "Paste HEX or RGB, or use the pickers. Kits shows the contrast ratio and Pass/Fail for WCAG AA and AAA on normal and large text. A pass here is not a whole-site accessibility audit.",
+    intro: "Paste HEX or RGB, or use the pickers. Kits shows the contrast ratio and Pass/Fail for WCAG AA and AAA on normal and large text. A pass here is not a whole-site accessibility audit.",
+    howTo: ["Set the foreground (text) color.", "Set the background color.", "Read the ratio and AA/AAA results for normal and large text.", "Swap colors if you inverted the pair.", "Use the preview for 16px text, 24px large text, a button, and a link."],
+    benefits: ["Uses the WCAG 2 relative luminance formula.", "Pass and Fail include text and an icon, not color alone.", "Processed in this browser."],
+    inputFormats: ["HEX", "RGB"],
+    outputFormats: ["Contrast ratio", "WCAG AA", "WCAG AAA"],
+  },
+    id: {
+    shortDescription: "Ukur kontras WCAG 2 untuk satu warna teks dan satu latar.",
+    description: "Tempel HEX atau RGB, atau pakai pemilih warna. Kits menampilkan rasio kontras dan Pass/Fail AA serta AAA untuk teks biasa dan besar. Lulus di sini bukan audit aksesibilitas seluruh situs.",
+    intro: "Tempel HEX atau RGB, atau pakai pemilih warna. Kits menampilkan rasio kontras dan Pass/Fail AA serta AAA untuk teks biasa dan besar. Lulus di sini bukan audit aksesibilitas seluruh situs.",
+    howTo: ["Atur warna foreground (teks).", "Atur warna background.", "Baca rasio dan hasil AA/AAA untuk teks biasa dan besar.", "Tukar warna jika pasangan terbalik.", "Pakai pratinjau untuk teks 16px, teks besar 24px, tombol, dan tautan."],
+    benefits: ["Memakai rumus luminansi relatif WCAG 2.", "Pass dan Fail memakai teks dan ikon, bukan hanya warna.", "Diproses di browser."],
+    inputFormats: ["HEX", "RGB"],
+    outputFormats: ["Rasio kontras", "WCAG AA", "WCAG AAA"],
+  },
+  },
 }
 
 export function getToolPageCopy(slug: string, locale: Locale): ToolPageCopy | undefined {

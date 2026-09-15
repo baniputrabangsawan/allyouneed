@@ -163,6 +163,94 @@ const priorityCopy: Record<string, Partial<Record<Locale, Partial<ToolSeoCopy>>>
       ],
     },
   },
+  'csv-json-converter': {
+    en: {
+      title: 'CSV JSON Converter Online Free | Kits',
+      description: 'Convert CSV to JSON and JSON to CSV online with Kits. Handles headers, delimiters, quoted values, escaped quotes, and multiline fields in your browser.',
+      h1: 'CSV JSON Converter Online',
+      intro: 'Convert CSV to JSON or JSON arrays of objects back to CSV without uploading data. The converter handles common delimiters and quoted values safely in your browser.',
+      benefits: ['Convert both directions in one tool.', 'Preserve commas and newlines inside quoted CSV values.', 'Copy or download .json and .csv output.'],
+    },
+    id: {
+      title: 'Konverter CSV JSON Online | Kits',
+      description: 'Ubah CSV ke JSON dan JSON ke CSV online dengan Kits. Mendukung header, delimiter, quote, escaped quote, dan multiline di browser.',
+      h1: 'Konverter CSV JSON Online',
+      intro: 'Ubah CSV ke JSON atau array objek JSON kembali ke CSV tanpa upload data. Konverter menangani delimiter umum dan nilai ber-quote secara aman di browser.',
+      benefits: ['Konversi dua arah dalam satu tool.', 'Pertahankan koma dan baris baru dalam nilai CSV ber-quote.', 'Salin atau unduh output .json dan .csv.'],
+    },
+  },
+  'regex-tester': {
+    en: {
+      title: 'Regex Tester Online Free | Kits',
+      description: 'Test JavaScript regular expressions online with Kits. Live matches, capture groups, and flags in your browser. Sample patterns are generic, not validation guarantees.',
+      h1: 'Regex Tester Online',
+      intro: 'Type a JavaScript regular expression, choose flags, and paste test text. Matches update live with count, groups, and start index. Invalid patterns show Invalid regular expression. Sample patterns are generic examples, not universal validators.',
+      benefits: ['Live highlighted matches in this browser.', 'Copy a /pattern/flags literal.', 'Flags g, i, m, s, u, and y.'],
+    },
+    id: {
+      title: 'Penguji Regex Online | Kits',
+      description: 'Uji ekspresi reguler JavaScript online dengan Kits. Kecocokan langsung, grup tangkapan, dan flag di browser. Pola sampel generik, bukan jaminan validasi.',
+      h1: 'Penguji Regex Online',
+      intro: 'Ketik ekspresi reguler JavaScript, pilih flag, dan tempel teks uji. Kecocokan diperbarui langsung dengan jumlah, grup, dan indeks. Pola invalid menampilkan Invalid regular expression. Pola sampel adalah contoh generik, bukan validator universal.',
+      benefits: ['Kecocokan tersorot langsung di browser.', 'Salin literal /pola/flag.', 'Flag g, i, m, s, u, dan y.'],
+    },
+  },
+  'css-clamp-calculator': {
+    en: {
+      title: 'CSS Clamp Calculator Online Free | Kits',
+      description: 'Generate CSS clamp() online with Kits. Fluid font-size, padding, margin, and gap from viewport bounds. Copy valid CSS from your browser.',
+      h1: 'CSS Clamp Calculator Online',
+      intro: 'Calculate a fluid clamp() between two viewport widths. Kits converts px or rem, uses your root font size, and refuses to emit CSS when the inputs would divide by zero or produce an invalid property.',
+      benefits: ['Copy a ready clamp() declaration.', 'Live preview at a chosen viewport width.', 'px and rem with a custom 1rem size.'],
+      faq: [
+        { question: 'Is CSS Clamp Calculator free?', answer: 'This tool is available without a Pro license.' },
+        { question: 'Where is processing handled?', answer: 'Processing runs in your browser. Nothing is uploaded.' },
+        { question: 'How is the preferred value calculated?', answer: 'slope = (max − min) / (max viewport − min viewport). The preferred value is slope × 100vw plus the intercept at 0 viewport width.' },
+        { question: 'Can I use rem?', answer: 'Yes. Values convert through the root font size (default 16px = 1rem). Viewport widths stay in pixels because vw is relative to the viewport.' },
+      ],
+    },
+    id: {
+      title: 'Kalkulator CSS Clamp Online | Kits',
+      description: 'Hasilkan clamp() CSS online dengan Kits. Font-size, padding, margin, dan gap fluida dari batas viewport. Salin CSS valid dari browser.',
+      h1: 'Kalkulator CSS Clamp Online',
+      intro: 'Hitung clamp() fluida antara dua lebar viewport. Kits mengonversi px atau rem, memakai ukuran font root, dan menolak mengeluarkan CSS jika input membagi nol atau properti invalid.',
+      benefits: ['Salin deklarasi clamp() siap pakai.', 'Pratinjau langsung pada lebar viewport pilihan.', 'px dan rem dengan ukuran 1rem kustom.'],
+      faq: [
+        { question: 'Apakah Kalkulator CSS Clamp gratis?', answer: 'Tool ini dapat digunakan tanpa lisensi Pro.' },
+        { question: 'Di mana pemrosesan berjalan?', answer: 'Pemrosesan berjalan di browser Anda. Tidak ada yang diunggah.' },
+        { question: 'Bagaimana nilai preferred dihitung?', answer: 'slope = (max − min) / (viewport max − viewport min). Nilai preferred adalah slope × 100vw plus intercept pada lebar viewport 0.' },
+        { question: 'Bisakah memakai rem?', answer: 'Ya. Nilai dikonversi lewat ukuran font root (default 16px = 1rem). Lebar viewport tetap piksel karena vw relatif terhadap viewport.' },
+      ],
+    },
+  },
+  'sitemap-generator': {
+    en: {
+      title: 'Sitemap.xml Generator Online Free | Kits',
+      description: 'Generate a sitemap.xml online with Kits. Paste http(s) URLs, drop duplicates, and download valid XML in your browser. Submitting a sitemap does not guarantee indexing.',
+      h1: 'Sitemap.xml Generator Online',
+      intro: 'Build a protocol-0.9 sitemap from a list of URLs without leaving the browser. Invalid URLs are flagged and omitted so the XML stays well-formed. A sitemap helps crawlers discover pages; it does not guarantee indexing.',
+      benefits: ['Copy or download sitemap.xml.', 'Skip exact duplicates automatically.', 'Invalid URLs never enter the XML.'],
+      faq: [
+        { question: 'Is Sitemap Generator free?', answer: 'This tool is available without a Pro license.' },
+        { question: 'Where is processing handled?', answer: 'Processing runs in your browser. Nothing is uploaded.' },
+        { question: 'Does submitting a sitemap guarantee indexing?', answer: 'No. A sitemap helps search engines discover URLs. Indexing still depends on crawlability, content, and search-engine policies.' },
+        { question: 'Which URLs are accepted?', answer: 'Only http and https URLs. Relative paths, javascript:, data:, and credentialed URLs are rejected.' },
+      ],
+    },
+    id: {
+      title: 'Generator Sitemap.xml Online | Kits',
+      description: 'Buat sitemap.xml online dengan Kits. Tempel URL http(s), buang duplikat, dan unduh XML valid di browser. Mengirim sitemap tidak menjamin pengindeksan.',
+      h1: 'Generator Sitemap.xml Online',
+      intro: 'Buat sitemap protokol 0.9 dari daftar URL tanpa keluar dari browser. URL invalid ditandai dan dihilangkan agar XML tetap valid. Sitemap membantu crawler menemukan halaman; itu tidak menjamin pengindeksan.',
+      benefits: ['Salin atau unduh sitemap.xml.', 'Lewati duplikat persis secara otomatis.', 'URL invalid tidak masuk XML.'],
+      faq: [
+        { question: 'Apakah Generator Sitemap gratis?', answer: 'Tool ini dapat digunakan tanpa lisensi Pro.' },
+        { question: 'Di mana file diproses?', answer: 'Pemrosesan berjalan di browser Anda. Tidak ada yang diunggah.' },
+        { question: 'Apakah mengirim sitemap menjamin pengindeksan?', answer: 'Tidak. Sitemap membantu mesin telusur menemukan URL. Pengindeksan tetap bergantung pada crawlability, konten, dan kebijakan mesin telusur.' },
+        { question: 'URL mana yang diterima?', answer: 'Hanya URL http dan https. Path relatif, javascript:, data:, dan URL ber-kredensial ditolak.' },
+      ],
+    },
+  },
   'robots-txt-generator': {
     en: {
       title: 'Robots.txt Generator Online Free | Kits',
@@ -297,6 +385,7 @@ export function categoryLabel(category: string, locale: Locale) {
     generator: { en: 'Generator Tools', id: 'Tool Generator' },
     qr: { en: 'QR Tools', id: 'Tool QR' },
     converter: { en: 'Converter Tools', id: 'Tool Konverter' },
+    calculator: { en: 'Calculator Tools', id: 'Tool Kalkulator' },
   }
   return labels[category]?.[locale] ?? category
 }

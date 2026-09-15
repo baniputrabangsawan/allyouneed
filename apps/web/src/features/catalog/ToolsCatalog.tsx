@@ -6,7 +6,7 @@ import { LocaleLink as Link } from '@/i18n/link'
 import { useLocale, useT } from '@/i18n'
 import { localizedPath } from '@/i18n/path'
 
-const categories = ['image', 'qr', 'developer', 'generator', 'text', 'pdf', 'audio', 'video', 'converter'] as const
+const categories = ['image', 'qr', 'developer', 'calculator', 'generator', 'text', 'pdf', 'audio', 'video', 'converter'] as const
 
 export function ToolsCatalog() {
   const copy = useT()

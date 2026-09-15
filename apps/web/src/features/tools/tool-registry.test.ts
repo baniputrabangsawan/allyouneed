@@ -40,7 +40,7 @@ describe('tool registry', () => {
   })
 
   it('includes every documented section and conversion grouping', () => {
-    expect(tools.length).toBe(158)
+    expect(tools.length).toBe(174)
     expect(getToolBySlug('social-media-image-resizer')).toBeDefined()
     expect(getToolBySlug('certificate-generator')).toBeDefined()
     expect(getToolBySlug('meta-tag-generator')?.available).toBe(true)
@@ -54,8 +54,17 @@ describe('tool registry', () => {
     expect(getToolBySlug('json-ld-generator')?.processingMode).toBe('client')
     expect(getToolBySlug('json-ld-generator')?.requiresPro).toBe(false)
     expect(getToolBySlug('json-ld-generator')?.category).toBe('developer')
+    expect(getToolBySlug('csv-json-converter')).toMatchObject({ available: true, category: 'developer', processingMode: 'client', requiresPro: false })
+    expect(getToolBySlug('json-diff')).toMatchObject({ available: true, category: 'developer', processingMode: 'client', requiresPro: false, implementation: 'json' })
+    expect(getToolBySlug('color-contrast-checker')).toMatchObject({ available: true, category: 'developer', processingMode: 'client', requiresPro: false, implementation: 'color' })
+    expect(getToolBySlug('css-clamp-calculator')).toMatchObject({ available: true, category: 'developer', processingMode: 'client', requiresPro: false, implementation: 'css' })
     expect(getToolBySlug('robots-txt-generator')).toMatchObject({ available: true, category: 'developer', processingMode: 'client', requiresPro: false })
-    expect(getToolBySlug('sitemap-generator')?.available).toBe(false)
+    expect(getToolBySlug('sitemap-generator')).toMatchObject({ available: true, category: 'developer', processingMode: 'client', requiresPro: false })
+    expect(getToolBySlug('regex-tester')).toMatchObject({ available: true, category: 'developer', processingMode: 'client', requiresPro: false })
+    for (const slug of ['standard-calculator', 'scientific-calculator', 'currency-converter', 'finance-calculator', 'unit-converter', 'percentage-calculator', 'date-time-calculator', 'programmer-calculator', 'statistics-calculator', 'fractions-calculator', 'screen-calculator', 'color-calculator']) {
+      expect(getToolBySlug(slug), slug).toMatchObject({ available: true, category: 'calculator', processingMode: 'client', requiresPro: false })
+    }
+    expect(getToolBySlug('calculator')).toBeUndefined()
     expect(getToolsByGroup('convert').length).toBeGreaterThan(0)
   })
 

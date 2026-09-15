@@ -69,6 +69,8 @@ describe('legacy tool redirects', () => {
     expect(getToolBySlug('meta-tag-generator')?.aliases.join(' ')).toMatch(/seo meta generator/)
     expect(getToolBySlug('json-ld-generator')?.aliases.join(' ')).toMatch(/structured data/)
     expect(getToolBySlug('open-graph-generator')?.aliases.join(' ')).toMatch(/twitter card/)
+    expect(getToolBySlug('sitemap-generator')?.aliases.join(' ')).toMatch(/sitemap.xml/)
+    expect(getToolBySlug('css-clamp-calculator')?.aliases.join(' ')).toMatch(/clamp\(\)/)
   })
 })
 

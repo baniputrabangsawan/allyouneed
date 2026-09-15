@@ -9,6 +9,11 @@ export const LEGACY_TOOL_REDIRECTS = {
   'extract-audio': 'extract-audio-from-video',
   'markdown-preview': 'markdown-to-html',
   'hex-rgb-hsl-converter': 'color-picker',
+  calculator: 'standard-calculator',
+  'universal-calculator': 'standard-calculator',
+  'loan-calculator': 'finance-calculator',
+  'aspect-ratio-calculator': 'screen-calculator',
+  'px-to-rem': 'unit-converter',
 } as const
 
 export type LegacyToolSlug = keyof typeof LEGACY_TOOL_REDIRECTS
@@ -28,7 +33,8 @@ export function migrateToolIds(ids: readonly string[]): string[] {
 export function legacyToolHref(slug: string, path: 'bare' | 'tools' | 'docs', locale: 'en' | 'id' = 'en'): string | undefined {
   if (!isLegacyToolSlug(slug)) return undefined
   const canonical = LEGACY_TOOL_REDIRECTS[slug]
-  const english = path === 'bare' ? `/${canonical}` : path === 'tools' ? `/tools/${canonical}` : `/docs/tools/${canonical}`
+  const targetPath = path === 'bare' ? `/${canonical}` : path === 'tools' ? `/tools/${canonical}` : `/docs/tools/${canonical}`
+  const english = targetPath
   return locale === 'id' ? `/id${english}` : english
 }
 
